@@ -9,7 +9,7 @@
 | **Frontend pattern** | Vite · feature-based · shadcn/Tailwind · TanStack Router + Query · Axios · Zod |
 | **Status** | Architecture proposal for engineering sign-off |
 
-> **Auth decision flagged.** You requested **JWT role-based** auth. The PRD's *recommended default* (§8, Q6) is **same-site HttpOnly cookies**, with JWT named as the alternative "if a non-browser client later appears." This document designs the **JWT approach you asked for** and resolves the PRD's stated concern (token theft via XSS) with a **hybrid token-storage model** — short-lived access token held in memory, long-lived refresh token in an HttpOnly cookie. See §7. If you have no non-browser/native client on the roadmap, plain cookie auth is genuinely simpler and the PRD's preference is defensible; the JWT design below is built so that switching is a presentation-layer change, not a domain change.
+> **Auth decision (resolved).** The SPA uses **same-site HttpOnly cookie auth** via ASP.NET Core Identity — the PRD's recommended default (§8, Q6) — since it's the only client and this avoids token-theft/XSS exposure entirely. The gate/LPR integration and any future non-browser clients authenticate with a separate **API key** scheme (`X-Api-Key`), not JWT. See §7.
 
 ---
 
@@ -23,7 +23,7 @@ These pull directly from the PRD and dictate the structure of the system:
 4. **Server-side authorization is mandatory** (A2). Every endpoint authorizes by role; the SPA only *hides* what a role can't do — it never *enforces*.
 5. **Everything material is audited and append-only** (G1, rule 11). Audit is a cross-cutting concern wired via an EF Core interceptor + explicit decision logging, not scattered `_audit.Log(...)` calls.
 6. **GDPR is in scope** (Q1, G2, rule 12). Retention windows, export, and erasure/anonymization are designed in from day one — anonymization must preserve aggregate counts.
-7. **Modest per-tenant load, strict statelessness** (§7 Scalability). The .NET API must be stateless so a tenant can run 2+ replicas behind a load balancer. No in-process session state, no sticky sessions → reinforces the JWT-friendly design.
+7. **Modest per-tenant load, strict statelessness** (§7 Scalability). The .NET API must be stateless so a tenant can run 2+ replicas behind a load balancer. No in-process session state — Identity's cookie auth ticket is self-contained (encrypted/signed) and a distributed `DataProtection` key ring (shared across replicas, e.g. backed by the DB or a key-vault) keeps cookie validation/decryption replica-agnostic. No sticky sessions required.
 
 ---
 
@@ -46,9 +46,9 @@ ASCII as requested. The dashed boundary is the single deployed tenant instance; 
 ║   ┌────────────────────────┐                                                             ║
 ║   │  React + TS SPA         │  HTTPS / JSON                                              ║
 ║   │  (Vite, shadcn, TanStack)│────────────┐                                              ║
-║   │  Admin · Operator · Gate │  Bearer JWT │                                             ║
-║   └────────────────────────┘  (+refresh   │                                             ║
-║                                 cookie)    │                                             ║
+║   │  Admin · Operator · Gate │  HttpOnly   │                                             ║
+║   └────────────────────────┘  session     │                                             ║
+║                                 cookie     │                                             ║
 ║                                            ▼                                             ║
 ║                            ┌───────────────────────────────────┐                        ║
 ║                            │   Reverse proxy / Ingress (TLS)    │  rate-limit, HSTS      ║
@@ -58,7 +58,7 @@ ASCII as requested. The dashed boundary is the single deployed tenant instance; 
 ║   │                .NET 10 API   (stateless · 1..N replicas for HA)                     │ ║
 ║   │  ┌────────────────────────────────────────────────────────────────────────────┐  │ ║
 ║   │  │ Web (FastEndpoints / REPR)                                                   │  │ ║
-║   │  │   • JWT bearer auth scheme  • API-key auth scheme  • RBAC policies           │  │ ║
+║   │  │   • Cookie auth scheme  • API-key auth scheme  • RBAC policies               │  │ ║
 ║   │  │   • FluentValidation  • ProblemDetails errors  • Swagger/OpenAPI             │  │ ║
 ║   │  └───────────────┬──────────────────────────────┬─────────────────────────────┘  │ ║
 ║   │                  │ Mediator commands/queries      │                                  │ ║
@@ -77,7 +77,7 @@ ASCII as requested. The dashed boundary is the single deployed tenant instance; 
 ║   │  ┌───────────────────────────────────────────────────────────────────────────────┐ │ ║
 ║   │  │ Infrastructure  (implements Core interfaces)                                    │ │ ║
 ║   │  │   EF Core (Npgsql) · repositories (Ardalis.Specification) · ASP.NET Identity    │ │ ║
-║   │  │   JWT token service · API-key hashing · email sender · audit interceptor        │ │ ║
+║   │  │   cookie auth (Identity) · API-key hashing · email sender · audit interceptor   │ │ ║
 ║   │  │   background jobs (session auto-expiry, retention purge)                         │ │ ║
 ║   │  └───────────────┬─────────────────────────────────────┬─────────────────────────┘ │ ║
 ║   └──────────────────┼─────────────────────────────────────┼───────────────────────────┘ ║
@@ -103,7 +103,7 @@ ASCII as requested. The dashed boundary is the single deployed tenant instance; 
 | Web (FastEndpoints) | HTTP surface, two auth schemes, RBAC, request validation, error shaping | A1–A5, E1–E3 |
 | UseCases | Application orchestration via Mediator; transaction boundaries; DTO mapping | all CRUD epics |
 | Core (Domain) | Entities/aggregates, invariants, **EntryDecisionService**, occupancy math | E3, rules 1–12 |
-| Infrastructure | Persistence, Identity, JWT, API keys, email, background jobs | §6, §7 |
+| Infrastructure | Persistence, Identity (cookie auth), API keys, email, background jobs | §6, §7 |
 | PostgreSQL | Single source of truth; constraints enforce invariants the app also checks | §6 |
 | Background jobs | Auto-expiry of stale sessions (P1), retention purge/anonymization (GDPR) | E8, G2 |
 
@@ -179,8 +179,6 @@ ParkingManagement.sln
 │   │   ├── Identity/
 │   │   │   ├── ApplicationUser.cs               (: IdentityUser<Guid>, adds DisplayName, Status)
 │   │   │   ├── AppIdentityDbContext.cs          (ASP.NET Core Identity store — see note on one-vs-two DbContexts)
-│   │   │   ├── JwtTokenService.cs               (issues access + refresh, signs, embeds role claims)
-│   │   │   ├── RefreshTokenStore.cs             (hashed, rotating, revocable)
 │   │   │   └── IdentitySeeder.cs                (seeds roles + first SystemAdmin)
 │   │   ├── ApiKeys/ApiKeyService.cs             (generate→show once, store SHA-256 hash, validate, revoke)
 │   │   ├── Email/SmtpEmailSender.cs             (password-reset transactional email only in v1)
@@ -204,13 +202,13 @@ ParkingManagement.sln
 │       │   ├── Sessions/    ListActive, CloseStale, ResetLotCount
 │       │   └── Audit/       Query
 │       ├── Configuration/
-│       │   ├── AuthSetup.cs        (JWT bearer + ApiKey scheme + authorization policies)
+│       │   ├── AuthSetup.cs        (Identity cookie scheme + ApiKey scheme + authorization policies)
 │       │   ├── FastEndpointsSetup.cs, SwaggerSetup.cs, MediatorSetup.cs
 │       │   ├── RateLimitingSetup.cs, CorsSetup.cs, SerilogSetup.cs
 │       │   └── HealthChecksSetup.cs
 │       ├── Middleware/
 │       │   ├── ExceptionHandlingMiddleware.cs   (→ RFC 7807 ProblemDetails)
-│       │   └── ActorContextMiddleware.cs        (populates ICurrentActor from JWT or API key for audit)
+│       │   └── ActorContextMiddleware.cs        (populates ICurrentActor from the Identity cookie principal or API key for audit)
 │       ├── Program.cs
 │       ├── appsettings.json / appsettings.Production.json
 │       └── Dockerfile
@@ -224,14 +222,16 @@ ParkingManagement.sln
     │   ├── Repositories + Specifications        (verify partial unique indexes actually reject conflicts)
     │   └── IdempotencyTests.cs                  (replayed idempotency key returns original, no double count)
     └── ParkingManagement.FunctionalTests/       (WebApplicationFactory — full HTTP)
-        ├── AuthFlowTests.cs                      (login → refresh → 401 after logout/disable)
+        ├── AuthFlowTests.cs                      (login → authenticated request via cookie → 401 after logout/disable)
         ├── RbacTests.cs                          (A2 — every endpoint returns 403 for wrong role)
         └── AccessEventEndToEndTests.cs           (ENTER allow → session opened → EXIT closes; concurrency)
 ```
 
 **Key NuGet packages**
 
-`FastEndpoints`, `FastEndpoints.Swagger`, `Mediator`, `Ardalis.Specification`, `Ardalis.Specification.EntityFrameworkCore`, `Ardalis.Result`, `Ardalis.Result.FluentValidation`, `Ardalis.GuardClauses`, `FluentValidation`, `Microsoft.EntityFrameworkCore`, `Npgsql.EntityFrameworkCore.PostgreSQL`, `Microsoft.AspNetCore.Identity.EntityFrameworkCore`, `Microsoft.AspNetCore.Authentication.JwtBearer`, `Serilog.AspNetCore`, `Microsoft.AspNetCore.RateLimiting` (built-in), `Hangfire` *or* `Quartz` *or* a hosted `BackgroundService` for jobs. Tests: `xunit`, `FluentAssertions`, `NSubstitute`, `Testcontainers.PostgreSql`, `Microsoft.AspNetCore.Mvc.Testing`.
+`FastEndpoints`, `FastEndpoints.Swagger`, `Mediator`, `Ardalis.Specification`, `Ardalis.Specification.EntityFrameworkCore`, `Ardalis.Result`, `Ardalis.Result.FluentValidation`, `Ardalis.GuardClauses`, `FluentValidation`, `Microsoft.EntityFrameworkCore`, `Npgsql.EntityFrameworkCore.PostgreSQL`, `Microsoft.AspNetCore.Identity.EntityFrameworkCore`, `Serilog.AspNetCore`, `Microsoft.AspNetCore.RateLimiting` (built-in), `Hangfire` *or* `Quartz` *or* a hosted `BackgroundService` for jobs. Tests: `xunit`, `FluentAssertions`, `NSubstitute`, `Testcontainers.PostgreSql`, `Microsoft.AspNetCore.Mvc.Testing`.
+
+The custom API-key scheme needs no extra NuGet package — it's a small `AuthenticationHandler<ApiKeyAuthenticationOptions>` in `Infrastructure/ApiKeys` that reads `X-Api-Key`, hashes it, and looks it up against `api_keys.key_hash`.
 
 **One DbContext or two?** The cleanest option is a **single `AppDbContext` that also derives from `IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>`**, so Identity tables and domain tables share one connection, one migration history, and one transaction scope. Given single-tenant + modest scale, this is recommended. Keep a separate context only if you later want to swap the identity store independently (e.g. for SSO, Q12).
 
@@ -279,9 +279,9 @@ parking-web/
     │
     ├── features/                       ← the heart of the app; one folder per domain capability
     │   ├── auth/
-    │   │   ├── api/        login.ts, refresh.ts, useLogin.ts, useCurrentUser.ts, useLogout.ts
+    │   │   ├── api/        login.ts, logout.ts, useLogin.ts, useCurrentUser.ts, useLogout.ts
     │   │   ├── components/ LoginForm.tsx, RoleGate.tsx  (client-side hide-only; server still enforces)
-    │   │   ├── stores/     auth-store.ts  (Zustand: in-memory access token + user/roles)
+    │   │   ├── stores/     auth-store.ts  (Zustand: current user/roles only — no token; the cookie is invisible to JS)
     │   │   └── schemas.ts  (zod: loginSchema, resetPasswordSchema)
     │   ├── lots/        { api/, components/ (LotForm, LotTable, AccessModeToggle, FullBehaviorSelect), hooks/, schemas.ts }
     │   ├── spaces/      { …, components/ (SpaceForm, SpaceTable, OrdinalInputs) }
@@ -305,7 +305,7 @@ parking-web/
     │                EmptyState.tsx, ErrorState.tsx, Pagination.tsx
     │
     ├── lib/
-    │   ├── api-client.ts                ← Axios instance + interceptors (auth header, 401→refresh, error→ProblemDetails)
+    │   ├── api-client.ts                ← Axios instance (`withCredentials: true` so the session cookie is sent) + interceptors (401→redirect to /login, error→ProblemDetails)
     │   ├── query-keys.ts                (centralized query-key factory)
     │   └── utils.ts                     (cn(), formatters, tz-aware date helpers)
     │
@@ -538,16 +538,16 @@ ALTER TABLE parking_lots ADD CONSTRAINT ux_lot_name UNIQUE (name);
 - **Errors are RFC 7807 `application/problem+json`** with a stable machine-readable `type`/`code`, human `title`, and a `errors` map for field-level validation (FastEndpoints + FluentValidation produce this shape). The SPA's Axios interceptor parses this uniformly.
 - **Lists are paginated, filterable, sortable:** `?page=1&pageSize=50&sort=-createdAt&status=ACTIVE`. Responses wrap items with `{ items, page, pageSize, total }`.
 - **Idempotency** on the gate ingestion endpoint via a required `Idempotency-Key` (also persisted as `access_events.idempotency_key`); replays return the original decision verbatim (rule 7).
-- **Two distinct auth schemes, never mixed:** staff endpoints require **JWT bearer**; the single ingestion endpoint requires **API key** (`X-Api-Key`). They are separate authentication handlers with separate authorization policies.
+- **Two distinct auth schemes, never mixed:** staff/SPA endpoints require an **Identity session cookie**; the gate ingestion endpoint (and any future machine integration) requires an **API key** (`X-Api-Key`). They are separate authentication handlers with separate authorization policies.
 - **OpenAPI is the contract:** FastEndpoints emits Swagger; the SPA generates its types from it.
 
 **Endpoint catalogue (representative, not exhaustive)**
 
 | Area | Method & path | Auth / role | Notes |
 |---|---|---|---|
-| Auth | `POST /api/v1/auth/login` | public | returns access token (body) + sets refresh cookie |
-| Auth | `POST /api/v1/auth/refresh` | refresh cookie | rotates refresh, returns new access token |
-| Auth | `POST /api/v1/auth/logout` | bearer | revokes refresh token |
+| Auth | `POST /api/v1/auth/login` | public | validates credentials, sets HttpOnly session cookie (`SignInAsync`) |
+| Auth | `GET /api/v1/auth/me` | cookie | returns current user + roles (SPA hydration on load) |
+| Auth | `POST /api/v1/auth/logout` | cookie | `SignOutAsync`, clears the cookie |
 | Auth | `POST /api/v1/auth/forgot-password` / `reset-password` | public | neutral response, single-use token (A3) |
 | Users | `POST/GET/PATCH /api/v1/users`, `POST …/{id}/disable` | **SystemAdmin** | disable ends sessions immediately (A4) |
 | API keys | `POST/GET /api/v1/api-keys`, `POST …/{id}/revoke` | **SystemAdmin** | create returns key **once** (A5) |
@@ -582,23 +582,17 @@ The endpoint always returns **200 with a decision body** for a well-formed, auth
 
 ---
 
-## 7. Authentication & Authorization Strategy (JWT, role-based)
+## 7. Authentication & Authorization Strategy (cookie auth for the SPA, API keys for machine clients)
 
 **Identity foundation.** ASP.NET Core Identity manages staff users, salted password hashing (Argon2/PBKDF2 via Identity), password policy, **account lockout on repeated failures** (A1), and password-reset tokens (A3). Three roles: `SystemAdmin`, `Operator`, `GateAttendant` (A2). The first `SystemAdmin` is seeded at provisioning.
 
-**Token model (the JWT design you asked for):**
+**SPA auth — Identity cookie scheme (resolves Q6):**
 
-- **Access token — JWT, short-lived (~15 min).** Signed (HS256 with a per-tenant secret, or RS256 if you want asymmetric verification later for SSO). Claims: `sub` (user id), `role`, `email`, `status`, `jti`, `exp`. The API authorizes purely from these claims — no DB hit on the hot path.
-- **Refresh token — opaque, long-lived (~7 days), rotating, revocable.** Stored **hashed** in a `refresh_tokens` table with `user_id`, `expires_at`, `revoked_at`, `replaced_by`. Each refresh **rotates** (old token invalidated, new issued) so a stolen refresh token is single-use and detectable. Logout, user-disable, and role-change all revoke outstanding refresh tokens — satisfying A4's "disabling a user immediately ends their sessions" (the short access-token lifetime bounds the residual window to ≤15 min; for instant kill, check a `status`/`security-stamp` claim against a fast revocation list).
-
-**Token storage on the client — resolving the PRD's XSS concern (Q6):**
-
-| Token | Where it lives | Why |
-|---|---|---|
-| Access token (JWT) | **In memory** (Zustand store; lost on refresh, re-minted via refresh cookie) | Not readable by injected script after a reload; never in `localStorage` |
-| Refresh token | **HttpOnly + Secure + SameSite=Strict cookie** | JS can't read it → XSS can't exfiltrate it; CSRF mitigated by SameSite + a double-submit token on the refresh call |
-
-This **hybrid is the recommendation**: it gives you the JWT bearer model (stateless API, easy to extend to native/non-browser clients later — the exact reason JWT was named as the fallback in Q6) *without* the `localStorage`-token-theft exposure the PRD was rightly worried about. If you ever conclude there will never be a non-browser client, the PRD's plain same-site-cookie auth is simpler and equally safe — and because auth is isolated in the Web layer + `AuthProvider`, switching is a contained change.
+- `POST /api/v1/auth/login` validates credentials and calls `SignInAsync`, which issues an **HttpOnly, Secure, SameSite=Strict** session cookie containing Identity's encrypted/signed auth ticket (`role`, `sub`, `security-stamp`). The SPA never sees or stores a token — there's nothing for an XSS payload to read out of `localStorage` because nothing is ever put there.
+- The browser attaches the cookie automatically on every request (`axios` with `withCredentials: true`); the SPA only tracks the *current user/roles* in Zustand, fetched once via `GET /api/v1/auth/me` on load — never a credential.
+- **CSRF** is the relevant risk for cookie auth (not XSS token theft). Mitigated by `SameSite=Strict` (same-origin SPA + API) plus FastEndpoints' antiforgery support on state-changing requests if the SPA is ever split across subdomains.
+- **Instant revocation** on logout/disable/role-change: Identity's `security-stamp` is embedded in the ticket and checked via `SecurityStampValidator` on a short interval (e.g. every 30s), so a disabled user's existing cookie stops working almost immediately — no separate refresh-token table or rotation logic needed (simpler than the JWT alternative for A4).
+- **Distributed key ring:** since cookie tickets are encrypted with ASP.NET's Data Protection keys, persist the key ring (DB-backed `PersistKeysToDbContext` or a shared key vault) so any of the 2+ stateless API replicas can decrypt a cookie issued by another — preserving the no-sticky-sessions requirement (§1.7).
 
 **Authorization enforcement (server-side, always — A2):**
 
@@ -606,9 +600,10 @@ This **hybrid is the recommendation**: it gives you the JWT bearer model (statel
 - The SPA's `RoleGate` only hides controls; it is never the gate.
 - RBAC is covered by `FunctionalTests/RbacTests` asserting 403 for every role/endpoint pair (A2's "covered by automated tests").
 
-**Machine auth for the gate (separate scheme — A5):**
+**Machine auth for the gate and other integrations (separate scheme — A5):**
 
-- A second authentication handler validates `X-Api-Key` against `api_keys.key_hash` (SHA-256; only a `prefix` is stored for display). Keys are **shown once** at generation, **rotatable**, and **revoked immediately** on demand; at least one ACTIVE key must exist for the ingestion endpoint to authorize. Create/revoke are audit-logged. The endpoint is independently **rate-limited**.
+- A second authentication handler validates `X-Api-Key` against `api_keys.key_hash` (SHA-256; only a `prefix` is stored for display) — no JWT, no expiry/refresh dance, just a static rotatable secret per device/integration. Keys are **shown once** at generation, **rotatable**, and **revoked immediately** on demand (delete/disable the row); at least one ACTIVE key must exist for the ingestion endpoint to authorize. Create/revoke are audit-logged. The endpoint is independently **rate-limited**.
+- This scheme is intentionally reused for *any* future non-browser/non-staff client (a partner integration, a second gate vendor) — they all get their own named API key rather than a user account, keeping the cookie scheme exclusively for human staff in the SPA.
 
 **Transport & hardening:** HTTPS/TLS 1.2+ everywhere, HSTS at the proxy, rate limiting on `/auth/*` and `/access-events`, generic "invalid email or password" (no user enumeration — A1), neutral password-reset responses (A3), secrets never logged (§7).
 
@@ -680,8 +675,8 @@ flowchart TD
 ## 9. Cross-Cutting Concerns
 
 - **Validation:** FluentValidation on every inbound DTO, executed in a Mediator `ValidationBehavior` (and surfaced by FastEndpoints as `400`/ProblemDetails). Malformed plates/events are rejected before touching the domain (§7).
-- **Audit:** an EF Core `SaveChangesInterceptor` writes `AuditLogEntry` rows for tracked mutations (actor from `ICurrentActor`, populated by middleware from the JWT or API key), and the ingestion handler explicitly logs every access *decision* (rule 11, G1). Append-only enforced at the DB-role level.
-- **Domain events:** raised by aggregates, dispatched post-commit via a second interceptor → Mediator handlers (e.g. "reservation created → set space type RESERVED", "user disabled → revoke refresh tokens").
+- **Audit:** an EF Core `SaveChangesInterceptor` writes `AuditLogEntry` rows for tracked mutations (actor from `ICurrentActor`, populated by middleware from the Identity cookie principal or API key), and the ingestion handler explicitly logs every access *decision* (rule 11, G1). Append-only enforced at the DB-role level.
+- **Domain events:** raised by aggregates, dispatched post-commit via a second interceptor → Mediator handlers (e.g. "reservation created → set space type RESERVED", "user disabled → bump security-stamp to invalidate existing cookie sessions").
 - **Background jobs:** `StaleSessionExpiryJob` (E8, P1 — auto-close sessions past a configurable max, self-healing drift) and `RetentionPurgeJob` (G2 — purge/anonymize events+sessions older than `retentionDays`, default 90 per Q1). A hosted `BackgroundService` or Hangfire/Quartz; idempotent and safe to run on a single replica (leader-elect or DB advisory lock if multiple replicas).
 - **GDPR data lifecycle (Q1, G2, rule 12):** configurable retention; per-driver **export** (all personal data) and **erasure/anonymization** that strips identifying fields while preserving aggregate counts. Lawful basis/retention default baked in; *not legal advice* — confirm with DPO before storing real plate data (Q1).
 - **Observability (for the §7 NFRs):** Serilog structured logs (correlation id per request; secrets redacted); `/health/live` + `/health/ready` (DB probe); request-duration metrics so the **p95 < 300 ms / p99 < 800 ms** decision-latency target is actually measured, not assumed.
@@ -702,13 +697,13 @@ flowchart TD
    │               [ .NET API replica 2 ] ┼─▶ [ PostgreSQL primary ] │
    │               ( stateless, N for HA ) ┘     (+ read replica?)   │
    │                                                                 │
-   │   Secrets: JWT signing key, DB creds, SMTP creds (secret store) │
+   │   Secrets: Data Protection key ring, DB creds, SMTP creds (secret store) │
    │   Backups: PITR / nightly dumps · at-rest volume encryption     │
    └──────────────────────────────────────────────────────────────┘
    Image(s) built in CI → versioned → promoted per tenant via IaC + upgrade runbook
 ```
 
-- **Statelessness (§7)** is what makes 2+ API replicas behind the load balancer possible — and it's exactly why the JWT/in-memory-access-token model fits (no server session affinity).
+- **Statelessness (§7)** is what makes 2+ API replicas behind the load balancer possible: the cookie auth ticket is self-contained and decryptable by any replica sharing the Data Protection key ring, so no server-side session store or sticky sessions are needed.
 - **One DB per tenant, single primary** at this scale; add a read replica only if P1 reporting load justifies it (unlikely v1).
 - **Provisioning repeatability beats horizontal scale** (§7): Docker image(s) + IaC module + an upgrade runbook so "one instance per company" is push-button and consistent (Q8).
 - **HA & fail-safe:** redundant replicas + managed/replicated PostgreSQL for 99.9% on the ingestion API; the **gate fail-safe (Q2)** — barrier defaults open vs closed when the platform is unreachable — is a per-deployment config the gate vendor implements against *transport* failure, documented explicitly per the PRD's lean: closed for RESTRICTED lots, open for OPEN lots, unless the customer dictates otherwise.
@@ -724,20 +719,20 @@ flowchart TD
 | Q3 | 2D view semantics | Aggregate count + static layout only; UI labels it "lot-level, gate-counted." No per-bay status (rule 9). |
 | Q4 | Layout data without builder | `(row, col, zone)` ordinals → CSS-grid/SVG auto-grid; unplaced spaces in a tray (B5). Free-form x/y deferred to P2 builder. |
 | Q5 | Access Events contract | Synchronous `POST /api/v1/access-events`, **API key**, `Idempotency-Key` required, ALLOW/DENY + reason, 200-for-decision semantics. |
-| Q6 | SPA token strategy | **You chose JWT.** Implemented as access-JWT-in-memory + refresh-in-HttpOnly-cookie (neutralizes the XSS concern that motivated the cookie default). Cleanly swappable to plain cookies if no non-browser client emerges. |
+| Q6 | SPA token strategy | **Same-site HttpOnly cookie auth** (ASP.NET Identity), the PRD's recommended default — no token ever touches client-side JS. Gate/integration auth uses a separate **API key** scheme, not JWT; revisit only if a future client truly can't carry cookies (e.g. a mobile app on a different origin). |
 | Q7 | Driver login in v1 | None. Drivers are admin-managed records; no driver auth surface built. |
 | Q8 | Tenant provisioning/upgrade | Docker + IaC, DB-per-tenant, vendor-operated, with an upgrade runbook. |
 | Q9 | Concurrency/throughput | Designed for tens of events/min; per-lot `FOR UPDATE` + idempotency comfortably covers it; latency measured via metrics. |
 | Q10 | Multiplicity rules | Multiple plates/driver: yes. ≤1 active reserved space per driver **per lot**: enforced by partial unique index `(driver_id, lot_id) WHERE status='ACTIVE'`. |
 | Q11 | Lot-full nuance | Reserved holders always bypass (decision step 3); general overflow is per-lot `BLOCK`/`ALLOW_OVERFLOW` (decision steps 4–5). |
-| Q12 | SSO demand | Identity abstraction kept clean; RS256-ready JWT + isolated auth layer make adding OIDC/SAML post-v1 a contained change. |
+| Q12 | SSO demand | Identity abstraction kept clean and isolated to the Web/Infrastructure layers; adding an OIDC/SAML external login provider (Identity's `AddOpenIdConnect`/`AddSaml2`, still issuing the same first-party cookie) post-v1 is a contained change. |
 
 ---
 
 ## 12. Suggested Build Sequence
 
 1. **Foundations:** solution skeleton (4 projects + 3 test projects), `AppDbContext` + Identity, first migration, CI, Dockerfile, health checks, Serilog.
-2. **Auth (Epic A):** login/refresh/logout, JWT + refresh rotation, RBAC policies, user & API-key management, password reset. Lock in `RbacTests` early.
+2. **Auth (Epic A):** login/logout via Identity cookie scheme, RBAC policies, user & API-key management, password reset. Lock in `RbacTests` early.
 3. **Lots & spaces (Epic B):** lot/space CRUD, access mode, full behavior, ordinals.
 4. **Drivers, plates, grants, reservations (Epics C, D):** with the partial-unique-index invariants verified by integration tests.
 5. **★ Access events & occupancy (Epic E):** `EntryDecisionService` (unit-test exhaustively first), ingestion endpoint, sessions, live occupancy, manual entry/override, reconciliation. This is the riskiest, highest-value slice — give it the most test budget.

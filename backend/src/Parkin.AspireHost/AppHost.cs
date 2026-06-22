@@ -2,12 +2,12 @@
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-// Add SQL Server container
-var sqlServer = builder.AddSqlServer("sqlserver")
+// Add PostgreSQL container
+var postgres = builder.AddPostgres("postgres")
   .WithLifetime(ContainerLifetime.Persistent);
 
 // Add the database
-var appDb = sqlServer.AddDatabase("AppDb");
+var appDb = postgres.AddDatabase("AppDb");
 
 // Papercut SMTP container for email testing
 var papercut = builder.AddContainer("papercut", "jijiechen/papercut", "latest")
@@ -26,7 +26,7 @@ var papercut = builder.AddContainer("papercut", "jijiechen/papercut", "latest")
   });
 
 // register the API project and link the DB
-builder.AddProject<Projects.Parkin_Web>("web")
+builder.AddProject<Projects.Parkin_Api>("api")
       .WithEnvironment("ASPNETCORE_ENVIRONMENT", builder.Environment.EnvironmentName)
       .WithReference(appDb)
       .WaitFor(papercut)

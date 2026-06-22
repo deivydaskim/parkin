@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<NsDepCopConfig>
+    <Allowed From="*" To="*" />
+
+    <Disallowed From="Parkin.Api.Domain.*"
+				To="Parkin.Api.Infrastructure.*" />
+    
+    <Disallowed From="Parkin.Api.CartFeatures.*"
+				To="Parkin.Api.Infrastructure.*" />
+    
+    <Disallowed From="Parkin.Api.ProductFeatures.*"
+				To="Parkin.Api.Infrastructure.*" />
+    
+    <Disallowed From="Parkin.Api.Domain.OrderAggregate.*"
+				To="Parkin.Api.Domain.CartAggregate.*" />
+
+    <AnalyzerConfig>
+        <IssueKind Name="IllegalDependency" Severity="Error" />
+    </AnalyzerConfig>
+</NsDepCopConfig>

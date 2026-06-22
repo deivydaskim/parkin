@@ -13,7 +13,7 @@ This is a streamlined, single-project Vertical Slice Architecture (VSA) that fol
 dotnet build
 
 # Run the application
-dotnet run --project src/Parkin.Web
+dotnet run --project src/Parkin.Api
 
 # Or run with Aspire (if using)
 dotnet run --project src/Parkin.AspireHost
@@ -21,7 +21,7 @@ dotnet run --project src/Parkin.AspireHost
 
 ### Database Setup
 
-This template uses **SQL Server in a container** managed by Aspire. When you run the Aspire AppHost, it automatically starts a SQL Server container and creates the database.
+This project uses **PostgreSQL in a container** managed by Aspire. When you run the Aspire AppHost, it automatically starts a PostgreSQL container and creates the database.
 
 #### Option 1: Run with Aspire (Recommended)
 
@@ -29,15 +29,15 @@ This template uses **SQL Server in a container** managed by Aspire. When you run
 dotnet run --project src/Parkin.AspireHost
 ```
 
-The SQL Server container and database are automatically provisioned and migrations are applied on startup.
+The PostgreSQL container and database are automatically provisioned and migrations are applied on startup.
 
-#### Option 2: Run Web project directly (SQL Server LocalDB)
+#### Option 2: Run Web project directly (local PostgreSQL)
 
-If running the Web project without Aspire, update `appsettings.json` to use LocalDB:
+If running the Web project without Aspire, point `ConnectionStrings:AppDb` in `appsettings.json` at a local PostgreSQL instance, then:
 
 ```powershell
-dotnet ef database update -c AppDbContext -p src/Parkin.Web -s src/Parkin.Web
-dotnet run --project src/Parkin.Web
+dotnet ef database update -c AppDbContext -p src/Parkin.Api -s src/Parkin.Api
+dotnet run --project src/Parkin.Api
 ```
 
 ## Project Structure
@@ -45,7 +45,7 @@ dotnet run --project src/Parkin.Web
 This template uses a **single Web project** organized by **vertical slices** (features):
 
 ```text
-src/Parkin.Web/
+src/Parkin.Api/
 ├── Domain/                    # Domain entities and aggregates
 │   ├── CartAggregate/
 │   ├── OrderAggregate/
@@ -73,7 +73,7 @@ Single project vertical slice architecture
 - **Vertical Slices**: Organized by feature (Cart, Order, Product) not layer
 - **Domain-Driven Design**: Entities use proper encapsulation and business logic
 - **FastEndpoints**: REPR pattern for clean, testable API endpoints
-- **Entity Framework Core**: Simple data access with SQLite (easily switched to SQL Server)
+- **Entity Framework Core**: Data access with PostgreSQL (Npgsql provider) and migrations
 - **Mediator Pattern**: Optional - use for cross-cutting concerns or remove for simplicity
 
 ## What's Different from Full Clean Architecture?
@@ -111,7 +111,7 @@ This minimal template simplifies the full Clean Architecture template:
 - **.NET 10**: Latest LTS framework
 - **FastEndpoints**: REPR pattern for API endpoints
 - **Entity Framework Core**: Data access with migrations
-- **SQL Server**: Containerized database via Aspire (easily switched to PostgreSQL, SQLite, etc.)
+- **PostgreSQL**: Containerized database via Aspire (Npgsql EF Core provider)
 - **Aspire**: Cloud-ready orchestration and observability
 - **Serilog**: Structured logging
 - **FluentValidation**: Request validation
@@ -125,14 +125,14 @@ This minimal template simplifies the full Clean Architecture template:
 3. **Create Migration**: `dotnet ef migrations add AddYourFeature`
 4. **Create Endpoints**: Add FastEndpoints in `Endpoints/YourFeature/`
 
-### Switching to SQL Server
+### Database connection
 
-Update `appsettings.json`:
+Set the `AppDb` connection string in `appsettings.json` (Aspire injects this automatically when run via the AppHost):
 
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=YourDb;Trusted_Connection=true;"
+    "AppDb": "Host=localhost;Port=5432;Database=Parkin;Username=postgres;Password=postgres"
   }
 }
 ```

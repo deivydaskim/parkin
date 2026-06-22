@@ -1,0 +1,38 @@
+using Ardalis.GuardClauses;
+using Parkin.Api.Infrastructure.Data;
+using Parkin.Api.Infrastructure.Data.Queries;
+using Parkin.Api.ProductFeatures.List;
+using Microsoft.EntityFrameworkCore;
+
+namespace Parkin.Api.Infrastructure;
+public static class InfrastructureServiceExtensions
+{
+  public static IServiceCollection AddInfrastructureServices(
+    this IServiceCollection services,
+    ConfigurationManager config,
+    ILogger logger)
+  {
+    // Always use PostgreSQL from Aspire
+    string? connectionString = config.GetConnectionString("AppDb");
+    Guard.Against.Null(connectionString, "AppDb connection string is required. Make sure the application is running with Aspire.");
+
+    services.AddScoped<EventDispatchInterceptor>();
+    services.AddScoped<IDomainEventDispatcher, MediatorDomainEventDispatcher>();
+
+    services.AddDbContext<AppDbContext>((provider, options) =>
+    {
+      var eventDispatchInterceptor = provider.GetRequiredService<EventDispatchInterceptor>();
+      
+      options.UseNpgsql(connectionString);
+      options.AddInterceptors(eventDispatchInterceptor);
+    });
+
+    services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>))
+           .AddScoped(typeof(IReadRepository<>), typeof(EfRepository<>))
+           .AddScoped<IListProductsQueryService, ListProductsQueryService>();
+
+    logger.LogInformation("{Project} services registered", "Infrastructure");
+
+    return services;
+  }
+}

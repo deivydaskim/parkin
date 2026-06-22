@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.AppHost" />
-    <PackageReference Include="Aspire.Hosting.SqlServer" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
     <PackageReference Include="Microsoft.Extensions.ServiceDiscovery" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
@@ -27,7 +27,7 @@
         reference as a standard project reference and not attempt to generate
         a metadata file -->
     <ProjectReference Include="..\Parkin.ServiceDefaults\Parkin.ServiceDefaults.csproj" IsAspireProjectResource="false" />
-    <ProjectReference Include="..\Parkin.Web\Parkin.Web.csproj" />
+    <ProjectReference Include="..\Parkin.Api\Parkin.Api.csproj" />
   </ItemGroup>
 
 </Project>

@@ -11,7 +11,7 @@
     <File Path="Directory.Packages.props" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/Parkin.Web/Parkin.Web.csproj" />
+    <Project Path="src/Parkin.Api/Parkin.Api.csproj" />
   </Folder>
   <Folder Name="/src/_aspire/">
     <Project Path="src/Parkin.AspireHost/Parkin.AspireHost.csproj" />
