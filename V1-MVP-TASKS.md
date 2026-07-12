@@ -20,7 +20,7 @@ Ordered, dependency-respecting build tasks for the **P0** V1 MVP. Each task is s
 
 - [x] **T0.1 — Add Identity to the data layer.** Add `Microsoft.AspNetCore.Identity.EntityFrameworkCore`; make `AppDbContext` also derive from `IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>`; add `ApplicationUser : IdentityUser<Guid>` (DisplayName, Status). Seed roles (`SystemAdmin`, `Operator`) + first `SystemAdmin`.
   - **AC:** migration adds AspNet* tables; app starts and seeds one admin; existing build stays green.
-- [ ] **T0.2 — Decide the ID type and record it.** Resolve the doc discrepancy (arch §3 shows `ParkingLotId` as `int`, §5 ER diagram uses `uuid`). **Recommend Guid for all parking IDs.** Document the choice in `CLAUDE.md`. Apply consistently in every later aggregate.
+- [x] **T0.2 — Decide the ID type and record it.** Resolve the doc discrepancy (arch §3 shows `ParkingLotId` as `int`, §5 ER diagram uses `uuid`). **Recommend Guid for all parking IDs.** Document the choice in `CLAUDE.md`. Apply consistently in every later aggregate.
   - **AC:** a one-line decision note exists; no int-sentinel IDs used for parking aggregates.
 - [ ] **T0.3 — Stand up test projects.** Ensure `Parkin.UnitTests` builds; add `Parkin.IntegrationTests` (Testcontainers.PostgreSql) and `Parkin.FunctionalTests` (WebApplicationFactory / Aspire.Hosting.Testing). Packages are already in `Directory.Packages.props`.
   - **AC:** `dotnet test` runs (even with 0 tests) across all three.

@@ -22,6 +22,7 @@ Read these before building parking features — they are the source of truth for
 The backend was generated from the **Ardalis Minimal Clean Architecture** template and still contains the template's **e-commerce demo domain** (`Product`, `Cart`, `Order`, `GuestUser`). None of the parking domain exists in code yet. When building features, follow the established patterns below but model the parking domain from the PRD/architecture docs — treat the Cart/Order/Product slices as worked examples to use, not as domain to preserve.
 
 Confirmed stack decisions:
+- **ID type: Guid for every parking aggregate.** Resolves doc discrepancy (architecture §3 tree showed `ParkingLotId` as Vogen `int`, §5 ER diagram uses `uuid`). Every parking-domain strongly-typed ID is `[ValueObject<Guid>]`, matching the ER diagram — no int-sentinel IDs for parking aggregates. The `int`-sentinel pattern stays only on legacy template aggregates (Product/Cart/Order) until retired per T0.5.
 - **Database: PostgreSQL (Npgsql).** Wired throughout — `UseNpgsql` (`InfrastructureServiceExtensions`, `AppDbContextExtensions`, design-time `AppDbContextFactory`), `builder.AddPostgres("postgres")` in the AppHost, and Npgsql-flavored EF migrations (`uuid`, `timestamp with time zone`, `boolean`). New persistence work targets PostgreSQL.
 - **Mediation: the source-generated `Mediator` library** (martinothamar), not MediatR. Both the docs and the code agree on this — see the Mediator section below.
 
@@ -74,7 +75,7 @@ Uses **martinothamar `Mediator`** (source-generated, registered in `Configuratio
 ### Domain
 
 - Aggregates live in `Domain/<Name>Aggregate/`, derive from `EntityBase<TEntity, TId>` + `IAggregateRoot`, use private EF constructors and `static Create(...)` factories, and expose behavior through methods (no public setters).
-- **Strongly-typed IDs via Vogen** (`[ValueObject<int>]` / `[ValueObject<Guid>]`, `readonly partial struct`). Int-keyed IDs use a `New => From(0)` sentinel meaning "not yet persisted"; EF assigns the real value on save. Every typed ID/value object must be registered in `Infrastructure/Data/Config/VogenEfCoreConverters.cs` (`[EfCoreConverter<...>]`) or EF can't map it.
+- **Strongly-typed IDs via Vogen** (`readonly partial struct`). Parking aggregates use `[ValueObject<Guid>]` (see ID type decision above). Legacy template aggregates still use `[ValueObject<int>]` with a `New => From(0)` sentinel meaning "not yet persisted"; EF assigns the real value on save. Every typed ID/value object must be registered in `Infrastructure/Data/Config/VogenEfCoreConverters.cs` (`[EfCoreConverter<...>]`) or EF can't map it.
 - Domain events are collected on entities and dispatched **after** a successful `SaveChanges` by `EventDispatchInterceptor` → `MediatorDomainEventDispatcher`.
 - Persistence: `Ardalis.Specification` repositories (`IRepository<T>`/`IReadRepository<T>` → `EfRepository<T>`). Query logic goes in `Specifications/` (e.g. `ProductByIdSpec`) or in dedicated query services (`IListProductsQueryService`) for read-optimized projections.
 - EF config: one `IEntityTypeConfiguration` per entity in `Infrastructure/Data/Config/`, auto-applied via `ApplyConfigurationsFromAssembly`.
