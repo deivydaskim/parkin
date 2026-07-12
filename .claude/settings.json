@@ -10,12 +10,6 @@
             "command": "NODE_NO_WARNINGS=1 node .claude/hooks/format-frontend.mjs",
             "timeout": 30,
             "statusMessage": "Formatting frontend with Prettier…"
-          },
-          {
-            "type": "command",
-            "shell": "bash",
-            "command": "node .claude/hooks/openapi-reminder.mjs",
-            "timeout": 10
           }
         ]
       }

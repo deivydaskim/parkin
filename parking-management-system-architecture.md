@@ -325,7 +325,6 @@ parking-web/
 
 - **One Zod schema per resource, reused twice:** as the RHF resolver *and* to `.parse()` the Axios response — so the type the UI trusts is the type that was actually validated at runtime.
 - **Query-key factory** in `lib/query-keys.ts` (e.g. `qk.lots.list(filters)`, `qk.occupancy.lot(lotId)`) to keep invalidation correct and discoverable.
-- **Generate API types from the backend's OpenAPI** (FastEndpoints emits it) via `openapi-typescript`, so frontend DTOs can't drift from the contract.
 - **`RoleGate` hides UI only.** The server is the authority (A2). Treat client role checks purely as UX.
 - **`OccupancyTable` (F2)** is v1's only lot-layout view — a standard data table, WCAG-compliant by construction (no separate accessible-equivalent work needed since there's no map to keep in sync with).
 - **2D map (F1) — post-v1, not built in v1** = CSS-grid/SVG positioned from `(row, col, zone)` ordinals; spaces with no ordinals fall into an `UnplacedTray` (B5, also post-v1). When built, the map is *configuration + an aggregate count*, never live per-bay status (rule 9, Q3) — label it as such in the UI, and it must ship alongside `OccupancyTable` as its accessible equivalent.

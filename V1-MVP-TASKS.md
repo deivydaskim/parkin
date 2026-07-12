@@ -11,7 +11,7 @@ Ordered, dependency-respecting build tasks for the **P0** V1 MVP. Each task is s
 - Every Vogen ID/VO → register in `Infrastructure/Data/Config/VogenEfCoreConverters.cs`, add `<X>Configuration.cs`, add `DbSet` to `AppDbContext`, then `dotnet ef migrations add <Name>`.
 - Every new feature namespace → add `Disallowed <X>Features.* → Infrastructure.*` to `config.nsdepcop`.
 - Reuse `PagedResult<T>` + `Constants.*_PAGE_SIZE` for lists; `Extensions/ResultExtensions.cs` for Result→HTTP.
-- Frontend = one folder under `src/features/`, one route under `src/routes/_authenticated/`, one Zod schema reused as RHF resolver **and** response parser. Regenerate `src/types/api.ts` via `openapi-typescript` after backend changes.
+- Frontend = one folder under `src/features/`, one route under `src/routes/_authenticated/`, one Zod schema reused as RHF resolver **and** response parser.
 - `dotnet build` must stay clean (`TreatWarningsAsErrors=true`, NsDepCop `NSDEPCOP01` = error). Run from `backend/`.
 
 ---
@@ -24,8 +24,6 @@ Ordered, dependency-respecting build tasks for the **P0** V1 MVP. Each task is s
   - **AC:** a one-line decision note exists; no int-sentinel IDs used for parking aggregates.
 - [x] **T0.3 — Stand up test projects.** Ensure `Parkin.UnitTests` builds; add `Parkin.IntegrationTests` (Testcontainers.PostgreSql) and `Parkin.FunctionalTests` (WebApplicationFactory / Aspire.Hosting.Testing). Packages are already in `Directory.Packages.props`.
   - **AC:** `dotnet test` runs (even with 0 tests) across all three.
-- [ ] **T0.4 — Frontend type-gen loop.** Wire `openapi-typescript` from the FastEndpoints OpenAPI doc → `frontend/src/types/api.ts`; add an npm script.
-  - **AC:** `pnpm run <gen>` produces `api.ts`; `pnpm dev` runs the shell.
 - [ ] **T0.5 — Retire template cruft (rolling).** Delete Product/Cart/Order/GuestUser slices + their NsDepCop rules **as each parking analogue replaces them** (not all at once — keep one as a live reference). Also remove the leftover `TestId` in `CartId.cs` and the `Order.cs → Infrastructure.Data` using.
 
 ---

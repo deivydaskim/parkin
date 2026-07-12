@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Repository layout
 
 - `backend/` — .NET 10 solution (`Parkin.slnx`). All current backend code lives here. Run backend commands from this directory.
-- `frontend/` — **scaffolded shell** (Vite + React 19 + TypeScript, TanStack Router/Query, Tailwind v4 + shadcn/ui, axios, Zod, `openapi-typescript`). It has the app skeleton (login route, `_authenticated` layout, api client, UI kit) but **no parking-domain screens yet**. Run frontend commands (`pnpm dev`, etc.) from this directory.
+- `frontend/` — **scaffolded shell** (Vite + React 19 + TypeScript, TanStack Router/Query, Tailwind v4 + shadcn/ui, axios, Zod). It has the app skeleton (login route, `_authenticated` layout, api client, UI kit) but **no parking-domain screens yet**. Run frontend commands (`pnpm dev`, etc.) from this directory.
 
 ### Project docs & specs
 
