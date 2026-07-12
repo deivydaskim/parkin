@@ -29,23 +29,17 @@ public class ParkingLotConfiguration : IEntityTypeConfiguration<ParkingLot>
       .IsRequired();
 
     builder.Property(entity => entity.AccessMode)
-      .HasConversion(
-        mode => mode == AccessMode.Restricted ? "RESTRICTED" : "OPEN",
-        value => value == "RESTRICTED" ? AccessMode.Restricted : AccessMode.Open)
+      .HasConversion<string>()
       .HasMaxLength(20)
       .IsRequired();
 
     builder.Property(entity => entity.FullBehavior)
-      .HasConversion(
-        behavior => behavior == FullBehavior.AllowOverflow ? "ALLOW_OVERFLOW" : "BLOCK",
-        value => value == "ALLOW_OVERFLOW" ? FullBehavior.AllowOverflow : FullBehavior.Block)
+      .HasConversion<string>()
       .HasMaxLength(20)
       .IsRequired();
 
     builder.Property(entity => entity.Status)
-      .HasConversion(
-        status => status == LotStatus.Archived ? "ARCHIVED" : "ACTIVE",
-        value => value == "ARCHIVED" ? LotStatus.Archived : LotStatus.Active)
+      .HasConversion<string>()
       .HasMaxLength(20)
       .IsRequired();
   }
