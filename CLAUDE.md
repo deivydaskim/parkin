@@ -4,9 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository layout
 
-- `backend/` — .NET 10 solution (`Parkin.slnx`). All current code lives here. Run commands from this directory.
-- `frontend/` — **empty**. The intended stack (React + TypeScript + Vite, per the architecture doc) is not scaffolded yet.
-- `parking-management-system-prd.md`, `parking-management-system-architecture.md` — the product/architecture spec for the system being built. **The target domain is a single-tenant Parking Management System** (parking lots/spaces, drivers/plates, access grants, reservations, parking sessions, an inbound Access Events API, and an `EntryDecisionService`).
+- `backend/` — .NET 10 solution (`Parkin.slnx`). All current backend code lives here. Run backend commands from this directory.
+- `frontend/` — **scaffolded shell** (Vite + React 19 + TypeScript, TanStack Router/Query, Tailwind v4 + shadcn/ui, axios, Zod, `openapi-typescript`). It has the app skeleton (login route, `_authenticated` layout, api client, UI kit) but **no parking-domain screens yet**. Run frontend commands (`pnpm dev`, etc.) from this directory.
+
+### Project docs & specs
+
+Read these before building parking features — they are the source of truth for the target domain:
+
+- [`parking-management-system-prd.md`](parking-management-system-prd.md) — product requirements: user stories by epic (A–G), per-story acceptance criteria, and **P0/P1/P2 priorities** (P0 = v1 must-have).
+- [`parking-management-system-architecture.md`](parking-management-system-architecture.md) — system architecture: domain model & aggregates, the two auth schemes (cookie for SPA, `X-Api-Key` for the gate), the critical Access-Events decision path, DB schema/invariants, and a suggested build sequence (§12).
+- [`V1-MVP-TASKS.md`](V1-MVP-TASKS.md) — **the executable V1 MVP build plan**: an ordered, dependency-aware checklist of P0 tasks (T0.1 → T7.1), each with deliverables and acceptance criteria. Work it top-to-bottom; check tasks off as they land.
+
+**The target domain is a single-tenant Parking Management System** (parking lots/spaces, drivers/plates, access grants, reservations, parking sessions, an inbound Access Events API, and an `EntryDecisionService`).
 
 ### Important: template vs. target domain
 
