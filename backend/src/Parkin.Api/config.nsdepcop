@@ -5,20 +5,11 @@
     <Disallowed From="Parkin.Api.Domain.*"
 				To="Parkin.Api.Infrastructure.*" />
     
-    <Disallowed From="Parkin.Api.CartFeatures.*"
-				To="Parkin.Api.Infrastructure.*" />
-    
-    <Disallowed From="Parkin.Api.ProductFeatures.*"
-				To="Parkin.Api.Infrastructure.*" />
-
     <Disallowed From="Parkin.Api.LotFeatures.*"
 				To="Parkin.Api.Infrastructure.*" />
 
     <Disallowed From="Parkin.Api.Domain.AuditAggregate.*"
 				To="Parkin.Api.Infrastructure.*" />
-
-    <Disallowed From="Parkin.Api.Domain.OrderAggregate.*"
-				To="Parkin.Api.Domain.CartAggregate.*" />
 
     <AnalyzerConfig>
         <IssueKind Name="IllegalDependency" Severity="Error" />

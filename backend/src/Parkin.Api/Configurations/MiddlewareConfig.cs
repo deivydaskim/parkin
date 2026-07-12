@@ -76,9 +76,6 @@ public static class MiddlewareConfig
       await context.Database.MigrateAsync();
       logger.LogInformation("Database migrations applied successfully.");
 
-      // Seed data
-      await SeedData.InitializeAsync(context, logger);
-
       var roleManager = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
       var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
       var seedAdmin = services.GetRequiredService<IOptions<SeedAdminOptions>>().Value;

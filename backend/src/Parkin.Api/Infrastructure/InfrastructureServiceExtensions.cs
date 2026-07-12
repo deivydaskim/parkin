@@ -3,7 +3,6 @@ using Parkin.Api.Infrastructure.Data;
 using Parkin.Api.Infrastructure.Data.Queries;
 using Parkin.Api.Infrastructure.Identity;
 using Parkin.Api.LotFeatures.List;
-using Parkin.Api.ProductFeatures.List;
 using Parkin.Api.UserFeatures.List;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -45,7 +44,6 @@ public static class InfrastructureServiceExtensions
 
     services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>))
            .AddScoped(typeof(IReadRepository<>), typeof(EfRepository<>))
-           .AddScoped<IListProductsQueryService, ListProductsQueryService>()
            .AddScoped<IListLotsQueryService, ListLotsQueryService>()
            .AddScoped<IListUsersQueryService, ListUsersQueryService>();
 
