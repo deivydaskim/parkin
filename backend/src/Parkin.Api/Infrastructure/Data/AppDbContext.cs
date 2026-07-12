@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Parkin.Api.Domain.CartAggregate;
 using Parkin.Api.Domain.GuestUserAggregate;
 using Parkin.Api.Domain.OrderAggregate;
+using Parkin.Api.Domain.ParkingLotAggregate;
 using Parkin.Api.Domain.ProductAggregate;
 using Parkin.Api.Infrastructure.Identity;
 
@@ -18,6 +19,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) :
   public DbSet<GuestUser> GuestUsers => Set<GuestUser>();
   public DbSet<Order> Orders => Set<Order>();
   public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+  public DbSet<ParkingLot> ParkingLots => Set<ParkingLot>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
