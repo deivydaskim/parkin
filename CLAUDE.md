@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Important: template vs. target domain
 
-The backend was generated from the **Ardalis Minimal Clean Architecture** template and still contains the template's **e-commerce demo domain** (`Product`, `Cart`, `Order`, `GuestUser`). None of the parking domain exists in code yet. When building features, follow the established patterns below but model the parking domain from the PRD/architecture docs — treat the Cart/Order/Product slices as worked examples to copy, not as domain to preserve.
+The backend was generated from the **Ardalis Minimal Clean Architecture** template and still contains the template's **e-commerce demo domain** (`Product`, `Cart`, `Order`, `GuestUser`). None of the parking domain exists in code yet. When building features, follow the established patterns below but model the parking domain from the PRD/architecture docs — treat the Cart/Order/Product slices as worked examples to use, not as domain to preserve.
 
 Confirmed stack decisions:
 - **Database: PostgreSQL (Npgsql).** Wired throughout — `UseNpgsql` (`InfrastructureServiceExtensions`, `AppDbContextExtensions`, design-time `AppDbContextFactory`), `builder.AddPostgres("postgres")` in the AppHost, and Npgsql-flavored EF migrations (`uuid`, `timestamp with time zone`, `boolean`). New persistence work targets PostgreSQL.
