@@ -1,6 +1,7 @@
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Parkin.Api.Authorization;
 using Parkin.Api.Domain.ProductAggregate;
 using Parkin.Api.ProductFeatures;
 
@@ -21,7 +22,7 @@ public class CreateEndpoint(IRepository<Product> repository) :
   public override void Configure()
   {
     Post("/Products");
-    AllowAnonymous();
+    Roles(AccessPolicies.OperatorOrAbove);
 
     Summary(s =>
     {

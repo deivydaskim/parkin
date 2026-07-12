@@ -1,5 +1,6 @@
 using FastEndpoints;
 using FluentValidation;
+using Parkin.Api.Authorization;
 using Parkin.Api.ProductFeatures;
 
 namespace Parkin.Api.ProductFeatures.List;
@@ -29,7 +30,7 @@ public class ListEndpoint(IMediator mediator) : Endpoint<ListProductsRequest, Pr
   public override void Configure()
   {
     Get("/Products");
-    AllowAnonymous();
+    Roles(AccessPolicies.OperatorOrAbove);
 
     Summary(s =>
     {

@@ -1,6 +1,7 @@
 ﻿using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Parkin.Api.Authorization;
 using Parkin.Api.Domain.ProductAggregate;
 using Parkin.Api.Extensions;
 
@@ -22,7 +23,7 @@ public class GetByIdEndpoint(IMediator mediator)
   public override void Configure()
   {
     Get(GetProductByIdRequest.Route);
-    AllowAnonymous();
+    Roles(AccessPolicies.OperatorOrAbove);
 
     Summary(s =>
     {

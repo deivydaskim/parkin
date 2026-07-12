@@ -82,7 +82,8 @@ public static class MiddlewareConfig
       var roleManager = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
       var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
       var seedAdmin = services.GetRequiredService<IOptions<SeedAdminOptions>>().Value;
-      await SeedData.SeedIdentityAsync(roleManager, userManager, seedAdmin, logger);
+      var seedOperator = services.GetService<IOptions<SeedOperatorOptions>>()?.Value;
+      await SeedData.SeedIdentityAsync(roleManager, userManager, seedAdmin, seedOperator, logger);
     }
     catch (Exception ex)
     {

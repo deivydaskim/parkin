@@ -1,5 +1,6 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Parkin.Api.Authorization;
 using Parkin.Api.Domain.CartAggregate;
 
 namespace Parkin.Api.CartFeatures.AddToCart;
@@ -25,7 +26,7 @@ public class AddToCartEndpoint(IMediator mediator)
   public override void Configure()
   {
     Post(AddToCartRequest.Route);
-    AllowAnonymous();
+    Roles(AccessPolicies.OperatorOrAbove);
 
     Summary(s =>
     {

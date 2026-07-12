@@ -57,7 +57,7 @@ public static class AuthConfig
     {
       options.AddPolicy(CorsPolicy, policy =>
         policy.WithOrigins(allowedOrigins)
-              .AllowCredentials() // required so the SPA can send the auth cookie
+              .AllowCredentials()
               .AllowAnyHeader()
               .AllowAnyMethod());
     });

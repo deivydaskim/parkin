@@ -1,6 +1,7 @@
 ﻿using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Parkin.Api.Authorization;
 using Parkin.Api.Domain.CartAggregate;
 
 namespace Parkin.Api.CartFeatures.Checkout;
@@ -26,7 +27,7 @@ public class CheckoutEndpoint(IMediator mediator)
   public override void Configure()
   {
     Post(CheckoutRequest.Route);
-    AllowAnonymous();
+    Roles(AccessPolicies.AdminOnly);
 
     Summary(s =>
     {

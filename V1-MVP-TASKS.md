@@ -30,7 +30,7 @@ Ordered, dependency-respecting build tasks for the **P0** V1 MVP. Each task is s
 
 ## Phase 1 — Auth & Access Control (Epic A) — *lock RBAC early*
 
-- [ ] **T1.1 — A1 Staff login/logout.** *Deps: T0.1.* Identity cookie scheme (HttpOnly, Secure, SameSite=Strict). Endpoints `POST /auth/login`, `GET /auth/me`, `POST /auth/logout`. Account lockout after N failures; generic "invalid email or password" (no enumeration); salted hashes; HTTPS. FE: wire existing `routes/login.tsx` + auth Zustand store + `useCurrentUser`.
+- [x] **T1.1 — A1 Staff login/logout.** *Deps: T0.1.* Identity cookie scheme (HttpOnly, Secure, SameSite=Strict). Endpoints `POST /auth/login`, `GET /auth/me`, `POST /auth/logout`. Account lockout after N failures; generic "invalid email or password" (no enumeration); salted hashes; HTTPS. FE: wire existing `routes/login.tsx` + auth Zustand store + `useCurrentUser`.
   - **AC:** valid creds set cookie + authenticated session; invalid → generic message; lockout triggers; logout clears cookie; `/auth/me` hydrates the SPA.
 - [ ] **T1.2 — A2 RBAC + RbacTests.** *Deps: T1.1.* FastEndpoints role policies (`SystemAdmin`, `Operator`); wrong role → **403** regardless of UI. Add `FunctionalTests/RbacTests` and **extend it every later phase**. FE: `RoleGate` (hide-only). 
   - **AC:** every endpoint authorizes server-side; RbacTests assert 403 for wrong-role/endpoint pairs; UI hides disallowed actions.

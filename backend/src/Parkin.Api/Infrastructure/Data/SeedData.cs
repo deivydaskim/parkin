@@ -36,6 +36,7 @@ public static class SeedData
     RoleManager<IdentityRole<Guid>> roleManager,
     UserManager<ApplicationUser> userManager,
     SeedAdminOptions admin,
+    SeedOperatorOptions? operatorOpts,
     ILogger logger)
   {
     foreach (var roleName in Roles.All)
@@ -88,6 +89,42 @@ public static class SeedData
     }
 
     logger.LogInformation("Seeded admin user {Email} in role {Role}.", admin.Email, Roles.SystemAdmin);
+
+    if (operatorOpts is null || string.IsNullOrWhiteSpace(operatorOpts.Email) || string.IsNullOrWhiteSpace(operatorOpts.Password))
+    {
+      return;
+    }
+
+    if (await userManager.FindByEmailAsync(operatorOpts.Email) is not null)
+    {
+      logger.LogInformation("Operator user {Email} already exists - skipping.", operatorOpts.Email);
+      return;
+    }
+
+    var operatorUser = new ApplicationUser
+    {
+      UserName = operatorOpts.Email,
+      Email = operatorOpts.Email,
+      EmailConfirmed = true,
+      DisplayName = "Parking Operator",
+      Status = UserStatus.Active
+    };
+
+    var operatorCreateResult = await userManager.CreateAsync(operatorUser, operatorOpts.Password);
+    if (!operatorCreateResult.Succeeded)
+    {
+      logger.LogError("Failed to create operator user {Email}: {Errors}", operatorOpts.Email, DescribeErrors(operatorCreateResult));
+      return;
+    }
+
+    var operatorAddToRoleResult = await userManager.AddToRoleAsync(operatorUser, Roles.Operator);
+    if (!operatorAddToRoleResult.Succeeded)
+    {
+      logger.LogError("Failed to add operator {Email} to {Role}: {Errors}", operatorOpts.Email, Roles.Operator, DescribeErrors(operatorAddToRoleResult));
+      return;
+    }
+
+    logger.LogInformation("Seeded operator user {Email} in role {Role}.", operatorOpts.Email, Roles.Operator);
   }
 
   static string DescribeErrors(IdentityResult result) =>

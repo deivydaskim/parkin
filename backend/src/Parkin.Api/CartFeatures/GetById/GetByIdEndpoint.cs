@@ -2,6 +2,7 @@ using Parkin.Api.Domain.CartAggregate;
 using Parkin.Api.Extensions;
 using Microsoft.AspNetCore.Http.HttpResults;
 using FastEndpoints;
+using Parkin.Api.Authorization;
 
 namespace Parkin.Api.CartFeatures.GetById;
 
@@ -22,7 +23,7 @@ public class GetByIdEndpoint(IMediator mediator)
   public override void Configure()
   {
     Get(GetCartRequest.Route);
-    AllowAnonymous();
+    Roles(AccessPolicies.OperatorOrAbove);
 
     Summary(s =>
     {
