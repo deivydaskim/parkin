@@ -1,4 +1,4 @@
-@MinimalClean_HostAddress = https://localhost:57379
+@MinimalClean_HostAddress = https://localhost:5001
 
 @MinimalClean_CartId = 68fe4cfd-84bb-4b8a-bb4e-528c26325c72
 

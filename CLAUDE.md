@@ -94,3 +94,4 @@ When adding parking aggregates/features, extend these rules to keep the dependen
 - **Logging**: Serilog (console) + OpenTelemetry via `Parkin.ServiceDefaults`.
 - **Email**: `IEmailSender` → `MimeKitEmailSender` (points at the Papercut SMTP container in dev); `FakeEmailSender` available.
 - Central package versions in `Directory.Packages.props`; shared MSBuild props (net10.0, nullable, `TreatWarningsAsErrors`) in `Directory.Build.props`.
+- Comment TODO's or important things only, remove comments when they not necessary anymore, or when solved. Don't create summary comments.

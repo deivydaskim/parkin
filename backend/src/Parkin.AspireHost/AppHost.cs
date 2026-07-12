@@ -31,6 +31,6 @@ builder.AddProject<Projects.Parkin_Api>("api")
       .WithReference(appDb)
       .WaitFor(papercut)
       .WaitFor(appDb)
-      .WithUrl("https://localhost:57379"); // Match launchSettings
+      .WithUrl("https://localhost:5001"); // Match launchSettings
 
 builder.Build().Run();

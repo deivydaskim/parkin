@@ -1,5 +1,6 @@
 using Ardalis.ListStartupServices;
 using Parkin.Api.Infrastructure.Email;
+using Parkin.Api.Infrastructure.Identity;
 
 namespace Parkin.Api.Configurations;
 
@@ -12,6 +13,7 @@ public static class OptionConfigs
   {
     services.Configure<MailserverConfiguration>(configuration.GetSection("Mailserver"))
     .Configure<DatabaseOptions>(configuration.GetSection("DatabaseOptions"))
+    .Configure<SeedAdminOptions>(configuration.GetSection(SeedAdminOptions.SectionName))
     // Configure Web Behavior
     .Configure<CookiePolicyOptions>(options =>
     {

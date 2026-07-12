@@ -1,9 +1,11 @@
 using Ardalis.ListStartupServices;
 using FastEndpoints;
 using FastEndpoints.Swagger;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Parkin.Api.Infrastructure.Data;
+using Parkin.Api.Infrastructure.Identity;
 using Scalar.AspNetCore;
 
 namespace Parkin.Api.Configurations;
@@ -67,6 +69,11 @@ public static class MiddlewareConfig
 
       // Seed data
       await SeedData.InitializeAsync(context, logger);
+
+      var roleManager = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+      var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+      var seedAdmin = services.GetRequiredService<IOptions<SeedAdminOptions>>().Value;
+      await SeedData.SeedIdentityAsync(roleManager, userManager, seedAdmin, logger);
     }
     catch (Exception ex)
     {

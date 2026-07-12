@@ -3,7 +3,7 @@
 Ordered, dependency-respecting build tasks for the **P0** V1 MVP. Each task is sized for a single agent run: it names its **dependencies**, **deliverables**, **acceptance criteria (AC)**, and the **patterns/files** to follow. Work top-to-bottom; don't start a task until its dependencies are checked off.
 
 **Scope:** P0 stories only (Epics A–G). P1/P2 are in the backlog at the bottom.
-**Axis:** full-stack vertical slices — each feature task delivers .NET API **and** React screens.
+**Axis:** full-stack vertical slices — each feature task delivers .NET API **and** React screens and logic.
 
 **Global conventions (apply to every task):**
 - Backend slice = `<X>Features/<Op>/<Op>Endpoint.cs` (request + `Endpoint<,>` + `Validator<T>` [+ `Mapper<,,>`]); orchestration adds `<Op>Handler.cs` (`ICommand/IQuery` + handler). Simple CRUD → `IRepository<T>` directly (copy `ProductFeatures/Create`); cross-aggregate → Mediator (copy `CartFeatures/AddToCart`).
@@ -18,7 +18,7 @@ Ordered, dependency-respecting build tasks for the **P0** V1 MVP. Each task is s
 
 ## Phase 0 — Foundations (do first, once)
 
-- [ ] **T0.1 — Add Identity to the data layer.** Add `Microsoft.AspNetCore.Identity.EntityFrameworkCore`; make `AppDbContext` also derive from `IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>`; add `ApplicationUser : IdentityUser<Guid>` (DisplayName, Status). Seed roles (`SystemAdmin`, `Operator`) + first `SystemAdmin`.
+- [x] **T0.1 — Add Identity to the data layer.** Add `Microsoft.AspNetCore.Identity.EntityFrameworkCore`; make `AppDbContext` also derive from `IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>`; add `ApplicationUser : IdentityUser<Guid>` (DisplayName, Status). Seed roles (`SystemAdmin`, `Operator`) + first `SystemAdmin`.
   - **AC:** migration adds AspNet* tables; app starts and seeds one admin; existing build stays green.
 - [ ] **T0.2 — Decide the ID type and record it.** Resolve the doc discrepancy (arch §3 shows `ParkingLotId` as `int`, §5 ER diagram uses `uuid`). **Recommend Guid for all parking IDs.** Document the choice in `CLAUDE.md`. Apply consistently in every later aggregate.
   - **AC:** a one-line decision note exists; no int-sentinel IDs used for parking aggregates.

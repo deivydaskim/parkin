@@ -1,7 +1,9 @@
 using Ardalis.GuardClauses;
 using Parkin.Api.Infrastructure.Data;
 using Parkin.Api.Infrastructure.Data.Queries;
+using Parkin.Api.Infrastructure.Identity;
 using Parkin.Api.ProductFeatures.List;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Parkin.Api.Infrastructure;
@@ -26,6 +28,13 @@ public static class InfrastructureServiceExtensions
       options.UseNpgsql(connectionString);
       options.AddInterceptors(eventDispatchInterceptor);
     });
+
+    services.AddIdentityCore<ApplicationUser>(options =>
+            {
+              options.User.RequireUniqueEmail = true;
+            })
+            .AddRoles<IdentityRole<Guid>>()
+            .AddEntityFrameworkStores<AppDbContext>();
 
     services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>))
            .AddScoped(typeof(IReadRepository<>), typeof(EfRepository<>))

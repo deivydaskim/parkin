@@ -144,6 +144,11 @@ csharp_style_prefer_primary_constructors = true:suggestion
 csharp_style_expression_bodied_lambdas = true:silent
 csharp_style_expression_bodied_local_functions = false:silent
 ###############################
+# Generated Files             #
+###############################
+[**/Migrations/*.cs]
+csharp_style_namespace_declarations = none:silent
+###############################
 # VB Coding Conventions       #
 ###############################
 [*.vb]
