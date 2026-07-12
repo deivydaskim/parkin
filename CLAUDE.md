@@ -51,7 +51,12 @@ dotnet ef database update    --project src/Parkin.Api
 
 ### Tests
 
-There is **no test project yet** (the README's `dotnet test` instruction is template boilerplate). `.runsettings` (xUnit parallelization) and test packages (`xunit`, `Shouldly`, `NSubstitute`, `Testcontainers.MsSql`, `Aspire.Hosting.Testing`) are pre-wired in `Directory.Packages.props` for when tests are added.
+Three test projects under `tests/`, all runnable via `dotnet test <project>.csproj` from `backend/` (run one project at a time — MSBuild rejects multiple `.csproj` args):
+- `Parkin.UnitTests` — pure unit tests, xUnit + Shouldly + NSubstitute, no I/O.
+- `Parkin.IntegrationTests` — DB-level invariants (partial unique indexes, idempotency), spins up `Testcontainers.PostgreSql` per fixture.
+- `Parkin.FunctionalTests` — full HTTP pipeline via `WebApplicationFactory<Program>` (`Parkin.Api`'s `Program` class is `public partial` for this), backed by its own `Testcontainers.PostgreSql` container (`ParkinApiFactory`). RbacTests (role/endpoint 403 checks, added in T1.2) live here.
+
+`.runsettings` at the repo root configures xUnit parallelization. Testcontainers-based tests require Docker running locally.
 
 ## Architecture & conventions
 

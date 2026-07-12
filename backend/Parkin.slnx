@@ -19,5 +19,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Parkin.UnitTests/Parkin.UnitTests.csproj" />
+    <Project Path="tests/Parkin.IntegrationTests/Parkin.IntegrationTests.csproj" />
+    <Project Path="tests/Parkin.FunctionalTests/Parkin.FunctionalTests.csproj" />
   </Folder>
 </Solution>
