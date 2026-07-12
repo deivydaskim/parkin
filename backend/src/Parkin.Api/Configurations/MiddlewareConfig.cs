@@ -25,6 +25,10 @@ public static class MiddlewareConfig
       app.UseHsts();
     }
 
+    app.UseCors(AuthConfig.CorsPolicy);
+    app.UseAuthentication();
+    app.UseAuthorization();
+
     app.UseFastEndpoints();
 
     if (app.Environment.IsDevelopment())
@@ -36,7 +40,12 @@ public static class MiddlewareConfig
       app.MapScalarApiReference();
     }
 
-    app.UseHttpsRedirection(); // Note this will drop Authorization headers
+    // In dev the SPA talks to the API over http (same scheme as the http page) so the
+    // auth cookie survives; redirecting to https would flip the scheme and drop it.
+    if (!app.Environment.IsDevelopment())
+    {
+      app.UseHttpsRedirection(); // Note this will drop Authorization headers
+    }
 
     await SeedDatabase(app);
 

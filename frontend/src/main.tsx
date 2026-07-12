@@ -3,8 +3,9 @@ import { createRoot } from 'react-dom/client'
 import { createRouter, RouterProvider } from '@tanstack/react-router'
 import '@/styles/globals.css'
 import { routeTree } from './routeTree.gen'
+import { queryClient } from '@/app/query-client'
 
-const router = createRouter({ routeTree })
+const router = createRouter({ routeTree, context: { queryClient } })
 
 declare module '@tanstack/react-router' {
   interface Register {

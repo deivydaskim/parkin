@@ -32,9 +32,14 @@ public static class InfrastructureServiceExtensions
     services.AddIdentityCore<ApplicationUser>(options =>
             {
               options.User.RequireUniqueEmail = true;
+              options.Lockout.MaxFailedAccessAttempts = 5;
+              options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+              options.Lockout.AllowedForNewUsers = true;
             })
             .AddRoles<IdentityRole<Guid>>()
-            .AddEntityFrameworkStores<AppDbContext>();
+            .AddEntityFrameworkStores<AppDbContext>()
+            .AddSignInManager()
+            .AddDefaultTokenProviders();
 
     services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>))
            .AddScoped(typeof(IReadRepository<>), typeof(EfRepository<>))
