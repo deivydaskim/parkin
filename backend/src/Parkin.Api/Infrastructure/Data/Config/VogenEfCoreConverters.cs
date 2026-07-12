@@ -1,3 +1,4 @@
+using Parkin.Api.Domain.AuditAggregate;
 using Parkin.Api.Domain.CartAggregate;
 using Parkin.Api.Domain.GuestUserAggregate;
 using Parkin.Api.Domain.OrderAggregate;
@@ -16,4 +17,5 @@ namespace Parkin.Api.Infrastructure.Data.Config;
 [EfCoreConverter<Quantity>]
 [EfCoreConverter<Price>]
 [EfCoreConverter<ParkingLotId>]
+[EfCoreConverter<AuditLogEntryId>]
 internal partial class VogenEfCoreConverters;

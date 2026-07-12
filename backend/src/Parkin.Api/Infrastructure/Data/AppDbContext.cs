@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Parkin.Api.Domain.AuditAggregate;
 using Parkin.Api.Domain.CartAggregate;
 using Parkin.Api.Domain.GuestUserAggregate;
 using Parkin.Api.Domain.OrderAggregate;
@@ -20,6 +21,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) :
   public DbSet<Order> Orders => Set<Order>();
   public DbSet<OrderItem> OrderItems => Set<OrderItem>();
   public DbSet<ParkingLot> ParkingLots => Set<ParkingLot>();
+  public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {

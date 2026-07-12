@@ -24,7 +24,7 @@ const emptyDefaults: LotFormInput = {
   fullBehavior: 'BLOCK',
 }
 
-interface LotFormProps {
+type Props = {
   defaultValues?: Partial<LotFormInput>
   onSubmit: (values: LotFormInput) => void
   isSubmitting?: boolean
@@ -39,7 +39,7 @@ export function LotForm({
   isSubmitting = false,
   error,
   submitLabel = 'Save',
-}: LotFormProps) {
+}: Props) {
   const form = useForm<LotFormInput>({
     resolver: zodResolver(lotFormSchema),
     defaultValues: { ...emptyDefaults, ...defaultValues },

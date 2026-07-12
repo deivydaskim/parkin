@@ -12,7 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedSettingsRouteRouteImport } from './routes/_authenticated/settings/route'
 import { Route as AuthenticatedLotsIndexRouteImport } from './routes/_authenticated/lots/index'
+import { Route as AuthenticatedSettingsUsersRouteImport } from './routes/_authenticated/settings/users'
 import { Route as AuthenticatedLotsLotIdRouteImport } from './routes/_authenticated/lots/$lotId'
 
 const LoginRoute = LoginRouteImport.update({
@@ -29,11 +31,23 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSettingsRouteRoute =
+  AuthenticatedSettingsRouteRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedLotsIndexRoute = AuthenticatedLotsIndexRouteImport.update({
   id: '/lots/',
   path: '/lots/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSettingsUsersRoute =
+  AuthenticatedSettingsUsersRouteImport.update({
+    id: '/users',
+    path: '/users',
+    getParentRoute: () => AuthenticatedSettingsRouteRoute,
+  } as any)
 const AuthenticatedLotsLotIdRoute = AuthenticatedLotsLotIdRouteImport.update({
   id: '/lots/$lotId',
   path: '/lots/$lotId',
@@ -43,34 +57,44 @@ const AuthenticatedLotsLotIdRoute = AuthenticatedLotsLotIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/login': typeof LoginRoute
+  '/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
   '/lots/$lotId': typeof AuthenticatedLotsLotIdRoute
+  '/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/lots/': typeof AuthenticatedLotsIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
   '/': typeof AuthenticatedIndexRoute
   '/lots/$lotId': typeof AuthenticatedLotsLotIdRoute
+  '/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/lots': typeof AuthenticatedLotsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/login': typeof LoginRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/lots/$lotId': typeof AuthenticatedLotsLotIdRoute
+  '/_authenticated/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/_authenticated/lots/': typeof AuthenticatedLotsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/lots/$lotId' | '/lots/'
+  fullPaths:
+    '/' | '/login' | '/settings' | '/lots/$lotId' | '/settings/users' | '/lots/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/' | '/lots/$lotId' | '/lots'
+  to:
+    '/login' | '/settings' | '/' | '/lots/$lotId' | '/settings/users' | '/lots'
   id:
     | '__root__'
     | '/_authenticated'
     | '/login'
+    | '/_authenticated/settings'
     | '/_authenticated/'
     | '/_authenticated/lots/$lotId'
+    | '/_authenticated/settings/users'
     | '/_authenticated/lots/'
   fileRoutesById: FileRoutesById
 }
@@ -102,12 +126,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/lots/': {
       id: '/_authenticated/lots/'
       path: '/lots'
       fullPath: '/lots/'
       preLoaderRoute: typeof AuthenticatedLotsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/settings/users': {
+      id: '/_authenticated/settings/users'
+      path: '/users'
+      fullPath: '/settings/users'
+      preLoaderRoute: typeof AuthenticatedSettingsUsersRouteImport
+      parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
     '/_authenticated/lots/$lotId': {
       id: '/_authenticated/lots/$lotId'
@@ -119,13 +157,29 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedSettingsRouteRouteChildren {
+  AuthenticatedSettingsUsersRoute: typeof AuthenticatedSettingsUsersRoute
+}
+
+const AuthenticatedSettingsRouteRouteChildren: AuthenticatedSettingsRouteRouteChildren =
+  {
+    AuthenticatedSettingsUsersRoute: AuthenticatedSettingsUsersRoute,
+  }
+
+const AuthenticatedSettingsRouteRouteWithChildren =
+  AuthenticatedSettingsRouteRoute._addFileChildren(
+    AuthenticatedSettingsRouteRouteChildren,
+  )
+
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedSettingsRouteRoute: typeof AuthenticatedSettingsRouteRouteWithChildren
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedLotsLotIdRoute: typeof AuthenticatedLotsLotIdRoute
   AuthenticatedLotsIndexRoute: typeof AuthenticatedLotsIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedSettingsRouteRoute: AuthenticatedSettingsRouteRouteWithChildren,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedLotsLotIdRoute: AuthenticatedLotsLotIdRoute,
   AuthenticatedLotsIndexRoute: AuthenticatedLotsIndexRoute,

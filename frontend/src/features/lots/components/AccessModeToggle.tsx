@@ -2,7 +2,7 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import type { AccessMode } from '../schemas'
 
-interface AccessModeToggleProps {
+type Props = {
   value: AccessMode
   onChange: (value: AccessMode) => void
   disabled?: boolean
@@ -14,7 +14,7 @@ export function AccessModeToggle({
   onChange,
   disabled,
   id = 'access-mode',
-}: AccessModeToggleProps) {
+}: Props) {
   const checked = value === 'RESTRICTED'
 
   return (

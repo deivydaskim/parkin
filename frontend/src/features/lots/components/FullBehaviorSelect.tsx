@@ -7,7 +7,7 @@ import {
 } from '@/components/ui/select'
 import type { FullBehavior } from '../schemas'
 
-interface FullBehaviorSelectProps {
+type Props = {
   value: FullBehavior
   onChange: (value: FullBehavior) => void
   disabled?: boolean
@@ -19,7 +19,7 @@ export function FullBehaviorSelect({
   onChange,
   disabled,
   id = 'full-behavior',
-}: FullBehaviorSelectProps) {
+}: Props) {
   return (
     <Select
       value={value}

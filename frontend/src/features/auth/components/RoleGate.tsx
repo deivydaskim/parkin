@@ -1,12 +1,13 @@
 import { useHasRole } from '../permissions'
+import type { Role } from '../schemas'
 
-interface RoleGateProps {
-  roles: string[]
+type Props = {
+  roles: Role[]
   fallback?: React.ReactNode
   children: React.ReactNode
 }
 
-export function RoleGate({ roles, fallback = null, children }: RoleGateProps) {
+export function RoleGate({ roles, fallback = null, children }: Props) {
   const hasRequiredRole = useHasRole(...roles)
 
   if (!hasRequiredRole) {

@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/table'
 import type { Lot } from '../schemas'
 
-interface LotTableProps {
+type Props = {
   lots: Lot[]
 }
 
@@ -28,7 +28,7 @@ const statusLabel: Record<Lot['status'], string> = {
   ARCHIVED: 'Archived',
 }
 
-export function LotTable({ lots }: LotTableProps) {
+export function LotTable({ lots }: Props) {
   if (lots.length === 0) {
     return <p className="text-sm text-muted-foreground">No lots found.</p>
   }

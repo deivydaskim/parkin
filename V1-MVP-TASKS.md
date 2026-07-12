@@ -34,7 +34,7 @@ Ordered, dependency-respecting build tasks for the **P0** V1 MVP. Each task is s
   - **AC:** valid creds set cookie + authenticated session; invalid → generic message; lockout triggers; logout clears cookie; `/auth/me` hydrates the SPA.
 - [x] **T1.2 — A2 RBAC.** *Deps: T1.1.* FastEndpoints role policies (`SystemAdmin`, `Operator`); wrong role → **403** regardless of UI. FE: `RoleGate` (hide-only). *(RbacTests deferred.)* 
   - **AC:** every endpoint authorizes server-side; RbacTests assert 403 for wrong-role/endpoint pairs; UI hides disallowed actions.
-- [ ] **T1.3 — A4 Staff user management.** *Deps: T1.2.* Create staff w/ role, disable (bump security-stamp → sessions die immediately), change role — `SystemAdmin` only; all changes audit-logged. FE: users screens under `settings/`.
+- [x] **T1.3 — A4 Staff user management.** *Deps: T1.2.* Create staff w/ role, disable (bump security-stamp → sessions die immediately), change role — `SystemAdmin` only; all changes audit-logged. FE: users screens under `settings/`. *(Tests deferred.)*
   - **AC:** disabled user can't authenticate and existing session dies within the stamp-check interval; role change takes effect; actions audit-logged.
 - [ ] **T1.4 — A5 API key management.** *Deps: T1.2.* Generate key (**shown once**, SHA-256 hashed at rest, store prefix for display), list, revoke — `SystemAdmin` only; ≥1 active key required for later ingestion; create/revoke audit-logged. Add `X-Api-Key` `AuthenticationHandler<ApiKeyAuthenticationOptions>` in `Infrastructure/ApiKeys`. FE: view-once generate dialog under `settings/`.
   - **AC:** key returned once then only as hash; revoked key rejected immediately; audit entries written.
