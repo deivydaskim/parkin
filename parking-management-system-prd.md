@@ -2,9 +2,8 @@
 
 | | |
 |---|---|
-| **Status** | Draft v0.1 — for review |
-| **Date** | 2026-06-08 |
-| **Owner** | Product (drafted with solutions-architecture input) |
+| **Status** | v0.1 |
+| **Date** | 2026-07-12 |
 | **Stack (fixed)** | React + TypeScript · .NET 10 · PostgreSQL |
 | **Deployment model** | Single-tenant — one deployed instance + one database per client company |
 
@@ -33,7 +32,7 @@ The platform replaces spreadsheets and tribal knowledge with one authoritative m
 
 ## 3. User Roles & Personas
 
-Three roles are mandated; a fourth — **Security / Gate Attendant** — is added because LPR will fail intermittently and there is no driver self-service, so a human who can log entries/exits manually and override decisions is operationally essential. In small organizations this role may be merged into the Operator role.
+Two **staff** roles are mandated: a **System Administrator** for instance-level configuration and a **Parking Operator / Manager** for day-to-day operations, including gate-side exceptions (manual entry/exit, overrides) when LPR fails.  The **Driver** (§3.3) is a separate, non-staff persona — a managed record, not a logged-in role with permissions.
 
 ### 3.1 System Administrator — "Aurelia," IT / Facilities Systems Admin
 - **Description:** The company's top-level administrator for the instance. Owns global configuration, staff accounts and roles, and the API credentials the gate system uses.
@@ -42,24 +41,18 @@ Three roles are mandated; a fourth — **Security / Gate Attendant** — is adde
 - **Technical proficiency:** High. Comfortable with roles, API keys, and configuration screens.
 
 ### 3.2 Parking Operator / Manager — "Marius," Facilities & Parking Manager
-- **Description:** Runs day-to-day parking operations for one or more lots.
-- **Primary goals:** Create/edit lots and spaces; grant and revoke driver access (including time-boxed visitor access); assign and reassign reserved bays; monitor live occupancy; reconcile counts when they drift.
-- **Pain points:** Keeping access lists current, resolving reserved-bay disputes, and not knowing real occupancy.
+- **Description:** Runs day-to-day parking operations for one or more lots, including staffing the entry point when LPR mis-reads or hardware fails and managing walk-up visitors.
+- **Primary goals:** Create/edit lots and spaces; grant and revoke driver access (including time-boxed visitor access); assign and reassign reserved bays; monitor live occupancy; reconcile counts when they drift; manually log an entry/exit or override a wrong decision to keep traffic flowing.
+- **Pain points:** Keeping access lists current, resolving reserved-bay disputes, not knowing real occupancy, LPR mis-reads, and no fast way to record a manual entry.
 - **Technical proficiency:** Moderate. Fluent with web apps and spreadsheets; not a developer.
 
-### 3.3 Security / Gate Attendant — "Greta," Reception & Security Officer
-- **Description:** Staffs the entry point; handles exceptions when LPR mis-reads or hardware fails; manages walk-up visitors.
-- **Primary goals:** Quickly see if a car is allowed and whether the lot has room; manually log an entry/exit or override a wrong decision; keep traffic flowing.
-- **Pain points:** LPR mis-reads, unknown plates, and no fast way to record a manual entry.
-- **Technical proficiency:** Low-to-moderate. Needs a fast, forgiving, low-click interface.
-
-### 3.4 Driver / End User — "Tomas," Employee Driver (and the Visitor variant)
+### 3.3 Driver / End User — "Tomas," Employee Driver (and the Visitor variant)
 - **Description:** The person who actually parks. Identified by one or more license plates. **In v1 the driver is a managed record, not a logged-in user** — they neither self-register nor self-book.
 - **Primary goals:** Get into the lot they're entitled to; have their reserved bay honored.
 - **Pain points:** Being wrongly denied; losing a reserved bay; not knowing if the lot is full (no driver-facing channel exists in v1).
 - **Technical proficiency:** N/A for v1 (no direct app interaction). *A future driver portal would target low proficiency.*
 
-> **Flagged (see Open Questions):** Whether drivers get any login/portal in v1 is unconfirmed. This PRD assumes **no driver login in v1**; drivers are admin-managed records only.
+> **No driver login in v1**; drivers are admin-managed records only.
 
 ---
 
@@ -70,30 +63,30 @@ Priority: **P0** = must-have for v1 launch · **P1** = important, target v1 if t
 | Feature | Description | User Role | Priority | Notes |
 |---|---|---|---|---|
 | Staff authentication (login/logout) | Email + password login for staff users; secure session. | All staff | **P0** | ASP.NET Core Identity recommended. |
-| Role-based access control (RBAC) | System Admin / Operator / Gate Attendant roles gate every action and screen. | System Admin | **P0** | Enforced server-side, not just UI. |
-| Password reset (email) | Self-service reset via emailed token. | All staff | **P0** | Only transactional email in scope for v1. |
+| Role-based access control (RBAC) | System Admin / Operator roles gate every action and screen. | System Admin | **P0** | Enforced server-side, not just UI. |
+| Password reset (email) | Self-service reset via emailed token. | All staff | **P2** | Not in v1; admin-driven reset only. |
 | Staff user management | Create/disable staff accounts, assign roles. | System Admin | **P0** | |
 | Access Events API key management | Generate, view-once, and rotate the machine credential used by the gate system. | System Admin | **P0** | Critical security surface. |
-| Audit log | Immutable log of access decisions and admin mutations (actor, action, entity, time, IP). | System Admin | **P0** | Needed for ops + GDPR. |
+| Audit log | Immutable log of access decisions and admin mutations (actor, action, entity, time). | System Admin | **P0** | Needed for ops + GDPR. |
 | Parking lot CRUD | Create/edit/archive lots (name, address, timezone). | Operator | **P0** | |
 | Lot access mode | Per-lot toggle: **OPEN** (anyone) vs **RESTRICTED** (granted drivers only). | Operator | **P0** | Drives the entry decision. |
-| Lot "full" behavior | Per-lot config: **BLOCK** new general entries vs **ALLOW_OVERFLOW** (admit + flag). | Operator | **P0** | Reserved holders always bypass. |
+| Lot "full" behavior | Per-lot setting: **BLOCK** new general entries once full, or **ALLOW_OVERFLOW** (admit + flag over-capacity). | Operator | **P0** | Reserved holders always bypass. |
 | Parking space CRUD | Create/edit/deactivate spaces; set label and type. | Operator | **P0** | |
 | Space type (General / Reserved) | Mark a space general or reserved-for-a-driver. | Operator | **P0** | Reserved spaces excluded from general pool. |
-| Space layout ordinals | Row/column (or zone) ordinals per space to drive the 2D view *without a builder*. | Operator | **P0** | See §6 + Open Questions Q4. |
+| Space layout ordinals | Row/column (or zone) ordinals per space to drive the 2D view *without a builder*. | Operator | **P2** | Deferred with the 2D view (not in v1); see §6 + Open Questions Q4. |
 | Driver records & plates | Manage drivers; each driver has one or more license plates. | Operator | **P0** | One plate maps to one driver at a time. |
 | Access grants | Grant/revoke a driver access to a restricted lot, with optional validity window. | Operator | **P0** | Time-boxing enables visitor access. |
 | Reservation management | Assign/reassign/cancel a reserved space for a driver. | Operator | **P0** | One active reservation per space. |
 | Access Events ingestion API | Inbound endpoint the LPR/gate calls on ENTER/EXIT; returns ALLOW/DENY synchronously. | (System / API) | **P0** | The single most important external contract. |
 | Entry decision engine | Evaluates open/restricted, grants, reservations, and lot-full to allow or deny. | (System) | **P0** | Logic specified in §6. |
 | Parking session lifecycle | Open a session on allowed entry; close on exit; never let counts go negative. | (System) | **P0** | Basis of occupancy. |
-| Live occupancy view | Per-lot aggregate: general used/free, reserved count, over-capacity flag. | Operator, Gate | **P0** | Lot-level only (no per-space sensing). |
-| 2D lot visualization | Render spaces from layout ordinals; color by type/assignment; show assignee on a reserved bay. | Operator, Gate | **P0** | Shows *configuration*, not live per-space status. |
-| Accessible occupancy table | Tabular equivalent of the 2D map (space, type, assignee, status). | Operator, Gate | **P0** | WCAG-required alternative to the SVG/canvas map. |
-| Manual entry/exit logging | Gate staff record an entry/exit when LPR fails or for walk-ups. | Gate Attendant | **P0** | Audit-logged with actor. |
-| Manual override of a decision | Staff override a deny/allow at the gate. | Gate Attendant | **P0** | Audit-logged with reason. |
+| Live occupancy view | Per-lot aggregate: general used/free, reserved count, over-capacity flag. | Operator | **P0** | Lot-level only (no per-space sensing). |
+| 2D lot visualization | Render spaces from layout ordinals; color by type/assignment; show assignee on a reserved bay. | Operator | **P2** | **Not in v1** — deferred to a future release; see below. |
+| Tabular parking spaces view | Data table of every space (label, type, assignee, status) — v1's only view of lot layout. | Operator | **P0** | Replaces the 2D map for v1; inherently accessible (no WCAG map-equivalence work needed). |
+| Manual entry/exit logging | Operator records an entry/exit when LPR fails or for walk-ups. | Operator | **P0** | Audit-logged with actor. |
+| Manual override of a decision | Operator overrides a deny/allow at the gate. | Operator | **P0** | Audit-logged with reason. |
 | Manual occupancy reconciliation/reset | Operator corrects/zeroes a lot's count to fix drift from missed events. | Operator | **P0** | Mitigates count drift; see §6 rules. |
-| Data retention & erasure controls | Configure retention; export/erase a driver's personal data. | System Admin | **P0** | GDPR — see §7 / Open Questions Q1. |
+| Data retention & erasure controls | Configure retention; export/erase a driver's personal data. | System Admin | **P1** | GDPR — see §7 / Open Questions Q1. |
 | Auto-expiry of stale sessions | Sessions open beyond a max duration auto-close/expire. | (System) | **P1** | Reduces manual reconciliation. |
 | Bulk import of drivers/plates | CSV import for onboarding large lists. | Operator | **P1** | |
 | Occupancy history & basic reports | Entries/exits and peak-occupancy over time. | Operator, System Admin | **P1** | |
@@ -117,11 +110,12 @@ Priority: **P0** = must-have for v1 launch · **P1** = important, target v1 if t
 **A1 (P0).** *As a staff user, I want to log in with my email and password so that only authorized people can use the system.*
 - **AC:** Valid credentials create an authenticated session; invalid credentials return a generic "invalid email or password" (no user enumeration); after a configurable number of failed attempts the account is temporarily locked; all traffic is over HTTPS; passwords are stored only as salted hashes.
 
-**A2 (P0).** *As a System Admin, I want roles enforced on every action so that operators and gate staff can't perform admin-only operations.*
+**A2 (P0).** *As a System Admin, I want roles enforced on every action so that operators can't perform admin-only operations.*
 - **AC:** Every API endpoint authorizes by role server-side; a user without the required role receives `403` regardless of UI state; UI hides actions the role can't perform; role checks are covered by automated tests.
 
-**A3 (P0).** *As a staff user, I want to reset a forgotten password so that I can regain access without an admin.*
+**A3 (P2).** *As a staff user, I want to reset a forgotten password so that I can regain access without an admin.* — Not in v1; target future roadmap.
 - **AC:** Requesting a reset emails a single-use, time-limited token; the same neutral confirmation shows whether or not the email exists; using the token sets a new password meeting the password policy; the token is invalidated after use or expiry.
+- *v1 workaround:* a System Admin resets a staff user's password directly (no self-service, no email token).
 
 **A4 (P0).** *As a System Admin, I want to manage staff accounts and roles so that access reflects the current team.*
 - **AC:** Admin can create a staff user with a role, disable a user (immediately ending their sessions), and change a user's role; disabled users cannot authenticate; all changes are audit-logged.
@@ -143,7 +137,7 @@ Priority: **P0** = must-have for v1 launch · **P1** = important, target v1 if t
 **B4 (P0).** *As an Operator, I want to create, edit, and deactivate spaces so that the lot's inventory is accurate.*
 - **AC:** A space has a label unique within its lot and a type (GENERAL/RESERVED); deactivating a space removes it from capacity and the live view but preserves history; a RESERVED space cannot be deactivated while it has an active reservation (must cancel first).
 
-**B5 (P0).** *As an Operator, I want to set each space's row/column (or zone) so that the 2D view can render the layout without a builder.*
+**B5 (P2).** *As an Operator, I want to set each space's row/column (or zone) so that the 2D view can render the layout without a builder.* — Deferred with the 2D view; not needed for v1's tabular-only layout.
 - **AC:** Each space accepts row and column ordinals (and optional zone); the 2D view positions spaces from these values; spaces without ordinals appear in an "unplaced" tray rather than breaking the view.
 
 **B6 (P2).** *As an Operator, I want a drag-and-drop builder to place spaces visually.* — Roadmap.
@@ -179,13 +173,13 @@ Priority: **P0** = must-have for v1 launch · **P1** = important, target v1 if t
 **E3 (P0).** *As the system, I want to apply the entry decision rules consistently so that access reflects policy.*
 - **AC:** Decision precedence is exactly: (1) plate unknown **and** lot RESTRICTED → DENY `NOT_AUTHORIZED`; (2) lot RESTRICTED and no active grant/reservation → DENY `NOT_AUTHORIZED`; (3) reserved-space holder → ALLOW (pool=RESERVED), bypassing lot-full; (4) general entrant and lot full and BLOCK → DENY `LOT_FULL`; (5) otherwise ALLOW (pool=GENERAL). Every decision is persisted with its reason.
 
-**E4 (P0).** *As an Operator or Gate Attendant, I want to see live occupancy for a lot so that I know if there's room.*
+**E4 (P0).** *As an Operator, I want to see live occupancy for a lot so that I know if there's room.*
 - **AC:** View shows general capacity, general used (= active general sessions), general free (never below zero), reserved space count, and an over-capacity flag; values update on each processed event; the view states clearly that occupancy is lot-level (counted at the gate), not per-space sensed.
 
-**E5 (P0).** *As a Gate Attendant, I want to manually log an entry or exit so that LPR failures and walk-ups don't corrupt the count.*
+**E5 (P0).** *As an Operator, I want to manually log an entry or exit so that LPR failures and walk-ups don't corrupt the count.*
 - **AC:** Staff can create a manual ENTER/EXIT for a known plate or an ad-hoc/unknown plate; manual events run through the same session logic; manual events are tagged source=MANUAL with the acting staff user and are audit-logged.
 
-**E6 (P0).** *As a Gate Attendant, I want to override an incorrect decision so that a wrongly-denied authorized driver can still get in (and vice-versa).*
+**E6 (P0).** *As an Operator, I want to override an incorrect decision so that a wrongly-denied authorized driver can still get in (and vice-versa).*
 - **AC:** An override records the original decision, the overridden decision, the reason, and the actor; an override-to-allow opens a session like a normal allow; overrides are audit-logged and surfaced in reports.
 
 **E7 (P0).** *As an Operator, I want to reconcile or reset a lot's occupancy so that drift from missed exits can be corrected.*
@@ -197,18 +191,21 @@ Priority: **P0** = must-have for v1 launch · **P1** = important, target v1 if t
 
 ### Epic F — Visualization & Monitoring
 
-**F1 (P0).** *As an Operator or Gate Attendant, I want a 2D view of the lot so that I can see its layout, which bays are reserved, and to whom.*
+> **v1 scope note:** the 2D lot map (F1) is **deferred — not in v1**. v1 ships the tabular spaces view (F2) only; F1 is retained here for the future roadmap.
+
+**F2 (P0).** *As an Operator, I want a tabular view of the lot's spaces so that I can see its layout, which bays are reserved, and to whom.*
+- **AC:** A data table lists every space with label, type, assigned driver (if reserved), status, and zone; a clearly labeled aggregate occupancy indicator is shown;
+
+**F1 (P2).** *As an Operator, I want a 2D view of the lot so that I can see its layout, which bays are reserved, and to whom.* — Not in v1; future roadmap.
 - **AC:** Spaces render from row/column ordinals; general and reserved spaces are visually distinct; hovering/selecting a reserved space shows its assigned driver; a clearly labeled aggregate occupancy indicator is shown; the view performs acceptably for at least 100 spaces (< 1 s render).
 
-**F2 (P0).** *As a screen-reader user on staff, I want a tabular equivalent of the 2D view so that the map is accessible.*
-- **AC:** A data table lists every space with label, type, assigned driver (if reserved), and zone; the table conveys the same information as the map; it meets the WCAG 2.1 AA criteria in §7.
 
 ### Epic G — Audit & Compliance
 
 **G1 (P0).** *As a System Admin, I want an audit log of access decisions and admin changes so that I can investigate incidents and meet obligations.*
-- **AC:** Log entries are append-only and capture actor (staff/system/API), action, entity type/id, timestamp, and source IP where applicable; logs are filterable by date, actor, and entity; logs cannot be edited or deleted through the application.
+- **AC:** Log entries are append-only and capture actor (staff/system/API), action, entity type/id, timestamp; logs are filterable by date, actor, and entity; logs cannot be edited or deleted through the application.
 
-**G2 (P0).** *As a System Admin, I want to configure data retention and to export or erase a driver's personal data so that we can honor data-protection obligations.*
+**G2 (P1).** *As a System Admin, I want to configure data retention and to export or erase a driver's personal data so that we can honor data-protection obligations.*
 - **AC:** Retention period for access events/sessions is configurable; data past retention is purged or anonymized; an admin can export all personal data for a given driver and can erase/anonymize a driver (removing identifying fields while preserving aggregate counts); erasure and export actions are audit-logged. *(Not legal advice — see Open Questions Q1.)*
 
 ---
@@ -220,7 +217,7 @@ Plain-English entities, core attributes, and relationships. **PostgreSQL** with 
 ### Entities
 
 - **OrganizationSettings** (effectively a singleton per instance): company name, branding, default timezone, default lot-full behavior, data-retention period. *Because deployment is single-tenant, there is no cross-company tenancy inside one instance.*
-- **StaffUser** (logs in): id, name, email (unique), password hash, role (`SystemAdmin` | `Operator` | `GateAttendant`), status (active/disabled), timestamps. *(Backed by ASP.NET Core Identity.)*
+- **StaffUser** (logs in): id, name, email (unique), password hash, role (`SystemAdmin` | `Operator`), status (active/disabled), timestamps. *(Backed by ASP.NET Core Identity.)*
 - **Driver** (does **not** log in v1): id, name, optional contact (email/phone), status, timestamps.
 - **Plate**: id, driver id, normalized plate number (unique across instance), optional country/region, active flag.
 - **ParkingLot**: id, name (unique), optional address, timezone, access mode (`OPEN` | `RESTRICTED`), full behavior (`BLOCK` | `ALLOW_OVERFLOW`), status (active/archived).
@@ -249,7 +246,7 @@ Plain-English entities, core attributes, and relationships. **PostgreSQL** with 
 6. **EXIT closes the matching open session** for that plate/lot, most-recent first. If none exists, record an anomaly; **never drive occupancy negative.**
 7. **Events are idempotent** by client-supplied idempotency key; replays return the original outcome and never double-count.
 8. **One plate maps to one driver** at a time; reassignment is explicit and audited.
-9. **Occupancy is lot-level only.** Because detection is gate-counted (no per-space sensors), the system does **not** know which physical bay a car occupies; the 2D view shows *configuration* (layout, types, reserved-bay assignees) plus an *aggregate* count, not live per-space status.
+9. **Occupancy is lot-level only.** Because detection is gate-counted (no per-space sensors), the system does **not** know which physical bay a car occupies; the tabular spaces view (2D map deferred, not in v1) shows *configuration* (layout, types, reserved-bay assignees) plus an *aggregate* count, not live per-space status.
 10. **Count drift is expected** (a missed exit leaves a stale session). Mitigations: manual reconciliation/reset (P0) and configurable auto-expiry of long-open sessions (P1).
 11. **Access decisions and all admin mutations are audit-logged.**
 12. **Retention & erasure:** access events/sessions are retained only for the configured period; a driver's personal data can be exported and erased/anonymized while preserving aggregate counts.
@@ -258,32 +255,24 @@ Plain-English entities, core attributes, and relationships. **PostgreSQL** with 
 
 ## 7. Non-Functional Requirements
 
-### Performance
-- **Access Events decision endpoint** (gate is waiting on it): **p95 < 300 ms, p99 < 800 ms** server-side, excluding network to the gate.
-- **Standard CRUD/API**: p95 < 500 ms.
-- **Admin SPA**: First Contentful Paint < 2.5 s and interactive < 3.5 s on a typical broadband connection.
-- **2D view**: renders a 100-space lot in < 1 s.
-
 ### Availability & uptime
-- **Target 99.9%** for the Access Events API (its downtime stalls gate decisions).
 - **Define a gate fail-safe** for when the platform is unreachable — barrier defaults to *open* or *closed*. This is a safety/operations decision the product must specify per deployment (see Open Questions Q2); the platform itself remains stateless enough to restart quickly.
 - Single-tenant deployment means HA requires **redundant API replicas + managed/replicated PostgreSQL**; absent that, recovery is restart-based. Confirm per-customer SLA (Open Questions Q8).
 
 ### Security
-- **Auth:** ASP.NET Core Identity with RBAC; salted password hashing; account lockout on repeated failures; HTTPS/TLS 1.2+ everywhere.
+- **Auth:** ASP.NET Core Identity with RBAC; salted password hashing; HTTPS/TLS 1.2+ everywhere.
 - **Machine auth:** Access Events API authenticated by API key (hashed at rest, view-once, rotatable); rate-limited; **OAuth client-credentials is the more robust alternative** (Open Questions Q5).
-- **Data protection:** PostgreSQL at-rest encryption (disk/volume), parameterized queries via EF Core (no string-built SQL), and consideration of column-level protection for plate data. PII minimization throughout.
+- **Data protection:** PostgreSQL at-rest encryption (disk/volume), parameterized queries via EF Core (no string-built SQL), and consideration of column-level protection for plate data.
 - **Input validation:** server-side validation on every endpoint (FluentValidation recommended); reject malformed plates/events.
 - **Audit & abuse controls:** append-only audit log; rate limiting on auth and ingestion endpoints; secrets never logged.
 
 ### Scalability
-- **Per-tenant load is modest** (≈1 lot, 5–100 spaces; event volume proportional to lot size — tens of events/minute at peak for a large lot). Vertical sizing comfortably covers a typical tenant.
+- **Per-tenant load is modest** (≈1 lot, 20–100 spaces; event volume proportional to lot size — tens of events/minute at peak for a large lot). Vertical sizing comfortably covers a typical tenant.
 - **The real scaling axis is the number of tenant instances**, not per-instance load — so repeatable provisioning matters more than per-instance horizontal scale.
-- The .NET API must be **stateless** so a tenant can run **2+ replicas** behind a load balancer for HA when required. PostgreSQL runs a single primary at this scale; add a read replica only if reporting load justifies it (unlikely in v1).
 
-### Accessibility
-- **WCAG 2.1 AA** for the staff SPA: full keyboard operability, visible focus, sufficient color contrast, proper labels/ARIA, and error messaging that doesn't rely on color alone.
-- **The 2D map must have an accessible tabular equivalent** (Story F2): an SVG/canvas map is not inherently screen-reader accessible, so the data table is a hard requirement, not an extra.
+### Testing
+- **Target ~30% unit test coverage** across the backend solution (not per-file, not CI-enforced) — a rough goalpost, not a gate. Prioritize the highest-risk logic first: **`EntryDecisionService`** (rule-4 precedence, E3) and **occupancy math** (rule 3) should be covered well above that, given they're the product's core IP (§1 driver 2); command/query handlers and validators get whatever's left of the budget.
+- **Tooling:** `xUnit` + `Shouldly` (assertions) + `NSubstitute` (mocking) for unit tests; `coverlet.collector` + `ReportGenerator` to measure coverage when useful — all already centrally versioned in `Directory.Packages.props` (backend template default), just not yet wired into a test project. See architecture §3 for the proposed `Parkin.UnitTests` / `Parkin.IntegrationTests` / `Parkin.FunctionalTests` split.
 
 ---
 
@@ -299,6 +288,7 @@ Plain-English entities, core attributes, and relationships. **PostgreSQL** with 
 - **No graphical lot/space builder in v1**; spaces are created via forms with row/column ordinals.
 - **Occupancy is gate-counted via an inbound Access Events API.** The product does **not** include or control LPR cameras or barrier hardware; it ingests their events and returns decisions.
 - **No third-party integrations to build** — with one unavoidable consequence below.
+- **~30% unit test coverage target** using xUnit/Shouldly/NSubstitute (§7 Testing).
 
 ### Recommended defaults (proceed unless a customer objects)
 - **Auth:** ASP.NET Core Identity + RBAC; **prefer same-site cookie auth** for the first-party SPA (simpler, safer against token theft) — JWT is the alternative if a non-browser client later appears (Open Questions Q6).
@@ -306,13 +296,10 @@ Plain-English entities, core attributes, and relationships. **PostgreSQL** with 
 - **Validation:** FluentValidation on all inbound DTOs.
 - **Machine credential:** API key (hashed, rotatable) for the Access Events endpoint in v1.
 - **Packaging & provisioning:** containerized (Docker) per tenant, stood up via Infrastructure-as-Code so that "one instance per company" is repeatable and upgradable (Open Questions Q8).
-- **2D layout data:** row/column ordinals (+ optional zone) per space, auto-arranged into a grid (Open Questions Q4).
-
-### Important reconciliation — "no integrations" vs. the gate
-You answered "no integrations," but occupancy depends entirely on an **external LPR/gate system calling the platform**. The platform does not integrate *outward*, but it **must expose and own one inbound API contract** (authentication, request schema, idempotency, ALLOW/DENY responses, error semantics). Treat this as the single most important external interface of the system even though you build no third-party connector. Direction-of-call and auth specifics are in Open Questions Q5.
+- **2D layout data:** row/column ordinals (+ optional zone) per space, auto-arranged into a grid — deferred along with the 2D view itself (not in v1; Open Questions Q4).
 
 ### Open architectural decisions
-Cloud/hosting provider; gate fail-safe behavior; per-space vs lot-level occupancy semantics for the 2D view; the precise 2D layout data approach; cookie-vs-JWT auth; tenant provisioning/upgrade tooling; future SSO. Each is itemized in §10 with a recommended default so engineering is not blocked.
+Cloud/hosting provider; gate fail-safe behavior; per-space vs lot-level occupancy semantics for the (now post-v1) 2D view; the precise 2D layout data approach; cookie-vs-JWT auth; tenant provisioning/upgrade tooling; future SSO. Each is itemized in §10 with a recommended default so engineering is not blocked.
 
 ---
 
@@ -324,14 +311,15 @@ This system will **not**, in v1:
 2. **Let drivers self-register, self-book, or self-reserve.** All grants and reservations are created by staff.
 3. **Provide a graphical drag-and-drop lot/space builder.** Spaces are configured via forms + ordinals.
 4. **Provide a driver-facing app or portal** (web or mobile). Drivers are managed records, not users.
-5. **Detect per-space occupancy.** No bay-level sensors/cameras; occupancy is lot-level, counted at the gate. The 2D view shows configuration + an aggregate count, not live per-bay status.
-6. **Include or control LPR/ANPR cameras or barrier-gate hardware**, or run plate-recognition itself. It only ingests events and returns decisions.
-7. **Be multi-tenant within one instance.** One deployment serves one company.
-8. **Provide SSO / SAML / OIDC federation** with corporate identity providers.
-9. **Provide navigation, wayfinding, or turn-by-turn routing** to a space.
-10. **Send driver/occupancy notifications** (email/SMS/push) beyond transactional staff emails (password reset). Access/reservation notifications are P1.
-11. **Provide advanced analytics/BI dashboards** beyond the live occupancy view (basic history is P1).
-12. **Support waitlists, dynamic pricing, EV-charging management, valet, or visitor self-service kiosks.**
+5. **Provide a 2D graphical lot map.** v1 ships a tabular spaces view only (Story F2); the 2D map (F1) and its layout-ordinal input (Story B5) are deferred to a future release.
+6. **Detect per-space occupancy.** No bay-level sensors/cameras; occupancy is lot-level, counted at the gate. The v1 tabular view shows configuration + an aggregate count, not live per-bay status.
+7. **Include or control LPR/ANPR cameras or barrier-gate hardware**, or run plate-recognition itself. It only ingests events and returns decisions.
+8. **Be multi-tenant within one instance.** One deployment serves one company.
+9. **Provide SSO / SAML / OIDC federation** with corporate identity providers.
+10. **Provide navigation, wayfinding, or turn-by-turn routing** to a space.
+11. **Send driver/occupancy notifications** (email/SMS/push) beyond transactional staff emails (password reset). Access/reservation notifications are P1.
+12. **Provide advanced analytics/BI dashboards** beyond the live occupancy view (basic history is P1).
+13. **Support waitlists, dynamic pricing, EV-charging management, valet, or visitor self-service kiosks.**
 13. **Integrate with any existing internal customer system** (HR, badging, ERP, etc.).
 
 ---
@@ -344,8 +332,8 @@ Each item has a recommended default so work can proceed; confirm before the note
 |---|---|---|---|---|
 | Q1 | **GDPR almost certainly applies.** Storing license plates + entry/exit timestamps + identity is processing personal data of (presumably EU/Lithuanian) data subjects. What is the lawful basis, retention period, and erasure/export process? *(This PRD bakes in retention + erasure controls; this is not legal advice.)* | Treat GDPR as **in scope**: define lawful basis, default 90-day event retention, and erasure/anonymization. | Product + Legal/DPO | **Before storing real plate data / before beta** |
 | Q2 | **Gate fail-safe:** when the platform is unreachable, should the barrier default **open** or **closed**? Safety, liability, and security all hinge on this. | Decide per deployment; document explicitly. Lean **closed for restricted lots, open for open lots** unless customer dictates otherwise. | Product + customer security/ops | Before integration testing |
-| Q3 | **Occupancy semantics for the 2D view.** Confirm that v1 shows lot-level aggregate + static layout (not live per-bay status), since detection is gate-counted only. | Confirm aggregate-only; label it clearly in the UI. | Product | Before the 2D-view sprint |
-| Q4 | **2D layout data without a builder.** How do spaces get their positions — row/column ordinals, free x/y coordinates, or auto-grid? | **Row/column (+zone) ordinals → auto-grid.** Free-form x/y deferred to the P2 builder. | Eng + Design | Before space-CRUD design freeze |
+| Q3 | **Occupancy semantics for the tabular spaces view.** Confirm that v1 shows lot-level aggregate + static per-space config (not live per-bay status), since detection is gate-counted only. | Confirm aggregate-only; label it clearly in the UI. | Product | Before the spaces-view sprint |
+| Q4 | **2D layout data without a builder** *(post-v1, not blocking).* How do spaces get their positions — row/column ordinals, free x/y coordinates, or auto-grid? | **Row/column (+zone) ordinals → auto-grid.** Free-form x/y deferred to the P2 builder. | Eng + Design | Before the (post-v1) 2D-view sprint |
 | Q5 | **Access Events API contract:** confirm the platform *exposes* the endpoint and the gate *calls in*; define request/response schema, idempotency, error codes, and auth (API key vs OAuth client-credentials). | Platform exposes a synchronous `POST /access-events`; **API key** for v1, idempotency key required, ALLOW/DENY + reason in response. | Eng (backend) | Before the API spec is finalized |
 | Q6 | **SPA auth token strategy:** same-site cookies vs JWT bearer. | **Same-site, HttpOnly cookies** for the first-party SPA; revisit JWT if a non-browser client appears. | Eng (backend) | Before auth implementation |
 | Q7 | **Driver login in v1?** Do drivers get any portal, or are they purely admin-managed records? This sizes the auth surface. | **No driver login in v1** (records only). Driver portal is P2. | Product | Before auth design |

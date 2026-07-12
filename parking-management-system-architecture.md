@@ -2,14 +2,14 @@
 
 | | |
 |---|---|
-| **Source** | PRD v0.1 (2026-06-08) |
+| **Source** | PRD v0.1 (2026-07-12) |
 | **Stack (fixed)** | React + TypeScript · .NET 10 · PostgreSQL |
 | **Deployment** | Single-tenant — one instance + one database per client company |
-| **Backend pattern** | Ardalis Minimal Clean Architecture · FastEndpoints (REPR) · Mediator · EF Core · FluentValidation |
+| **Backend pattern** | Ardalis Minimal Clean Architecture (Feature based) · FastEndpoints (REPR: Request/Endpoint/Response + `Validator<T>` + `Mapper<TRequest,TResponse,TEntity>`) · Mediator · EF Core |
 | **Frontend pattern** | Vite · feature-based · shadcn/Tailwind · TanStack Router + Query · Axios · Zod |
-| **Status** | Architecture proposal for engineering sign-off |
+| **Status** | Architecture confirmed. Creating MVP for V1 (highest priority tasks)  |
 
-> **Auth decision (resolved).** The SPA uses **same-site HttpOnly cookie auth** via ASP.NET Core Identity — the PRD's recommended default (§8, Q6) — since it's the only client and this avoids token-theft/XSS exposure entirely. The gate/LPR integration and any future non-browser clients authenticate with a separate **API key** scheme (`X-Api-Key`), not JWT. See §7.
+> The SPA uses **same-site HttpOnly cookie auth** via ASP.NET Core Identity — the PRD's recommended default (§8, Q6) — since it's the only client and this avoids token-theft/XSS exposure entirely. The gate/LPR integration and any future non-browser clients authenticate with a separate **API key** scheme (`X-Api-Key`), not JWT. See §7.
 
 ---
 
@@ -19,11 +19,11 @@ These pull directly from the PRD and dictate the structure of the system:
 
 1. **The inbound Access Events API is the single most important interface** (§8 reconciliation, E1–E3). It is synchronous, latency-bound (**p95 < 300 ms / p99 < 800 ms**, §7), idempotent, machine-authenticated, and its decision logic is the product's core IP. It gets first-class treatment: its own endpoint, its own auth scheme, its own domain service, and a dedicated hot read path.
 2. **The Entry Decision Engine is domain logic, not controller logic** (E3, Data-model rule 4). It must be unit-testable in isolation, deterministic, and the single source of truth. It lives in the Core/Domain layer as a domain service.
-3. **Single-tenant** (§8). No tenant column, no row-level tenancy filters, no cross-company joins. Simplifies the model enormously; the scaling axis is *number of instances*, not per-instance load. Provisioning repeatability (Docker + IaC, Q8) matters more than horizontal scale.
+3. **Single-tenant** (§8). No tenant column, no row-level tenancy filters, no cross-company joins. Simplifies the model enormously; the scaling axis is *number of instances*, not per-instance load.
 4. **Server-side authorization is mandatory** (A2). Every endpoint authorizes by role; the SPA only *hides* what a role can't do — it never *enforces*.
 5. **Everything material is audited and append-only** (G1, rule 11). Audit is a cross-cutting concern wired via an EF Core interceptor + explicit decision logging, not scattered `_audit.Log(...)` calls.
-6. **GDPR is in scope** (Q1, G2, rule 12). Retention windows, export, and erasure/anonymization are designed in from day one — anonymization must preserve aggregate counts.
-7. **Modest per-tenant load, strict statelessness** (§7 Scalability). The .NET API must be stateless so a tenant can run 2+ replicas behind a load balancer. No in-process session state — Identity's cookie auth ticket is self-contained (encrypted/signed) and a distributed `DataProtection` key ring (shared across replicas, e.g. backed by the DB or a key-vault) keeps cookie validation/decryption replica-agnostic. No sticky sessions required.
+6. **GDPR is in scope** (Q1, G2 — **P1**, rule 12). The schema bakes in retention/erasure support from day one (denormalized `plate` for in-place anonymization, etc.) even though the retention/export/erasure UI itself is P1 — build it in v1 if time allows, but it's not a launch blocker.
+7. **The .NET API must be stateless.**
 
 ---
 
@@ -46,7 +46,7 @@ ASCII as requested. The dashed boundary is the single deployed tenant instance; 
 ║   ┌────────────────────────┐                                                             ║
 ║   │  React + TS SPA         │  HTTPS / JSON                                              ║
 ║   │  (Vite, shadcn, TanStack)│────────────┐                                              ║
-║   │  Admin · Operator · Gate │  HttpOnly   │                                             ║
+║   │  Admin · Operator        │  HttpOnly   │                                             ║
 ║   └────────────────────────┘  session     │                                             ║
 ║                                 cookie     │                                             ║
 ║                                            ▼                                             ║
@@ -57,13 +57,13 @@ ASCII as requested. The dashed boundary is the single deployed tenant instance; 
 ║   ┌──────────────────────────────────────────────────────────────────────────────────┐ ║
 ║   │                .NET 10 API   (stateless · 1..N replicas for HA)                     │ ║
 ║   │  ┌────────────────────────────────────────────────────────────────────────────┐  │ ║
-║   │  │ Web (FastEndpoints / REPR)                                                   │  │ ║
+║   │  │ Api (FastEndpoints / REPR)                                                   │  │ ║
 ║   │  │   • Cookie auth scheme  • API-key auth scheme  • RBAC policies               │  │ ║
-║   │  │   • FluentValidation  • ProblemDetails errors  • Swagger/OpenAPI             │  │ ║
+║   │  │   • Validator<T> + Mapper<T,T,T>  • ProblemDetails errors  • Swagger/OpenAPI  │  │ ║
 ║   │  └───────────────┬──────────────────────────────┬─────────────────────────────┘  │ ║
 ║   │                  │ Mediator commands/queries      │                                  │ ║
 ║   │  ┌───────────────▼──────────────┐   ┌────────────▼───────────────────────────────┐ │ ║
-║   │  │ UseCases (Application)        │   │ Cross-cutting (Mediator pipeline behaviors) │ │ ║
+║   │  │ Feature slices (Application)  │   │ Cross-cutting (Mediator pipeline behaviors) │ │ ║
 ║   │  │  command/query handlers,      │   │  validation · logging · audit enrich       │ │ ║
 ║   │  │  DTOs, orchestration          │   └────────────────────────────────────────────┘ │ ║
 ║   │  └───────────────┬──────────────┘                                                  │ ║
@@ -84,7 +84,7 @@ ASCII as requested. The dashed boundary is the single deployed tenant instance; 
 ║                      ▼                                     ▼                              ║
 ║          ┌────────────────────────┐          ┌──────────────────────────────┐            ║
 ║          │ PostgreSQL (primary)    │          │ SMTP / transactional email    │            ║
-║          │ at-rest encryption      │          │ (password reset only in v1)   │            ║
+║          │ at-rest encryption      │          │ (password reset — P2, post-v1)│            ║
 ║          │ EF code-first migrations│          └──────────────────────────────┘            ║
 ║          │ (+ optional read replica)│                                                      ║
 ║          └────────────────────────┘                                                       ║
@@ -94,16 +94,18 @@ ASCII as requested. The dashed boundary is the single deployed tenant instance; 
                               Packaged as Docker image(s), provisioned per company via IaC
 ```
 
+> **Note:** the boxes above (Api / Feature slices / Core / Infrastructure) are **folders inside one `Parkin.Api` project**, not separate assemblies — see §3 (Ardalis **Minimal** Clean Architecture, already scaffolded in `backend/`).
+
 **Component responsibilities at a glance**
 
 | Component | Responsibility | Key PRD ties |
 |---|---|---|
-| React SPA | Staff UI for all three roles; renders 2D map + accessible table; gate console | F1, F2, E4–E7, A1 |
+| React SPA | Staff UI for both roles; renders tabular spaces view (2D map deferred, not in v1); gate console | F1 (post-v1), F2, E4–E7, A1 |
 | Reverse proxy / ingress | TLS termination, HSTS, global rate limiting on `/auth/*` and `/access-events` | §7 Security |
-| Web (FastEndpoints) | HTTP surface, two auth schemes, RBAC, request validation, error shaping | A1–A5, E1–E3 |
-| UseCases | Application orchestration via Mediator; transaction boundaries; DTO mapping | all CRUD epics |
-| Core (Domain) | Entities/aggregates, invariants, **EntryDecisionService**, occupancy math | E3, rules 1–12 |
-| Infrastructure | Persistence, Identity (cookie auth), API keys, email, background jobs | §6, §7 |
+| Api (FastEndpoints) | HTTP surface, two auth schemes, RBAC, request validation, error shaping | A1–A5, E1–E3 |
+| Feature slices (`<Name>Features/`) | Endpoint + Command/Query + Handler per slice, via Mediator; transaction boundaries; DTO mapping | all CRUD epics |
+| Domain (`Domain/<Name>Aggregate/`) | Entities/aggregates, invariants, **EntryDecisionService**, occupancy math | E3, rules 1–12 |
+| Infrastructure (`Infrastructure/`) | Persistence, Identity (cookie auth), API keys, email, background jobs | §6, §7 |
 | PostgreSQL | Single source of truth; constraints enforce invariants the app also checks | §6 |
 | Background jobs | Auto-expiry of stale sessions (P1), retention purge/anonymization (GDPR) | E8, G2 |
 
@@ -111,131 +113,126 @@ ASCII as requested. The dashed boundary is the single deployed tenant instance; 
 
 ## 3. .NET Solution Structure (Ardalis Minimal Clean Architecture)
 
-Four source projects following the strict dependency rule (`Web → Infrastructure → UseCases → Core`, with `Core` at the center depending on nothing) plus three test projects. Patterns/packages mirror the Ardalis template: **FastEndpoints** (REPR — Request-Endpoint-Response, the modern replacement for MVC controllers), **Mediator** for use-case dispatch, **Ardalis.Specification** for query encapsulation, **Ardalis.Result** to carry success/validation/notfound out of handlers without throwing, **Ardalis.GuardClauses** for invariant guards, and **FluentValidation** on every inbound DTO.
+Per the [Minimal Clean Architecture](https://ardalis.github.io/CleanArchitecture/minimal-clean-architecture/) variant — **already scaffolded in `backend/`** — this is **one Api project**, not the 4-project (`Core`/`UseCases`/`Infrastructure`/`Web`) full template. Layers are **folders + namespace convention**, not project references; boundaries are enforced by **NsDepCop** (`config.nsdepcop`, compiled as an error) rather than the compiler refusing an assembly reference. Features are organized as **vertical slices**: each `<Name>Features/` folder colocates its Endpoint + Request/Response + Validator + Mapper, and — for anything beyond simple CRUD — a Command/Query + Handler dispatched via **Mediator**. Simple CRUD may skip Mediator and hit the repository directly from the endpoint (mirrors the template's `ProductFeatures/Create` vs. `CartFeatures/AddToCart` split).
 
+Patterns/packages already wired in the template: **FastEndpoints** (REPR — Request-Endpoint-Response, the modern replacement for MVC controllers), **Mediator** (martinothamar, source-generated — *not* MediatR) for use-case dispatch, **Ardalis.Specification** for query encapsulation, **Ardalis.Result** to carry success/validation/notfound out of handlers without throwing, **Ardalis.GuardClauses** for invariant guards, **Vogen** for strongly-typed IDs/value objects.
+
+**Validation and mapping, specifically:**
+- **`FastEndpoints.Validator<TRequest>`** — every slice's validator inherits this, not plain FluentValidation's `AbstractValidator<T>` directly. It *is* `AbstractValidator<T>` under the hood (FastEndpoints depends on the real `FluentValidation` NuGet package, confirmed in `project.assets.json` — same `RuleFor(...)` syntax, no reimplementation), but the FastEndpoints subclass adds **assembly-scan auto-discovery** (no manual DI registration, no injecting `IValidator<T>`) and **automatic `400`/`ValidationProblem` shaping** before `ExecuteAsync` ever runs — matching the `Results<..., ValidationProblem, ...>` return type every endpoint declares. There is **no separate Mediator `ValidationBehavior`**; validation happens at the FastEndpoints layer, upstream of Mediator dispatch (the template's `MediatorConfig.cs` currently registers only a `LoggingBehavior`).
+- **`FastEndpoints.Mapper<TRequest, TResponse, TEntity>`** — used on slices that shape a domain entity/DTO into a response (`FromEntity(...)`), e.g. `CartFeatures/AddToCart`, `CartFeatures/GetById`, `ProductFeatures/GetById`, `ProductFeatures/List`. **Optional, not mandatory per slice**: trivial CRUD that maps inline (e.g. `ProductFeatures/Create`, which builds its `ProductRecord` response directly in `ExecuteAsync`) skips the `Mapper` class entirely — add one only when the mapping is reused or the slice is Mediator-driven.
+
+Example structure that was created during architecture phase.
 ```
-ParkingManagement.sln
+Parkin.slnx
 │
 ├── src/
 │   │
-│   ├── ParkingManagement.Core/                 ← Domain. Depends on NOTHING. Pure C#.
-│   │   ├── ParkingLotAggregate/
-│   │   │   ├── ParkingLot.cs                    (aggregate root: name, tz, AccessMode, FullBehavior, status)
-│   │   │   ├── ParkingSpace.cs                  (entity within the lot: label, SpaceType, row/col/zone, status)
-│   │   │   ├── Events/LotArchivedEvent.cs, SpaceDeactivatedEvent.cs
-│   │   │   └── Specifications/ActiveSpacesByLotSpec.cs, LotByNameSpec.cs
-│   │   ├── DriverAggregate/
-│   │   │   ├── Driver.cs                         (root: name, contact, status)
-│   │   │   ├── Plate.cs                          (entity: NormalizedPlateNumber, region, active)
-│   │   │   └── Specifications/PlateByNormalizedValueSpec.cs, DriverWithPlatesSpec.cs
-│   │   ├── AccessGrantAggregate/
-│   │   │   ├── AccessGrant.cs                    (root: driverId, lotId, validFrom, validTo?, status)
-│   │   │   └── Specifications/ActiveGrantForDriverLotSpec.cs
-│   │   ├── ReservationAggregate/
-│   │   │   ├── Reservation.cs                    (root: spaceId, lotId, driverId, start, end?, status)
-│   │   │   └── Specifications/ActiveReservationBySpaceSpec.cs, ActiveReservationForDriverLotSpec.cs
-│   │   ├── SessionAggregate/
-│   │   │   ├── ParkingSession.cs                 (root: lotId, driverId?, plate, spaceId?, Pool, entry/exit refs, status)
-│   │   │   └── Specifications/ActiveSessionsByLotSpec.cs, OpenSessionForPlateSpec.cs
-│   │   ├── AccessEventAggregate/
-│   │   │   ├── AccessEvent.cs                    (root, immutable: lotId, rawPlate, matched ids, dir, source, decision, reason, idempotencyKey, …)
-│   │   │   └── Enums/Direction.cs, EventSource.cs, Decision.cs, DenyReason.cs
-│   │   ├── AuditAggregate/
-│   │   │   └── AuditLogEntry.cs                  (root, append-only: actorType, actorId?, action, entityType, entityId, ip?, metadata json)
-│   │   ├── OrganizationAggregate/
-│   │   │   └── OrganizationSettings.cs           (singleton: branding, default tz, default full-behavior, retentionDays)
-│   │   ├── Services/
-│   │   │   ├── IEntryDecisionService.cs
-│   │   │   ├── EntryDecisionService.cs          ★ implements rule-4 precedence; pure, deterministic, no I/O
-│   │   │   ├── IOccupancyCalculator.cs
-│   │   │   └── OccupancyCalculator.cs           (general free = capacity − active general sessions, floored at 0)
-│   │   ├── Interfaces/                           (IRepository<T>, IReadRepository<T>, IEmailSender, IApiKeyHasher, IDateTime, ICurrentActor)
-│   │   └── GuardClauses/                         (custom guards, e.g. Guard.Against.NegativeOccupancy)
-│   │
-│   ├── ParkingManagement.UseCases/             ← Application. Depends on Core.
-│   │   ├── ParkingLots/  { Create, Update, Archive, GetById, List }/  (Command|Query + Handler + Validator)
-│   │   ├── Spaces/       { Create, Update, Deactivate, ListByLot }/
-│   │   ├── Drivers/      { Create, Update, AssignPlate, ReassignPlate, BulkImport(P1), Export, Anonymize }/
-│   │   ├── Grants/       { Grant, Revoke, ListForDriver }/
-│   │   ├── Reservations/ { Create, Reassign, Cancel, ListByLot }/
-│   │   ├── AccessEvents/
-│   │   │   └── Ingest/IngestAccessEventCommand.cs + Handler.cs  ★ orchestrates decision + session + audit in one tx
-│   │   ├── Occupancy/    { GetLotOccupancy, GetMultiLotDashboard(P1) }/
-│   │   ├── Sessions/     { ListActive, CloseStale, ResetLotCount }/   (reconciliation — E7)
-│   │   ├── Audit/        { Query }/
-│   │   ├── Identity/     { CreateUser, DisableUser, ChangeRole, ListUsers }/
-│   │   ├── ApiKeys/      { Generate, List, Revoke }/
-│   │   └── PipelineBehaviors/ ValidationBehavior.cs, LoggingBehavior.cs, AuditBehavior.cs
-│   │
-│   ├── ParkingManagement.Infrastructure/       ← Implements Core interfaces. Depends on Core (+ UseCases for behaviors).
-│   │   ├── Data/
-│   │   │   ├── AppDbContext.cs                  (domain DbContext)
-│   │   │   ├── Config/  *Configuration.cs       (IEntityTypeConfiguration per aggregate — indexes/constraints live here)
-│   │   │   ├── Migrations/                      (EF code-first)
-│   │   │   ├── EfRepository.cs                  (Ardalis.Specification.EntityFrameworkCore)
-│   │   │   └── Interceptors/
-│   │   │       ├── AuditSaveChangesInterceptor.cs   (writes AuditLogEntry on tracked mutations)
-│   │   │       └── DomainEventDispatchInterceptor.cs (dispatches domain events post-save via Mediator)
-│   │   ├── Identity/
-│   │   │   ├── ApplicationUser.cs               (: IdentityUser<Guid>, adds DisplayName, Status)
-│   │   │   ├── AppIdentityDbContext.cs          (ASP.NET Core Identity store — see note on one-vs-two DbContexts)
-│   │   │   └── IdentitySeeder.cs                (seeds roles + first SystemAdmin)
-│   │   ├── ApiKeys/ApiKeyService.cs             (generate→show once, store SHA-256 hash, validate, revoke)
-│   │   ├── Email/SmtpEmailSender.cs             (password-reset transactional email only in v1)
-│   │   ├── BackgroundJobs/
-│   │   │   ├── StaleSessionExpiryJob.cs         (E8, P1 — auto-close sessions past max duration)
-│   │   │   └── RetentionPurgeJob.cs             (G2 — purge/anonymize events+sessions past retentionDays)
-│   │   └── DependencyInjection.cs               (AddInfrastructure extension)
-│   │
-│   └── ParkingManagement.Web/                  ← Presentation. FastEndpoints. Depends on all.
-│       ├── Endpoints/
-│       │   ├── Auth/        Login, Refresh, Logout, ForgotPassword, ResetPassword
-│       │   ├── Users/       Create, Disable, ChangeRole, List
-│       │   ├── ApiKeys/     Generate, List, Revoke
-│       │   ├── Lots/        Create, Update, Archive, GetById, List
-│       │   ├── Spaces/      Create, Update, Deactivate, ListByLot
-│       │   ├── Drivers/     Create, Update, AssignPlate, ReassignPlate, Export, Anonymize, BulkImport
-│       │   ├── Grants/      Grant, Revoke, ListForDriver
-│       │   ├── Reservations/ Create, Reassign, Cancel, ListByLot
-│       │   ├── AccessEvents/ IngestEndpoint.cs        ★ POST /api/v1/access-events (API-key scheme)
-│       │   ├── Occupancy/   GetLotOccupancy, MultiLotDashboard
-│       │   ├── Sessions/    ListActive, CloseStale, ResetLotCount
-│       │   └── Audit/       Query
-│       ├── Configuration/
-│       │   ├── AuthSetup.cs        (Identity cookie scheme + ApiKey scheme + authorization policies)
-│       │   ├── FastEndpointsSetup.cs, SwaggerSetup.cs, MediatorSetup.cs
-│       │   ├── RateLimitingSetup.cs, CorsSetup.cs, SerilogSetup.cs
-│       │   └── HealthChecksSetup.cs
-│       ├── Middleware/
-│       │   ├── ExceptionHandlingMiddleware.cs   (→ RFC 7807 ProblemDetails)
-│       │   └── ActorContextMiddleware.cs        (populates ICurrentActor from the Identity cookie principal or API key for audit)
+│   └── Parkin.Api/                              ← the ONE project. Everything below is a folder, not an assembly.
+│       ├── Domain/                              ← NsDepCop: cannot reference Infrastructure.*
+│       │   ├── ParkingLotAggregate/
+│       │   │   ├── ParkingLot.cs                 (aggregate root: name, tz, AccessMode, FullBehavior, status)
+│       │   │   ├── ParkingLotId.cs                (Vogen [ValueObject<int>])
+│       │   │   ├── ParkingSpace.cs                (entity within the lot: label, SpaceType, row/col/zone, status)
+│       │   │   ├── Events/LotArchivedEvent.cs, SpaceDeactivatedEvent.cs
+│       │   │   └── Specifications/ActiveSpacesByLotSpec.cs, LotByNameSpec.cs
+│       │   ├── DriverAggregate/
+│       │   │   ├── Driver.cs                      (root: name, contact, status)
+│       │   │   ├── DriverId.cs                    (Vogen [ValueObject<Guid>])
+│       │   │   ├── Plate.cs                       (entity: NormalizedPlateNumber, region, active)
+│       │   │   └── Specifications/PlateByNormalizedValueSpec.cs, DriverWithPlatesSpec.cs
+│       │   ├── AccessGrantAggregate/
+│       │   │   ├── AccessGrant.cs                 (root: driverId, lotId, validFrom, validTo?, status)
+│       │   │   └── Specifications/ActiveGrantForDriverLotSpec.cs
+│       │   ├── ReservationAggregate/
+│       │   │   ├── Reservation.cs                 (root: spaceId, lotId, driverId, start, end?, status)
+│       │   │   └── Specifications/ActiveReservationBySpaceSpec.cs, ActiveReservationForDriverLotSpec.cs
+│       │   ├── SessionAggregate/
+│       │   │   ├── ParkingSession.cs              (root: lotId, driverId?, plate, spaceId?, Pool, entry/exit refs, status)
+│       │   │   └── Specifications/ActiveSessionsByLotSpec.cs, OpenSessionForPlateSpec.cs
+│       │   ├── AccessEventAggregate/
+│       │   │   ├── AccessEvent.cs                 (root, immutable: lotId, rawPlate, matched ids, dir, source, decision, reason, idempotencyKey, …)
+│       │   │   └── Enums/Direction.cs, EventSource.cs, Decision.cs, DenyReason.cs (Ardalis.SmartEnum)
+│       │   ├── AuditAggregate/
+│       │   │   └── AuditLogEntry.cs               (root, append-only: actorType, actorId?, action, entityType, entityId, ip?, metadata json)
+│       │   ├── OrganizationAggregate/
+│       │   │   └── OrganizationSettings.cs        (singleton: branding, default tz, default full-behavior, retentionDays)
+│       │   ├── Services/
+│       │   │   ├── IEntryDecisionService.cs
+│       │   │   ├── EntryDecisionService.cs       ★ implements rule-4 precedence; pure, deterministic, no I/O
+│       │   │   ├── IOccupancyCalculator.cs
+│       │   │   └── OccupancyCalculator.cs        (general free = capacity − active general sessions, floored at 0)
+│       │   └── Interfaces/                        (IEmailSender, IApiKeyHasher, IDateTime, ICurrentActor)
+│       │
+│       ├── ParkingLotFeatures/  { Create, Update, Archive, GetById, List }/  (Endpoint + Request/Response + Validator [+ Command/Handler for non-trivial ones])
+│       ├── SpaceFeatures/       { Create, Update, Deactivate, ListByLot }/
+│       ├── DriverFeatures/      { Create, Update, AssignPlate, ReassignPlate, BulkImport(P1), Export, Anonymize }/
+│       ├── GrantFeatures/       { Grant, Revoke, ListForDriver }/
+│       ├── ReservationFeatures/ { Create, Reassign, Cancel, ListByLot }/
+│       ├── AccessEventFeatures/
+│       │   └── Ingest/IngestEndpoint.cs + IngestAccessEventCommand.cs + Handler.cs  ★ orchestrates decision + session + audit in one tx
+│       ├── OccupancyFeatures/   { GetLotOccupancy, GetMultiLotDashboard(P1) }/
+│       ├── SessionFeatures/     { ListActive, CloseStale, ResetLotCount }/   (reconciliation — E7)
+│       ├── AuditFeatures/       { Query }/
+│       ├── UserFeatures/        { Create, Disable, ChangeRole, List }/
+│       ├── ApiKeyFeatures/      { Generate, List, Revoke }/
+│       │   *(NsDepCop: `*Features.*` cannot reference `Infrastructure.*` — depend on Domain abstractions, injected via DI)*
+│       │
+│       ├── Infrastructure/                       ← implements Domain interfaces
+│       │   ├── Data/
+│       │   │   ├── AppDbContext.cs                (domain DbContext — see note on one-vs-two DbContexts below)
+│       │   │   ├── Config/  *Configuration.cs, VogenEfCoreConverters.cs  (IEntityTypeConfiguration per aggregate — indexes/constraints live here; every Vogen ID must be registered here)
+│       │   │   ├── Migrations/                    (EF code-first, applied + seeded on startup)
+│       │   │   ├── EfRepository.cs                 (Ardalis.Specification.EntityFrameworkCore)
+│       │   │   └── EventDispatcherInterceptor.cs   (dispatches domain events post-`SaveChanges` via Mediator; audit interceptor lives alongside)
+│       │   ├── Identity/
+│       │   │   ├── ApplicationUser.cs             (: IdentityUser<Guid>, adds DisplayName, Status)
+│       │   │   └── IdentitySeeder.cs               (seeds roles + first SystemAdmin)
+│       │   ├── ApiKeys/ApiKeyService.cs            (generate→show once, store SHA-256 hash, validate, revoke)
+│       │   ├── Email/MimeKitEmailSender.cs         (password-reset transactional email — P2, post-v1; FakeEmailSender for dev/test)
+│       │   └── BackgroundJobs/
+│       │       ├── StaleSessionExpiryJob.cs        (E8, P1 — auto-close sessions past max duration)
+│       │       └── RetentionPurgeJob.cs            (G2, P1 — purge/anonymize events+sessions past retentionDays)
+│       │
+│       ├── Configurations/                        ← DI/config extension methods, called from Program.cs
+│       │   ├── OptionConfigs.cs        (binds DatabaseOptions etc.)
+│       │   ├── ServiceConfigs.cs        (AddInfrastructureServices, AddServiceConfigs — composes the extensions below)
+│       │   ├── MediatorConfig.cs        (AddMediatorSourceGen — registers pipeline behaviors, order matters)
+│       │   ├── AuthConfig.cs            (Identity cookie scheme + ApiKey scheme + authorization policies)
+│       │   ├── LoggerConfigs.cs         (Serilog)
+│       │   └── MiddlewareConfig.cs      (exception → RFC 7807 ProblemDetails, migrate+seed on startup)
 │       ├── Program.cs
 │       ├── appsettings.json / appsettings.Production.json
-│       └── Dockerfile
+│       └── config.nsdepcop                        ← compiler-adjacent enforcement of the folder boundaries above
 │
-└── tests/
-    ├── ParkingManagement.UnitTests/            (xUnit · FluentAssertions · NSubstitute)
-    │   ├── Core/EntryDecisionServiceTests.cs    ★ exhaustive coverage of rule-4 precedence + edge cases
-    │   ├── Core/OccupancyCalculatorTests.cs     (floor-at-zero, overflow flag, reserved bypass)
-    │   └── UseCases/…HandlerTests.cs            (mock repos; assert orchestration + Result outcomes)
-    ├── ParkingManagement.IntegrationTests/      (real PostgreSQL via Testcontainers)
+├── src/_aspire/
+│   ├── Parkin.AspireHost/                         (provisions PostgreSQL + Papercut SMTP containers, launches the API)
+│   └── Parkin.ServiceDefaults/                     (shared OpenTelemetry/health-check/resilience wiring)
+│
+└── tests/                                          ← not yet created; packages are pre-wired for when they are
+    ├── Parkin.UnitTests/            (xUnit · Shouldly · NSubstitute)
+    │   ├── Domain/EntryDecisionServiceTests.cs    ★ exhaustive coverage of rule-4 precedence + edge cases
+    │   ├── Domain/OccupancyCalculatorTests.cs     (floor-at-zero, overflow flag, reserved bypass)
+    │   └── Features/…HandlerTests.cs               (mock repos; assert orchestration + Result outcomes)
+    ├── Parkin.IntegrationTests/      (real PostgreSQL via Testcontainers.PostgreSql)
     │   ├── Repositories + Specifications        (verify partial unique indexes actually reject conflicts)
     │   └── IdempotencyTests.cs                  (replayed idempotency key returns original, no double count)
-    └── ParkingManagement.FunctionalTests/       (WebApplicationFactory — full HTTP)
+    └── Parkin.FunctionalTests/       (WebApplicationFactory / Aspire.Hosting.Testing — full HTTP)
         ├── AuthFlowTests.cs                      (login → authenticated request via cookie → 401 after logout/disable)
         ├── RbacTests.cs                          (A2 — every endpoint returns 403 for wrong role)
         └── AccessEventEndToEndTests.cs           (ENTER allow → session opened → EXIT closes; concurrency)
 ```
 
-**Key NuGet packages**
+**Key NuGet packages** *(matches `Directory.Packages.props` — already centrally versioned in the template)*
 
-`FastEndpoints`, `FastEndpoints.Swagger`, `Mediator`, `Ardalis.Specification`, `Ardalis.Specification.EntityFrameworkCore`, `Ardalis.Result`, `Ardalis.Result.FluentValidation`, `Ardalis.GuardClauses`, `FluentValidation`, `Microsoft.EntityFrameworkCore`, `Npgsql.EntityFrameworkCore.PostgreSQL`, `Microsoft.AspNetCore.Identity.EntityFrameworkCore`, `Serilog.AspNetCore`, `Microsoft.AspNetCore.RateLimiting` (built-in), `Hangfire` *or* `Quartz` *or* a hosted `BackgroundService` for jobs. Tests: `xunit`, `FluentAssertions`, `NSubstitute`, `Testcontainers.PostgreSql`, `Microsoft.AspNetCore.Mvc.Testing`.
+`FastEndpoints`, `FastEndpoints.Swagger`, `Mediator.Abstractions` + `Mediator.SourceGenerator`, `Ardalis.Specification`, `Ardalis.Specification.EntityFrameworkCore`, `Ardalis.Result`, `Ardalis.Result.AspNetCore`, `Ardalis.GuardClauses`, `Ardalis.SmartEnum`, `Ardalis.SharedKernel`, `Vogen` (strongly-typed IDs — **mandatory** convention, see CLAUDE.md), `NimblePros.Metronome`, `NsDepCop` (boundary enforcement), `Microsoft.EntityFrameworkCore.Relational`, `Npgsql.EntityFrameworkCore.PostgreSQL`, `Serilog.AspNetCore` + `Serilog.Sinks.OpenTelemetry`, `MailKit`/`MimeKit`, `Microsoft.AspNetCore.RateLimiting` (built-in), a hosted `BackgroundService` (or Hangfire/Quartz) for jobs. **Not yet added, needed for Epic A:** `Microsoft.AspNetCore.Identity.EntityFrameworkCore`. Tests: `xunit`, `Shouldly` (not FluentAssertions), `NSubstitute`, `Testcontainers.PostgreSql`, `Aspire.Hosting.Testing`, `Microsoft.AspNetCore.Mvc.Testing`, `coverlet.collector` + `ReportGenerator` (coverage collection/reporting — also already centrally versioned, just unused until a test project exists).
 
 The custom API-key scheme needs no extra NuGet package — it's a small `AuthenticationHandler<ApiKeyAuthenticationOptions>` in `Infrastructure/ApiKeys` that reads `X-Api-Key`, hashes it, and looks it up against `api_keys.key_hash`.
 
+**Coverage (PRD §7 Testing — ~30% target, informal):** when useful, run `dotnet test --collect:"XPlat Code Coverage"` across `Parkin.UnitTests` (Coverlet emits Cobertura XML) and eyeball it with `reportgenerator` — no CI threshold/gate, just a rough goalpost. Weight actual test-writing effort toward `EntryDecisionService` and `OccupancyCalculator` first (PRD Testing NFR), not toward padding coverage on generated/DTO code.
+
 **One DbContext or two?** The cleanest option is a **single `AppDbContext` that also derives from `IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>`**, so Identity tables and domain tables share one connection, one migration history, and one transaction scope. Given single-tenant + modest scale, this is recommended. Keep a separate context only if you later want to swap the identity store independently (e.g. for SSO, Q12).
 
-**Where the decision logic lives — and why.** `EntryDecisionService` is a **pure domain service in Core**: it receives a fully-materialized decision context (lot config, whether the plate is known, whether an active grant/reservation exists, current general occupancy) and returns a `Decision` + `DenyReason` + optional reserved space label. It performs no I/O, so its rule-4 precedence is trivially and exhaustively unit-testable. The `IngestAccessEventCommandHandler` in UseCases does the I/O (load context, call the service, persist the `AccessEvent` + open/close the `ParkingSession` + audit) inside **one transaction**. This split is the whole point of Clean Architecture here: the most important, most-tested logic in the system has zero infrastructure dependencies.
+**Where the decision logic lives — and why.** `EntryDecisionService` is a **pure domain service in `Domain/`**: it receives a fully-materialized decision context (lot config, whether the plate is known, whether an active grant/reservation exists, current general occupancy) and returns a `Decision` + `DenyReason` + optional reserved space label. It performs no I/O, so its rule-4 precedence is trivially and exhaustively unit-testable. The `IngestAccessEventCommandHandler` in `AccessEventFeatures/` does the I/O (load context, call the service, persist the `AccessEvent` + open/close the `ParkingSession` + audit) inside **one transaction**. This split is the whole point of Clean Architecture here even without physical project boundaries: the most important, most-tested logic in the system has zero infrastructure dependencies, and `NsDepCop` makes that a build-breaking rule (`Domain.*` → `Infrastructure.*` is disallowed) rather than a convention people can quietly violate.
 
 ---
 
@@ -262,13 +259,13 @@ parking-web/
     ├── routes/                         ← TanStack Router (file-based). Route guards live here.
     │   ├── __root.tsx                  (shell, error boundary, devtools)
     │   ├── login.tsx                   (public)
-    │   ├── forgot-password.tsx
-    │   ├── reset-password.tsx
+    │   ├── forgot-password.tsx         (P2, not in v1)
+    │   ├── reset-password.tsx          (P2, not in v1)
     │   └── _authenticated/             (layout route: redirects to /login if unauthenticated)
     │       ├── route.tsx               (sidebar + topbar; reads current user)
     │       ├── index.tsx               (dashboard / live occupancy landing)
-    │       ├── lots/                   (index, $lotId, $lotId.spaces, new, $lotId.edit)
-    │       ├── lots.$lotId.map.tsx     (2D view — F1 — with accessible table — F2)
+    │       ├── lots/                   (index, $lotId, $lotId.spaces — F2, v1's only lot-layout view — new, $lotId.edit)
+    │       ├── lots.$lotId.map.tsx     (2D view — F1 — **post-v1, not built yet**)
     │       ├── drivers/                (index, $driverId, new — incl. plates + grants)
     │       ├── reservations/           (index, new, $reservationId.edit)
     │       ├── gate/                   (gate console — manual entry/exit + override, E5/E6)
@@ -290,8 +287,8 @@ parking-web/
     │   ├── reservations/{ …, components/ (ReservationForm, ReassignDialog, ConflictAlert) }
     │   ├── occupancy/
     │   │   ├── api/        useLotOccupancy.ts (refetchInterval for near-live), useMultiLotDashboard.ts
-    │   │   └── components/ OccupancyStats.tsx, LotMap2D.tsx (SVG/CSS-grid from ordinals),
-    │   │                   UnplacedTray.tsx, OccupancyTable.tsx (WCAG-accessible equivalent — F2)
+    │   │   └── components/ OccupancyStats.tsx, OccupancyTable.tsx (v1's spaces view — F2, WCAG-accessible by default),
+    │   │                   LotMap2D.tsx (SVG/CSS-grid from ordinals) + UnplacedTray.tsx (**post-v1, not built yet** — F1)
     │   ├── gate/        { api/ useManualEvent.ts, useOverrideDecision.ts; components/ ManualEntryForm, DecisionBanner, OverrideDialog }
     │   ├── sessions/    { …, components/ (ActiveSessionsTable, CloseSessionDialog, ResetCountDialog) }
     │   ├── users/       { …, components/ (UserForm, RoleSelect, DisableUserDialog) }
@@ -323,7 +320,6 @@ parking-web/
 - **UI:** `tailwindcss`, `class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`, shadcn/ui components, `sonner` (toasts)
 - **Client state:** `zustand` (kept deliberately small)
 - **Dates/timezones:** `date-fns` + `@date-fns/tz` (or Luxon) — **non-negotiable**, because lots are timezone-aware (B1) and access-event display must respect the lot's tz
-- **Testing:** `vitest`, `@testing-library/react`, `@testing-library/user-event`, `msw` (mock the API), `@playwright/test` (e2e, incl. keyboard-only flows for WCAG)
 
 **Conventions worth fixing now**
 
@@ -331,8 +327,8 @@ parking-web/
 - **Query-key factory** in `lib/query-keys.ts` (e.g. `qk.lots.list(filters)`, `qk.occupancy.lot(lotId)`) to keep invalidation correct and discoverable.
 - **Generate API types from the backend's OpenAPI** (FastEndpoints emits it) via `openapi-typescript`, so frontend DTOs can't drift from the contract.
 - **`RoleGate` hides UI only.** The server is the authority (A2). Treat client role checks purely as UX.
-- **2D map (F1)** = CSS-grid/SVG positioned from `(row, col, zone)` ordinals; spaces with no ordinals fall into an `UnplacedTray` (B5). The map is *configuration + an aggregate count*, never live per-bay status (rule 9, Q3) — label it as such in the UI.
-- **`OccupancyTable` (F2)** is a hard requirement, not an enhancement: it must carry the same information as the map and be fully keyboard/screen-reader operable.
+- **`OccupancyTable` (F2)** is v1's only lot-layout view — a standard data table, WCAG-compliant by construction (no separate accessible-equivalent work needed since there's no map to keep in sync with).
+- **2D map (F1) — post-v1, not built in v1** = CSS-grid/SVG positioned from `(row, col, zone)` ordinals; spaces with no ordinals fall into an `UnplacedTray` (B5, also post-v1). When built, the map is *configuration + an aggregate count*, never live per-bay status (rule 9, Q3) — label it as such in the UI, and it must ship alongside `OccupancyTable` as its accessible equivalent.
 
 ---
 
@@ -475,7 +471,7 @@ erDiagram
         uuid id PK "ASP.NET Identity"
         text email "UNIQUE"
         text password_hash
-        text role "SystemAdmin|Operator|GateAttendant"
+        text role "SystemAdmin|Operator"
         text status "ACTIVE|DISABLED"
     }
 ```
@@ -548,7 +544,7 @@ ALTER TABLE parking_lots ADD CONSTRAINT ux_lot_name UNIQUE (name);
 | Auth | `POST /api/v1/auth/login` | public | validates credentials, sets HttpOnly session cookie (`SignInAsync`) |
 | Auth | `GET /api/v1/auth/me` | cookie | returns current user + roles (SPA hydration on load) |
 | Auth | `POST /api/v1/auth/logout` | cookie | `SignOutAsync`, clears the cookie |
-| Auth | `POST /api/v1/auth/forgot-password` / `reset-password` | public | neutral response, single-use token (A3) |
+| Auth | `POST /api/v1/auth/forgot-password` / `reset-password` | public | **P2, not in v1** — neutral response, single-use token (A3); v1 ships admin-driven password reset only |
 | Users | `POST/GET/PATCH /api/v1/users`, `POST …/{id}/disable` | **SystemAdmin** | disable ends sessions immediately (A4) |
 | API keys | `POST/GET /api/v1/api-keys`, `POST …/{id}/revoke` | **SystemAdmin** | create returns key **once** (A5) |
 | Lots | `GET/POST /api/v1/lots`, `GET/PATCH …/{id}`, `POST …/{id}/archive` | **Operator+** | B1–B3 |
@@ -557,9 +553,9 @@ ALTER TABLE parking_lots ADD CONSTRAINT ux_lot_name UNIQUE (name);
 | Grants | `POST /api/v1/grants`, `POST …/{id}/revoke`, `GET /api/v1/drivers/{id}/grants` | **Operator+** | C2 |
 | Reservations | `GET/POST /api/v1/reservations`, `POST …/{id}/reassign`, `POST …/{id}/cancel` | **Operator+** | D1–D2; 409 on conflict |
 | **Access events** | `POST /api/v1/access-events` | **API key** | ★ ENTER/EXIT → ALLOW/DENY + reason (+ reserved space label); idempotent (E1–E3) |
-| Occupancy | `GET /api/v1/lots/{id}/occupancy`, `GET /api/v1/occupancy/dashboard` | **Operator + GateAttendant** | E4; dashboard P1 |
+| Occupancy | `GET /api/v1/lots/{id}/occupancy`, `GET /api/v1/occupancy/dashboard` | **Operator** | E4; dashboard P1 |
 | Sessions | `GET /api/v1/lots/{id}/sessions?status=ACTIVE`, `POST …/{sid}/close`, `POST /api/v1/lots/{id}/occupancy/reset` | **Operator** | reconciliation E7 |
-| Gate actions | `POST /api/v1/lots/{id}/manual-events`, `POST /api/v1/access-events/{id}/override` | **GateAttendant + Operator** | manual entry/exit + override (E5, E6) |
+| Gate actions | `POST /api/v1/lots/{id}/manual-events`, `POST /api/v1/access-events/{id}/override` | **Operator** | manual entry/exit + override (E5, E6) |
 | Audit | `GET /api/v1/audit?from&to&actor&entity` | **SystemAdmin** | filterable, read-only (G1) |
 
 **The one endpoint to get exactly right — `POST /api/v1/access-events`:**
@@ -584,7 +580,7 @@ The endpoint always returns **200 with a decision body** for a well-formed, auth
 
 ## 7. Authentication & Authorization Strategy (cookie auth for the SPA, API keys for machine clients)
 
-**Identity foundation.** ASP.NET Core Identity manages staff users, salted password hashing (Argon2/PBKDF2 via Identity), password policy, **account lockout on repeated failures** (A1), and password-reset tokens (A3). Three roles: `SystemAdmin`, `Operator`, `GateAttendant` (A2). The first `SystemAdmin` is seeded at provisioning.
+**Identity foundation.** ASP.NET Core Identity manages staff users, salted password hashing (Argon2/PBKDF2 via Identity), password policy, and **account lockout on repeated failures** (A1). Identity's password-reset token machinery (A3) is deferred — **P2, not in v1**; a System Admin resets a staff user's password directly instead. Two roles: `SystemAdmin`, `Operator` (A2). The first `SystemAdmin` is seeded at provisioning.
 
 **SPA auth — Identity cookie scheme (resolves Q6):**
 
@@ -605,7 +601,7 @@ The endpoint always returns **200 with a decision body** for a well-formed, auth
 - A second authentication handler validates `X-Api-Key` against `api_keys.key_hash` (SHA-256; only a `prefix` is stored for display) — no JWT, no expiry/refresh dance, just a static rotatable secret per device/integration. Keys are **shown once** at generation, **rotatable**, and **revoked immediately** on demand (delete/disable the row); at least one ACTIVE key must exist for the ingestion endpoint to authorize. Create/revoke are audit-logged. The endpoint is independently **rate-limited**.
 - This scheme is intentionally reused for *any* future non-browser/non-staff client (a partner integration, a second gate vendor) — they all get their own named API key rather than a user account, keeping the cookie scheme exclusively for human staff in the SPA.
 
-**Transport & hardening:** HTTPS/TLS 1.2+ everywhere, HSTS at the proxy, rate limiting on `/auth/*` and `/access-events`, generic "invalid email or password" (no user enumeration — A1), neutral password-reset responses (A3), secrets never logged (§7).
+**Transport & hardening:** HTTPS/TLS 1.2+ everywhere, HSTS at the proxy, rate limiting on `/auth/*` and `/access-events`, generic "invalid email or password" (no user enumeration — A1), neutral password-reset responses (A3 — P2, not in v1), secrets never logged (§7).
 
 ---
 
@@ -674,7 +670,7 @@ flowchart TD
 
 ## 9. Cross-Cutting Concerns
 
-- **Validation:** FluentValidation on every inbound DTO, executed in a Mediator `ValidationBehavior` (and surfaced by FastEndpoints as `400`/ProblemDetails). Malformed plates/events are rejected before touching the domain (§7).
+- **Validation:** `FastEndpoints.Validator<T>` on every inbound DTO, run automatically by the FastEndpoints pipeline **before** `ExecuteAsync`/Mediator dispatch (not a Mediator pipeline behavior — see §3), surfaced as `400`/`ValidationProblem`. Malformed plates/events are rejected before touching the domain (§7).
 - **Audit:** an EF Core `SaveChangesInterceptor` writes `AuditLogEntry` rows for tracked mutations (actor from `ICurrentActor`, populated by middleware from the Identity cookie principal or API key), and the ingestion handler explicitly logs every access *decision* (rule 11, G1). Append-only enforced at the DB-role level.
 - **Domain events:** raised by aggregates, dispatched post-commit via a second interceptor → Mediator handlers (e.g. "reservation created → set space type RESERVED", "user disabled → bump security-stamp to invalidate existing cookie sessions").
 - **Background jobs:** `StaleSessionExpiryJob` (E8, P1 — auto-close sessions past a configurable max, self-healing drift) and `RetentionPurgeJob` (G2 — purge/anonymize events+sessions older than `retentionDays`, default 90 per Q1). A hosted `BackgroundService` or Hangfire/Quartz; idempotent and safe to run on a single replica (leader-elect or DB advisory lock if multiple replicas).
@@ -716,8 +712,8 @@ flowchart TD
 |---|---|---|
 | Q1 | GDPR basis/retention/erasure | In scope: configurable retention (90-day default), `RetentionPurgeJob`, per-driver export + anonymize preserving aggregates. **Confirm lawful basis with DPO before beta.** |
 | Q2 | Gate fail-safe open/closed | Decision body ≠ transport failure; fail-safe configured at the gate per deployment (default: closed/restricted, open/open). Platform stays restart-fast & stateless. |
-| Q3 | 2D view semantics | Aggregate count + static layout only; UI labels it "lot-level, gate-counted." No per-bay status (rule 9). |
-| Q4 | Layout data without builder | `(row, col, zone)` ordinals → CSS-grid/SVG auto-grid; unplaced spaces in a tray (B5). Free-form x/y deferred to P2 builder. |
+| Q3 | Tabular spaces view semantics | Aggregate count + static per-space config only; UI labels it "lot-level, gate-counted." No per-bay status (rule 9). 2D map (F1) is post-v1. |
+| Q4 | Layout data without builder *(post-v1, not blocking)* | `(row, col, zone)` ordinals → CSS-grid/SVG auto-grid; unplaced spaces in a tray (B5). Free-form x/y deferred to P2 builder. Not needed until the 2D map is built. |
 | Q5 | Access Events contract | Synchronous `POST /api/v1/access-events`, **API key**, `Idempotency-Key` required, ALLOW/DENY + reason, 200-for-decision semantics. |
 | Q6 | SPA token strategy | **Same-site HttpOnly cookie auth** (ASP.NET Identity), the PRD's recommended default — no token ever touches client-side JS. Gate/integration auth uses a separate **API key** scheme, not JWT; revisit only if a future client truly can't carry cookies (e.g. a mobile app on a different origin). |
 | Q7 | Driver login in v1 | None. Drivers are admin-managed records; no driver auth surface built. |
@@ -731,13 +727,13 @@ flowchart TD
 
 ## 12. Suggested Build Sequence
 
-1. **Foundations:** solution skeleton (4 projects + 3 test projects), `AppDbContext` + Identity, first migration, CI, Dockerfile, health checks, Serilog.
-2. **Auth (Epic A):** login/logout via Identity cookie scheme, RBAC policies, user & API-key management, password reset. Lock in `RbacTests` early.
-3. **Lots & spaces (Epic B):** lot/space CRUD, access mode, full behavior, ordinals.
+1. **Foundations:** *(mostly already scaffolded — Parkin.Api/AspireHost/ServiceDefaults, `Directory.Packages.props`, CI-ready)* add Identity to `AppDbContext`, the three test projects (currently absent), first parking-domain migration, health checks already via Aspire, Serilog already wired.
+2. **Auth (Epic A):** login/logout via Identity cookie scheme, RBAC policies, user & API-key management. Lock in `RbacTests` early. *(Self-service password reset is P2/post-v1 — not part of this slice.)*
+3. **Lots & spaces (Epic B):** lot/space CRUD, access mode, full behavior. *(Layout ordinals — B5 — deferred with the post-v1 2D map.)*
 4. **Drivers, plates, grants, reservations (Epics C, D):** with the partial-unique-index invariants verified by integration tests.
 5. **★ Access events & occupancy (Epic E):** `EntryDecisionService` (unit-test exhaustively first), ingestion endpoint, sessions, live occupancy, manual entry/override, reconciliation. This is the riskiest, highest-value slice — give it the most test budget.
-6. **Visualization (Epic F):** 2D map + accessible table.
-7. **Audit & compliance (Epic G):** audit querying UI, retention config, export/anonymize.
+6. **Visualization (Epic F):** tabular spaces view (F2). *(2D map — F1 — is post-v1.)*
+7. **Audit & compliance (Epic G):** audit querying UI (G1, P0), retention config + export/anonymize (G2, P1 — target v1 if time allows).
 8. **P1 if time:** auto-expiry job, CSV import, occupancy history/reports, multi-lot dashboard, access/reservation emails.
 
 ---

@@ -17,4 +17,7 @@
     <Project Path="src/Parkin.AspireHost/Parkin.AspireHost.csproj" />
     <Project Path="src/Parkin.ServiceDefaults/Parkin.ServiceDefaults.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Parkin.UnitTests/Parkin.UnitTests.csproj" />
+  </Folder>
 </Solution>
