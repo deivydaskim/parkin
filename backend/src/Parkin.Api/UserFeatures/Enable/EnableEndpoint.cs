@@ -45,8 +45,8 @@ public class EnableEndpoint(UserManager<ApplicationUser> userManager, IRepositor
     var entry = AuditLogEntry.Create(
       AuditActorType.Staff,
       HttpContext.User.ActorId(userManager),
-      "user.enable",
-      "User",
+      AuditActions.UserEnable,
+      AuditEntityTypes.User,
       user.Id,
       HttpContext.Connection.RemoteIpAddress);
     await auditRepository.AddAsync(entry, cancellationToken);

@@ -15,8 +15,8 @@ public sealed class UpdateLotRequest
   public string? Name { get; init; }
   public string? Address { get; init; }
   public string? Timezone { get; init; }
-  public string? AccessMode { get; init; }
-  public string? FullBehavior { get; init; }
+  public AccessMode? AccessMode { get; init; }
+  public FullBehavior? FullBehavior { get; init; }
 }
 
 public class UpdateEndpoint(IMediator mediator)
@@ -53,8 +53,8 @@ public class UpdateEndpoint(IMediator mediator)
       request.Name,
       request.Address,
       request.Timezone,
-      request.AccessMode is null ? null : LotEnumMapping.ParseAccessMode(request.AccessMode),
-      request.FullBehavior is null ? null : LotEnumMapping.ParseFullBehavior(request.FullBehavior));
+      request.AccessMode,
+      request.FullBehavior);
 
     var result = await mediator.Send(command, cancellationToken);
 
@@ -89,15 +89,5 @@ public sealed class UpdateLotValidator : Validator<UpdateLotRequest>
       .NotEmpty()
       .WithMessage("Timezone cannot be blank")
       .When(x => x.Timezone is not null);
-
-    RuleFor(x => x.AccessMode)
-      .Must(v => v is "OPEN" or "RESTRICTED")
-      .WithMessage("AccessMode must be OPEN or RESTRICTED")
-      .When(x => x.AccessMode is not null);
-
-    RuleFor(x => x.FullBehavior)
-      .Must(v => v is "BLOCK" or "ALLOW_OVERFLOW")
-      .WithMessage("FullBehavior must be BLOCK or ALLOW_OVERFLOW")
-      .When(x => x.FullBehavior is not null);
   }
 }

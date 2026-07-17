@@ -73,8 +73,8 @@ public class CreateEndpoint(UserManager<ApplicationUser> userManager, IRepositor
     var entry = AuditLogEntry.Create(
       AuditActorType.Staff,
       HttpContext.User.ActorId(userManager),
-      "user.create",
-      "User",
+      AuditActions.UserCreate,
+      AuditEntityTypes.User,
       user.Id,
       HttpContext.Connection.RemoteIpAddress,
       new { role = request.Role });

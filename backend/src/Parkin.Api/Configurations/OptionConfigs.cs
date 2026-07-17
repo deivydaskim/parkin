@@ -1,6 +1,7 @@
 using Ardalis.ListStartupServices;
 using Parkin.Api.Infrastructure.Email;
 using Parkin.Api.Infrastructure.Identity;
+using System.Text.Json.Serialization;
 
 namespace Parkin.Api.Configurations;
 
@@ -11,6 +12,9 @@ public static class OptionConfigs
                                                     Microsoft.Extensions.Logging.ILogger logger,
                                                     WebApplicationBuilder builder)
   {
+    services.ConfigureHttpJsonOptions(options =>
+      options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
     services.Configure<MailserverConfiguration>(configuration.GetSection("Mailserver"))
     .Configure<DatabaseOptions>(configuration.GetSection("DatabaseOptions"))
     .Configure<SeedAdminOptions>(configuration.GetSection(SeedAdminOptions.SectionName))

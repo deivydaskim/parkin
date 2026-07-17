@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { RoleGate } from '@/features/auth/components/RoleGate'
 import { LotForm } from '@/features/lots/components/LotForm'
 import { useArchiveLot, useLot, useUpdateLot } from '@/features/lots/queries'
-import type { LotFormInput } from '@/features/lots/schemas'
+import { LotStatus, type LotFormInput } from '@/features/lots/schemas'
 
 export const Route = createFileRoute('/_authenticated/lots/$lotId')({
   component: LotDetailPage,
@@ -33,14 +33,16 @@ function LotDetailPage() {
         <div>
           <h1 className="text-xl font-semibold">{lot.name}</h1>
           <p className="text-sm text-muted-foreground">
-            Status: {lot.status === 'ARCHIVED' ? 'Archived' : 'Active'}
+            Status: {lot.status === LotStatus.Archived ? 'Archived' : 'Active'}
           </p>
         </div>
 
         <RoleGate roles={['Operator', 'SystemAdmin']}>
           <Button
             variant="destructive"
-            disabled={lot.status === 'ARCHIVED' || archiveLotMutation.isPending}
+            disabled={
+              lot.status === LotStatus.Archived || archiveLotMutation.isPending
+            }
             onClick={() => archiveLotMutation.mutate()}
           >
             {archiveLotMutation.isPending ? 'Archiving…' : 'Archive'}

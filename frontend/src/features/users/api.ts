@@ -27,11 +27,11 @@ export async function createUser(input: CreateUserInput): Promise<User> {
 }
 
 export async function disableUser(id: string): Promise<void> {
-  await apiClient.post(`/users/${id}/disable`)
+  await apiClient.post(`/users/${id}/disable`, {})
 }
 
 export async function enableUser(id: string): Promise<void> {
-  await apiClient.post(`/users/${id}/enable`)
+  await apiClient.post(`/users/${id}/enable`, {})
 }
 
 export async function changeUserRole(

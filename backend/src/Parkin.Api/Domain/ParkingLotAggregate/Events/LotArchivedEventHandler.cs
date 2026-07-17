@@ -10,8 +10,8 @@ public class LotArchivedEventHandler(IRepository<AuditLogEntry> auditRepository)
     var entry = AuditLogEntry.Create(
       AuditActorType.System,
       null,
-      "lot.archived",
-      "ParkingLot",
+      AuditActions.LotArchived,
+      AuditEntityTypes.ParkingLot,
       notification.LotId.Value,
       null);
 

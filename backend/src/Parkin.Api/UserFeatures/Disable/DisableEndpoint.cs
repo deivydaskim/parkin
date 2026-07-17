@@ -56,8 +56,8 @@ public class DisableEndpoint(UserManager<ApplicationUser> userManager, IReposito
     var entry = AuditLogEntry.Create(
       AuditActorType.Staff,
       HttpContext.User.ActorId(userManager),
-      "user.disable",
-      "User",
+      AuditActions.UserDisable,
+      AuditEntityTypes.User,
       user.Id,
       HttpContext.Connection.RemoteIpAddress);
     await auditRepository.AddAsync(entry, cancellationToken);

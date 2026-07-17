@@ -1,13 +1,16 @@
 import { z } from 'zod'
 
-export const accessModeSchema = z.enum(['OPEN', 'RESTRICTED'])
+export const accessModeSchema = z.enum(['Open', 'Restricted'])
 export type AccessMode = z.infer<typeof accessModeSchema>
+export const AccessMode = accessModeSchema.enum
 
-export const fullBehaviorSchema = z.enum(['BLOCK', 'ALLOW_OVERFLOW'])
+export const fullBehaviorSchema = z.enum(['Block', 'AllowOverflow'])
 export type FullBehavior = z.infer<typeof fullBehaviorSchema>
+export const FullBehavior = fullBehaviorSchema.enum
 
-export const lotStatusSchema = z.enum(['ACTIVE', 'ARCHIVED'])
+export const lotStatusSchema = z.enum(['Active', 'Archived'])
 export type LotStatus = z.infer<typeof lotStatusSchema>
+export const LotStatus = lotStatusSchema.enum
 
 // Full resource, as returned by the API.
 export const lotSchema = z.object({

@@ -64,8 +64,8 @@ public class ChangeRoleEndpoint(UserManager<ApplicationUser> userManager, IRepos
     var entry = AuditLogEntry.Create(
       AuditActorType.Staff,
       HttpContext.User.ActorId(userManager),
-      "user.change_role",
-      "User",
+      AuditActions.UserChangeRole,
+      AuditEntityTypes.User,
       user.Id,
       HttpContext.Connection.RemoteIpAddress,
       new { fromRole, toRole = request.Role });

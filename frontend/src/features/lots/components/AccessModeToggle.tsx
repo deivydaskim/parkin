@@ -1,10 +1,10 @@
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
-import type { AccessMode } from '../schemas'
+import { AccessMode, type AccessMode as AccessModeType } from '../schemas'
 
 type Props = {
-  value: AccessMode
-  onChange: (value: AccessMode) => void
+  value: AccessModeType
+  onChange: (value: AccessModeType) => void
   disabled?: boolean
   id?: string
 }
@@ -15,7 +15,7 @@ export function AccessModeToggle({
   disabled,
   id = 'access-mode',
 }: Props) {
-  const checked = value === 'RESTRICTED'
+  const checked = value === AccessMode.Restricted
 
   return (
     <div className="flex items-center gap-2">
@@ -23,7 +23,9 @@ export function AccessModeToggle({
         id={id}
         checked={checked}
         disabled={disabled}
-        onCheckedChange={(next) => onChange(next ? 'RESTRICTED' : 'OPEN')}
+        onCheckedChange={(next) =>
+          onChange(next ? AccessMode.Restricted : AccessMode.Open)
+        }
       />
       <Label htmlFor={id} className="font-normal">
         {checked ? 'Restricted' : 'Open'}

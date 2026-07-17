@@ -12,16 +12,22 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import { lotFormSchema, type LotFormInput } from '../schemas'
+import {
+  AccessMode,
+  FullBehavior,
+  lotFormSchema,
+  type LotFormInput,
+} from '../schemas'
 import { AccessModeToggle } from './AccessModeToggle'
 import { FullBehaviorSelect } from './FullBehaviorSelect'
+import { TimezoneSelect } from './TimezoneSelect'
 
 const emptyDefaults: LotFormInput = {
   name: '',
   address: '',
   timezone: '',
-  accessMode: 'OPEN',
-  fullBehavior: 'BLOCK',
+  accessMode: AccessMode.Open,
+  fullBehavior: FullBehavior.Block,
 }
 
 type Props = {
@@ -99,11 +105,7 @@ export function LotForm({
             <FormItem>
               <FormLabel>Timezone</FormLabel>
               <FormControl>
-                <Input
-                  autoComplete="off"
-                  placeholder="America/New_York"
-                  {...field}
-                />
+                <TimezoneSelect value={field.value} onChange={field.onChange} />
               </FormControl>
               <FormMessage />
             </FormItem>

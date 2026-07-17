@@ -2,6 +2,7 @@ using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
+using Parkin.Api.Domain.ParkingLotAggregate;
 using Parkin.Api.Extensions;
 
 namespace Parkin.Api.LotFeatures.Create;
@@ -11,8 +12,8 @@ public sealed class CreateLotRequest
   public string Name { get; init; } = string.Empty;
   public string? Address { get; init; }
   public string Timezone { get; init; } = string.Empty;
-  public string AccessMode { get; init; } = "OPEN";
-  public string FullBehavior { get; init; } = "BLOCK";
+  public AccessMode AccessMode { get; init; } = AccessMode.Open;
+  public FullBehavior FullBehavior { get; init; } = FullBehavior.Block;
 }
 
 public class CreateEndpoint(IMediator mediator)
@@ -32,10 +33,10 @@ public class CreateEndpoint(IMediator mediator)
         Name = "Downtown Garage",
         Address = "100 Main St",
         Timezone = "America/New_York",
-        AccessMode = "OPEN",
-        FullBehavior = "BLOCK"
+        AccessMode = AccessMode.Open,
+        FullBehavior = FullBehavior.Block
       };
-      s.ResponseExamples[201] = new LotRecord(Guid.Empty, "Downtown Garage", "100 Main St", "America/New_York", "OPEN", "BLOCK", "ACTIVE", 0);
+      s.ResponseExamples[201] = new LotRecord(Guid.Empty, "Downtown Garage", "100 Main St", "America/New_York", AccessMode.Open, FullBehavior.Block, LotStatus.Active, 0);
 
       s.Responses[201] = "Lot created successfully";
       s.Responses[400] = "Invalid request data, or a lot with this name already exists";
@@ -56,8 +57,8 @@ public class CreateEndpoint(IMediator mediator)
       request.Name,
       request.Address,
       request.Timezone,
-      LotEnumMapping.ParseAccessMode(request.AccessMode),
-      LotEnumMapping.ParseFullBehavior(request.FullBehavior));
+      request.AccessMode,
+      request.FullBehavior);
 
     var result = await mediator.Send(command, cancellationToken);
 
@@ -83,13 +84,5 @@ public sealed class CreateLotValidator : Validator<CreateLotRequest>
       .Must(tz => TimeZoneInfo.TryFindSystemTimeZoneById(tz, out _))
       .WithMessage("Timezone must be a valid IANA time zone identifier")
       .When(x => !string.IsNullOrWhiteSpace(x.Timezone));
-
-    RuleFor(x => x.AccessMode)
-      .Must(v => v is "OPEN" or "RESTRICTED")
-      .WithMessage("AccessMode must be OPEN or RESTRICTED");
-
-    RuleFor(x => x.FullBehavior)
-      .Must(v => v is "BLOCK" or "ALLOW_OVERFLOW")
-      .WithMessage("FullBehavior must be BLOCK or ALLOW_OVERFLOW");
   }
 }

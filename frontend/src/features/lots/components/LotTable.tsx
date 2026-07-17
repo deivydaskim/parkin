@@ -14,18 +14,18 @@ type Props = {
 }
 
 const accessModeLabel: Record<Lot['accessMode'], string> = {
-  OPEN: 'Open',
-  RESTRICTED: 'Restricted',
+  Open: 'Open',
+  Restricted: 'Restricted',
 }
 
 const fullBehaviorLabel: Record<Lot['fullBehavior'], string> = {
-  BLOCK: 'Block',
-  ALLOW_OVERFLOW: 'Allow overflow',
+  Block: 'Block',
+  AllowOverflow: 'Allow overflow',
 }
 
 const statusLabel: Record<Lot['status'], string> = {
-  ACTIVE: 'Active',
-  ARCHIVED: 'Archived',
+  Active: 'Active',
+  Archived: 'Archived',
 }
 
 export function LotTable({ lots }: Props) {

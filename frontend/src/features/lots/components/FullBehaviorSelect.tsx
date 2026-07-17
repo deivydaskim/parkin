@@ -5,11 +5,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { FullBehavior } from '../schemas'
+import { FullBehavior, type FullBehavior as FullBehaviorType } from '../schemas'
 
 type Props = {
-  value: FullBehavior
-  onChange: (value: FullBehavior) => void
+  value: FullBehaviorType
+  onChange: (value: FullBehaviorType) => void
   disabled?: boolean
   id?: string
 }
@@ -23,15 +23,19 @@ export function FullBehaviorSelect({
   return (
     <Select
       value={value}
-      onValueChange={(next) => onChange(next as FullBehavior)}
+      onValueChange={(next) => onChange(next as FullBehaviorType)}
       disabled={disabled}
     >
       <SelectTrigger id={id} className="w-full">
         <SelectValue placeholder="Select full-lot behavior" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="BLOCK">Block (deny entry when full)</SelectItem>
-        <SelectItem value="ALLOW_OVERFLOW">Allow overflow</SelectItem>
+        <SelectItem value={FullBehavior.Block}>
+          Block (deny entry when full)
+        </SelectItem>
+        <SelectItem value={FullBehavior.AllowOverflow}>
+          Allow overflow
+        </SelectItem>
       </SelectContent>
     </Select>
   )

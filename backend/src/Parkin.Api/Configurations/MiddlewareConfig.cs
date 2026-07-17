@@ -4,6 +4,7 @@ using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using System.Text.Json.Serialization;
 using Parkin.Api.Infrastructure.Data;
 using Parkin.Api.Infrastructure.Identity;
 using Scalar.AspNetCore;
@@ -29,7 +30,8 @@ public static class MiddlewareConfig
     app.UseAuthentication();
     app.UseAuthorization();
 
-    app.UseFastEndpoints();
+    app.UseFastEndpoints(c =>
+      c.Serializer.Options.Converters.Add(new JsonStringEnumConverter()));
 
     if (app.Environment.IsDevelopment())
     {
