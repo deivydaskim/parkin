@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Parkin.Api.Domain.AuditAggregate;
+using Parkin.Api.Domain.DriverAggregate;
 using Parkin.Api.Domain.ParkingLotAggregate;
 using Parkin.Api.Infrastructure.Identity;
 
@@ -13,6 +14,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) :
   public DbSet<ParkingLot> ParkingLots => Set<ParkingLot>();
   public DbSet<ParkingSpace> ParkingSpaces => Set<ParkingSpace>();
   public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
+  public DbSet<Driver> Drivers => Set<Driver>();
+  public DbSet<Plate> Plates => Set<Plate>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {

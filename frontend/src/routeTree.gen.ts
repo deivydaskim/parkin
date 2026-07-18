@@ -14,8 +14,10 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedSettingsRouteRouteImport } from './routes/_authenticated/settings/route'
 import { Route as AuthenticatedLotsIndexRouteImport } from './routes/_authenticated/lots/index'
+import { Route as AuthenticatedDriversIndexRouteImport } from './routes/_authenticated/drivers/index'
 import { Route as AuthenticatedSettingsUsersRouteImport } from './routes/_authenticated/settings/users'
 import { Route as AuthenticatedLotsLotIdRouteImport } from './routes/_authenticated/lots/$lotId'
+import { Route as AuthenticatedDriversDriverIdRouteImport } from './routes/_authenticated/drivers/$driverId'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -42,6 +44,12 @@ const AuthenticatedLotsIndexRoute = AuthenticatedLotsIndexRouteImport.update({
   path: '/lots/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDriversIndexRoute =
+  AuthenticatedDriversIndexRouteImport.update({
+    id: '/drivers/',
+    path: '/drivers/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSettingsUsersRoute =
   AuthenticatedSettingsUsersRouteImport.update({
     id: '/users',
@@ -53,21 +61,31 @@ const AuthenticatedLotsLotIdRoute = AuthenticatedLotsLotIdRouteImport.update({
   path: '/lots/$lotId',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDriversDriverIdRoute =
+  AuthenticatedDriversDriverIdRouteImport.update({
+    id: '/drivers/$driverId',
+    path: '/drivers/$driverId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/login': typeof LoginRoute
   '/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
+  '/drivers/$driverId': typeof AuthenticatedDriversDriverIdRoute
   '/lots/$lotId': typeof AuthenticatedLotsLotIdRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
+  '/drivers/': typeof AuthenticatedDriversIndexRoute
   '/lots/': typeof AuthenticatedLotsIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
   '/': typeof AuthenticatedIndexRoute
+  '/drivers/$driverId': typeof AuthenticatedDriversDriverIdRoute
   '/lots/$lotId': typeof AuthenticatedLotsLotIdRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
+  '/drivers': typeof AuthenticatedDriversIndexRoute
   '/lots': typeof AuthenticatedLotsIndexRoute
 }
 export interface FileRoutesById {
@@ -76,25 +94,43 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/drivers/$driverId': typeof AuthenticatedDriversDriverIdRoute
   '/_authenticated/lots/$lotId': typeof AuthenticatedLotsLotIdRoute
   '/_authenticated/settings/users': typeof AuthenticatedSettingsUsersRoute
+  '/_authenticated/drivers/': typeof AuthenticatedDriversIndexRoute
   '/_authenticated/lots/': typeof AuthenticatedLotsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/login' | '/settings' | '/lots/$lotId' | '/settings/users' | '/lots/'
+    | '/'
+    | '/login'
+    | '/settings'
+    | '/drivers/$driverId'
+    | '/lots/$lotId'
+    | '/settings/users'
+    | '/drivers/'
+    | '/lots/'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/login' | '/settings' | '/' | '/lots/$lotId' | '/settings/users' | '/lots'
+    | '/login'
+    | '/settings'
+    | '/'
+    | '/drivers/$driverId'
+    | '/lots/$lotId'
+    | '/settings/users'
+    | '/drivers'
+    | '/lots'
   id:
     | '__root__'
     | '/_authenticated'
     | '/login'
     | '/_authenticated/settings'
     | '/_authenticated/'
+    | '/_authenticated/drivers/$driverId'
     | '/_authenticated/lots/$lotId'
     | '/_authenticated/settings/users'
+    | '/_authenticated/drivers/'
     | '/_authenticated/lots/'
   fileRoutesById: FileRoutesById
 }
@@ -140,6 +176,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLotsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/drivers/': {
+      id: '/_authenticated/drivers/'
+      path: '/drivers'
+      fullPath: '/drivers/'
+      preLoaderRoute: typeof AuthenticatedDriversIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/settings/users': {
       id: '/_authenticated/settings/users'
       path: '/users'
@@ -152,6 +195,13 @@ declare module '@tanstack/react-router' {
       path: '/lots/$lotId'
       fullPath: '/lots/$lotId'
       preLoaderRoute: typeof AuthenticatedLotsLotIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/drivers/$driverId': {
+      id: '/_authenticated/drivers/$driverId'
+      path: '/drivers/$driverId'
+      fullPath: '/drivers/$driverId'
+      preLoaderRoute: typeof AuthenticatedDriversDriverIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
   }
@@ -174,14 +224,18 @@ const AuthenticatedSettingsRouteRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedSettingsRouteRoute: typeof AuthenticatedSettingsRouteRouteWithChildren
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedDriversDriverIdRoute: typeof AuthenticatedDriversDriverIdRoute
   AuthenticatedLotsLotIdRoute: typeof AuthenticatedLotsLotIdRoute
+  AuthenticatedDriversIndexRoute: typeof AuthenticatedDriversIndexRoute
   AuthenticatedLotsIndexRoute: typeof AuthenticatedLotsIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSettingsRouteRoute: AuthenticatedSettingsRouteRouteWithChildren,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedDriversDriverIdRoute: AuthenticatedDriversDriverIdRoute,
   AuthenticatedLotsLotIdRoute: AuthenticatedLotsLotIdRoute,
+  AuthenticatedDriversIndexRoute: AuthenticatedDriversIndexRoute,
   AuthenticatedLotsIndexRoute: AuthenticatedLotsIndexRoute,
 }
 

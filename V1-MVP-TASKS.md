@@ -24,7 +24,7 @@ Ordered, dependency-respecting build tasks for the **P0** V1 MVP. Each task is s
   - **AC:** a one-line decision note exists; no int-sentinel IDs used for parking aggregates.
 - [x] **T0.3 — Stand up test projects.** Ensure `Parkin.UnitTests` builds; add `Parkin.IntegrationTests` (Testcontainers.PostgreSql) and `Parkin.FunctionalTests` (WebApplicationFactory / Aspire.Hosting.Testing). Packages are already in `Directory.Packages.props`.
   - **AC:** `dotnet test` runs (even with 0 tests) across all three.
-- [ ] **T0.5 — Retire template cruft (rolling).** Delete Product/Cart/Order/GuestUser slices + their NsDepCop rules **as each parking analogue replaces them** (we already have few features that we can use as examples, so dont need tempalte anymore). Also remove the leftover `TestId` in `CartId.cs` and the `Order.cs → Infrastructure.Data` using. Migration to clear everything.
+- [x] **T0.5 — Retire template cruft (rolling).** Delete Product/Cart/Order/GuestUser slices + their NsDepCop rules **as each parking analogue replaces them** (we already have few features that we can use as examples, so dont need tempalte anymore). Also remove the leftover `TestId` in `CartId.cs` and the `Order.cs → Infrastructure.Data` using. Migration to clear everything.
 
 ---
 

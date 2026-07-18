@@ -12,6 +12,10 @@ export function AppNav() {
         Parking lots
       </Link>
 
+      <Link to="/drivers" className="text-sm font-medium hover:underline">
+        Drivers
+      </Link>
+
       <RoleGate roles={['SystemAdmin']}>
         <Link to="/settings/users" className="text-sm font-medium hover:underline">
           Settings

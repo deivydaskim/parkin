@@ -12,4 +12,10 @@ public static class AuditActions
   public const string SpaceCreated = "space.created";
   public const string SpaceUpdated = "space.updated";
   public const string SpaceDeactivated = "space.deactivated";
+  public const string DriverCreated = "driver.created";
+  public const string DriverUpdated = "driver.updated";
+  public const string DriverArchived = "driver.archived";
+  public const string PlateAdded = "plate.added";
+  public const string PlateReassigned = "plate.reassigned";
+  public const string PlateDeactivated = "plate.deactivated";
 }

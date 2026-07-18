@@ -14,6 +14,12 @@
     <Disallowed From="Parkin.Api.Domain.AuditAggregate.*"
 				To="Parkin.Api.Infrastructure.*" />
 
+    <Disallowed From="Parkin.Api.DriverFeatures.*"
+				To="Parkin.Api.Infrastructure.*" />
+
+    <Disallowed From="Parkin.Api.PlateFeatures.*"
+				To="Parkin.Api.Infrastructure.*" />
+
     <AnalyzerConfig>
         <IssueKind Name="IllegalDependency" Severity="Error" />
     </AnalyzerConfig>
