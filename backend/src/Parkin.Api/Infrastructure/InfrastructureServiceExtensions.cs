@@ -1,5 +1,6 @@
 using Ardalis.GuardClauses;
 using Parkin.Api.DriverFeatures.List;
+using Parkin.Api.GrantFeatures.List;
 using Parkin.Api.Infrastructure.Data;
 using Parkin.Api.Infrastructure.Data.Queries;
 using Parkin.Api.Infrastructure.Identity;
@@ -53,6 +54,7 @@ public static class InfrastructureServiceExtensions
            .AddScoped<IListSpacesQueryService, ListSpacesQueryService>()
            .AddScoped<IListDriversQueryService, ListDriversQueryService>()
            .AddScoped<IListPlatesByDriverQueryService, ListPlatesByDriverQueryService>()
+           .AddScoped<IListGrantsByDriverQueryService, ListGrantsByDriverQueryService>()
            .AddScoped<IActiveReservationChecker, NoActiveReservationChecker>();
 
     logger.LogInformation("{Project} services registered", "Infrastructure");

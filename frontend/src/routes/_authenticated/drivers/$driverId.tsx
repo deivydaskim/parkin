@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
 import { RoleGate } from '@/features/auth/components/RoleGate'
 import { DriverForm } from '@/features/drivers/components/DriverForm'
+import { DriverGrantsPanel } from '@/features/drivers/components/DriverGrantsPanel'
 import { PlateManager } from '@/features/drivers/components/PlateManager'
 import {
   useArchiveDriver,
@@ -85,6 +86,11 @@ function DriverDetailPage() {
       <div className="mt-8">
         <h2 className="mb-4 text-lg font-semibold">Plates</h2>
         <PlateManager driverId={driverId} />
+      </div>
+
+      <div className="mt-8">
+        <h2 className="mb-4 text-lg font-semibold">Access grants</h2>
+        <DriverGrantsPanel driverId={driverId} />
       </div>
     </div>
   )

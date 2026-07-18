@@ -22,4 +22,6 @@ public static class AuditActions
   public const string PlateReassigned = "plate.reassigned";
   public const string PlateDeactivated = "plate.deactivated";
   public const string PlateReactivated = "plate.reactivated";
+  public const string GrantCreated = "grant.created";
+  public const string GrantRevoked = "grant.revoked";
 }

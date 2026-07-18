@@ -55,9 +55,9 @@ Ordered, dependency-respecting build tasks for the **P0** V1 MVP. Each task is s
 
 ## Phase 3 — Drivers, Plates & Grants (Epic C)
 
-- [ ] **T3.1 — C1 Drivers & plates.** *Deps: T1.2.* `Driver` aggregate + `Plate` entity. `GET/POST /drivers`, plates sub-resource, reassign-plate. Driver name + optional contact; normalized plate **unique across instance** (`ux_plate_normalized`); one plate → one driver at a time; reassignment audit-logged. Keep `plate` as a denormalized string (for later anonymization). FE: `features/drivers/` (DriverForm, PlateManager).
+- [x] **T3.1 — C1 Drivers & plates.** *Deps: T1.2.* `Driver` aggregate + `Plate` entity. `GET/POST /drivers`, plates sub-resource, reassign-plate. Driver name + optional contact; normalized plate **unique across instance** (`ux_plate_normalized`); one plate → one driver at a time; reassignment audit-logged. Keep `plate` as a denormalized string (for later anonymization). FE: `features/drivers/` (DriverForm, PlateManager).
   - **AC:** duplicate normalized plate rejected; reassigning a plate moves it and writes an audit entry; a driver can hold multiple plates.
-- [ ] **T3.2 — C2 Access grants.** *Deps: T2.1, T3.1.* `AccessGrant` aggregate. `POST /grants`, `POST /grants/{id}/revoke`, `GET /drivers/{id}/grants` (`Operator+`). Optional validFrom/validTo; expired/revoked denies restricted-lot entry; **no effect on OPEN lots**; audit-logged. Index `ix_grant_driver_lot_status`. FE: `features/grants/` (GrantForm, GrantList), DriverGrantsPanel.
+- [x] **T3.2 — C2 Access grants.** *Deps: T2.1, T3.1.* `AccessGrant` aggregate. `POST /grants`, `POST /grants/{id}/revoke`, `GET /drivers/{id}/grants` (`Operator+`). Optional validFrom/validTo; expired/revoked denies restricted-lot entry; **no effect on OPEN lots**; audit-logged. Index `ix_grant_driver_lot_status`. FE: `features/grants/` (GrantForm, GrantList), DriverGrantsPanel.
   - **AC:** grant/revoke persist + audit; expired window is inert; grant on an OPEN lot changes nothing.
 
 *(C3 CSV import is P1.)*

@@ -25,4 +25,8 @@ export const qk = {
     list: (driverId: string, params?: Record<string, unknown>) =>
       ['plates', 'list', driverId, params ?? {}] as const,
   },
+  grants: {
+    list: (driverId: string, params?: Record<string, unknown>) =>
+      ['grants', 'list', driverId, params ?? {}] as const,
+  },
 }

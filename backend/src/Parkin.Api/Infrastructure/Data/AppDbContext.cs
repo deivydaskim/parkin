@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Parkin.Api.Domain.AccessGrantAggregate;
 using Parkin.Api.Domain.AuditAggregate;
 using Parkin.Api.Domain.DriverAggregate;
 using Parkin.Api.Domain.ParkingLotAggregate;
@@ -16,6 +17,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) :
   public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
   public DbSet<Driver> Drivers => Set<Driver>();
   public DbSet<Plate> Plates => Set<Plate>();
+  public DbSet<AccessGrant> AccessGrants => Set<AccessGrant>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
