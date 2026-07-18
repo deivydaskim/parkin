@@ -17,7 +17,12 @@ import {
 } from '@/components/ui/select'
 import { RoleGate } from '@/features/auth/components/RoleGate'
 import { LotForm } from '@/features/lots/components/LotForm'
-import { useArchiveLot, useLot, useUpdateLot } from '@/features/lots/queries'
+import {
+  useArchiveLot,
+  useLot,
+  useRestoreLot,
+  useUpdateLot,
+} from '@/features/lots/queries'
 import { LotStatus, type LotFormInput } from '@/features/lots/schemas'
 import { SpaceForm } from '@/features/spaces/components/SpaceForm'
 import { SpaceTable } from '@/features/spaces/components/SpaceTable'
@@ -42,6 +47,7 @@ function LotDetailPage() {
   const { data: lot, isLoading } = useLot(lotId)
   const updateLotMutation = useUpdateLot(lotId)
   const archiveLotMutation = useArchiveLot(lotId)
+  const restoreLotMutation = useRestoreLot(lotId)
 
   const [spaceStatus, setSpaceStatus] =
     useState<NonNullable<SpaceListParams['status']>>('Active')
@@ -83,15 +89,22 @@ function LotDetailPage() {
         </div>
 
         <RoleGate roles={['Operator', 'SystemAdmin']}>
-          <Button
-            variant="destructive"
-            disabled={
-              lot.status === LotStatus.Archived || archiveLotMutation.isPending
-            }
-            onClick={() => archiveLotMutation.mutate()}
-          >
-            {archiveLotMutation.isPending ? 'Archiving…' : 'Archive'}
-          </Button>
+          {lot.status === LotStatus.Archived ? (
+            <Button
+              disabled={restoreLotMutation.isPending}
+              onClick={() => restoreLotMutation.mutate()}
+            >
+              {restoreLotMutation.isPending ? 'Restoring…' : 'Restore'}
+            </Button>
+          ) : (
+            <Button
+              variant="destructive"
+              disabled={archiveLotMutation.isPending}
+              onClick={() => archiveLotMutation.mutate()}
+            >
+              {archiveLotMutation.isPending ? 'Archiving…' : 'Archive'}
+            </Button>
+          )}
         </RoleGate>
       </div>
 

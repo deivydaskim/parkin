@@ -196,7 +196,7 @@ namespace Parkin.Api.Infrastructure.Data.Migrations
                     b.HasIndex("EntityType", "EntityId")
                         .HasDatabaseName("ix_audit_entity");
 
-                    b.ToTable("AuditLogEntries");
+                    b.ToTable("AuditLogEntries", (string)null);
                 });
 
             modelBuilder.Entity("Parkin.Api.Domain.DriverAggregate.Driver", b =>
@@ -220,7 +220,7 @@ namespace Parkin.Api.Infrastructure.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Drivers");
+                    b.ToTable("Drivers", (string)null);
                 });
 
             modelBuilder.Entity("Parkin.Api.Domain.DriverAggregate.Plate", b =>
@@ -249,7 +249,7 @@ namespace Parkin.Api.Infrastructure.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ux_plate_normalized");
 
-                    b.ToTable("Plates");
+                    b.ToTable("Plates", (string)null);
                 });
 
             modelBuilder.Entity("Parkin.Api.Domain.ParkingLotAggregate.ParkingLot", b =>
@@ -292,7 +292,7 @@ namespace Parkin.Api.Infrastructure.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ux_lot_name");
 
-                    b.ToTable("ParkingLots");
+                    b.ToTable("ParkingLots", (string)null);
                 });
 
             modelBuilder.Entity("Parkin.Api.Domain.ParkingLotAggregate.ParkingSpace", b =>
@@ -324,7 +324,7 @@ namespace Parkin.Api.Infrastructure.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("ux_space_lot_label");
 
-                    b.ToTable("ParkingSpaces");
+                    b.ToTable("ParkingSpaces", (string)null);
                 });
 
             modelBuilder.Entity("Parkin.Api.Infrastructure.Identity.ApplicationUser", b =>

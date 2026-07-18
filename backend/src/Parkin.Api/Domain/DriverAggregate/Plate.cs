@@ -23,4 +23,6 @@ public class Plate : EntityBase<Plate, PlateId>
   internal void ReassignTo(DriverId newDriverId) => DriverId = newDriverId;
 
   internal void Deactivate() => Status = PlateStatus.Inactive;
+
+  internal void Reactivate() => Status = PlateStatus.Active;
 }

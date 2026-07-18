@@ -39,6 +39,7 @@ import {
   useDeactivatePlate,
   useDrivers,
   usePlates,
+  useReactivatePlate,
   useReassignPlate,
 } from '../queries'
 import {
@@ -57,6 +58,7 @@ export function PlateManager({ driverId }: Props) {
   const addPlateMutation = useAddPlate(driverId)
   const reassignPlateMutation = useReassignPlate(driverId)
   const deactivatePlateMutation = useDeactivatePlate(driverId)
+  const reactivatePlateMutation = useReactivatePlate(driverId)
 
   const form = useForm<PlateFormInput>({
     resolver: zodResolver(plateFormSchema),
@@ -121,6 +123,8 @@ export function PlateManager({ driverId }: Props) {
                 isReassigning={reassignPlateMutation.isPending}
                 onDeactivate={() => deactivatePlateMutation.mutate(plate.id)}
                 isDeactivating={deactivatePlateMutation.isPending}
+                onReactivate={() => reactivatePlateMutation.mutate(plate.id)}
+                isReactivating={reactivatePlateMutation.isPending}
               />
             ))}
           </TableBody>
@@ -139,6 +143,8 @@ type PlateRowProps = {
   isReassigning: boolean
   onDeactivate: () => void
   isDeactivating: boolean
+  onReactivate: () => void
+  isReactivating: boolean
 }
 
 function PlateRow({
@@ -148,6 +154,8 @@ function PlateRow({
   isReassigning,
   onDeactivate,
   isDeactivating,
+  onReactivate,
+  isReactivating,
 }: PlateRowProps) {
   const [open, setOpen] = useState(false)
   const [targetDriverId, setTargetDriverId] = useState<string>('')
@@ -171,7 +179,7 @@ function PlateRow({
       </TableCell>
       <TableCell>{plate.status}</TableCell>
       <TableCell className="text-right space-x-2">
-        {plate.status === PlateStatus.Active && (
+        {plate.status === PlateStatus.Active ? (
           <Button
             variant="outline"
             size="sm"
@@ -179,6 +187,15 @@ function PlateRow({
             disabled={isDeactivating}
           >
             {isDeactivating ? 'Deactivating…' : 'Deactivate'}
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onReactivate}
+            disabled={isReactivating}
+          >
+            {isReactivating ? 'Reactivating…' : 'Reactivate'}
           </Button>
         )}
         <Dialog open={open} onOpenChange={setOpen}>

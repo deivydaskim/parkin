@@ -42,3 +42,8 @@ export async function deactivateSpace(id: string): Promise<Space> {
   const { data } = await apiClient.post(`/spaces/${id}/deactivate`)
   return spaceSchema.parse(data)
 }
+
+export async function reactivateSpace(id: string): Promise<Space> {
+  const { data } = await apiClient.post(`/spaces/${id}/reactivate`)
+  return spaceSchema.parse(data)
+}

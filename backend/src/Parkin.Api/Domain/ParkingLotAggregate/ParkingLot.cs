@@ -76,6 +76,13 @@ public class ParkingLot : EntityBase<ParkingLot, ParkingLotId>, IAggregateRoot
     RegisterDomainEvent(new SpaceDeactivatedEvent(Id, spaceId, actorId));
   }
 
+  public void ReactivateSpace(ParkingSpaceId spaceId, Guid? actorId)
+  {
+    var space = _spaces.First(s => s.Id == spaceId);
+    space.Reactivate();
+    RegisterDomainEvent(new SpaceReactivatedEvent(Id, spaceId, actorId));
+  }
+
   public void UpdateDetails(string name, string? address, string timezone, Guid? actorId)
   {
     Guard.Against.NullOrWhiteSpace(name, nameof(name));
@@ -95,5 +102,11 @@ public class ParkingLot : EntityBase<ParkingLot, ParkingLotId>, IAggregateRoot
   {
     Status = LotStatus.Archived;
     RegisterDomainEvent(new LotArchivedEvent(Id, actorId));
+  }
+
+  public void Restore(Guid? actorId)
+  {
+    Status = LotStatus.Active;
+    RegisterDomainEvent(new LotRestoredEvent(Id, actorId));
   }
 }

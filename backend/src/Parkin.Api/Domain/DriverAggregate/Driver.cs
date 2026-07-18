@@ -77,4 +77,17 @@ public class Driver : EntityBase<Driver, DriverId>, IAggregateRoot
     Status = DriverStatus.Archived;
     RegisterDomainEvent(new DriverArchivedEvent(Id, actorId));
   }
+
+  public void Restore(Guid? actorId)
+  {
+    Status = DriverStatus.Active;
+    RegisterDomainEvent(new DriverRestoredEvent(Id, actorId));
+  }
+
+  public void ReactivatePlate(PlateId plateId, Guid? actorId)
+  {
+    var plate = _plates.First(p => p.Id == plateId);
+    plate.Reactivate();
+    RegisterDomainEvent(new PlateReactivatedEvent(Id, plateId, actorId));
+  }
 }

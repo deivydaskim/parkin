@@ -50,6 +50,11 @@ export async function archiveDriver(id: string): Promise<Driver> {
   return driverSchema.parse(data)
 }
 
+export async function restoreDriver(id: string): Promise<Driver> {
+  const { data } = await apiClient.post(`/drivers/${id}/restore`)
+  return driverSchema.parse(data)
+}
+
 export async function fetchPlatesByDriver(
   driverId: string,
   params?: PlateListParams,
@@ -83,5 +88,10 @@ export async function reassignPlate(
 
 export async function deactivatePlate(id: string): Promise<Plate> {
   const { data } = await apiClient.post(`/plates/${id}/deactivate`)
+  return plateSchema.parse(data)
+}
+
+export async function reactivatePlate(id: string): Promise<Plate> {
+  const { data } = await apiClient.post(`/plates/${id}/reactivate`)
   return plateSchema.parse(data)
 }

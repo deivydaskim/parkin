@@ -7,7 +7,13 @@ import {
 import { toast } from 'sonner'
 import { qk } from '@/lib/query-keys'
 import { parseApiError } from '@/lib/api-error'
-import { createSpace, deactivateSpace, fetchSpaces, updateSpace } from './api'
+import {
+  createSpace,
+  deactivateSpace,
+  fetchSpaces,
+  reactivateSpace,
+  updateSpace,
+} from './api'
 import type { Space, SpaceFormInput, SpaceListParams } from './schemas'
 
 export function spacesQueryOptions(lotId: string, params?: SpaceListParams) {
@@ -66,6 +72,22 @@ export function useDeactivateSpace(id: string, lotId: string) {
     },
     onError: (error) => {
       toast.error(parseApiError(error, 'Could not deactivate space.').message)
+    },
+  })
+}
+
+export function useReactivateSpace(id: string, lotId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: () => reactivateSpace(id),
+    onSuccess: (space: Space) => {
+      queryClient.invalidateQueries({ queryKey: qk.spaces.list(lotId) })
+      queryClient.invalidateQueries({ queryKey: qk.lots.detail(lotId) })
+      toast.success(`Space "${space.label}" reactivated.`)
+    },
+    onError: (error) => {
+      toast.error(parseApiError(error, 'Could not reactivate space.').message)
     },
   })
 }

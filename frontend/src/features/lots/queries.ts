@@ -7,7 +7,14 @@ import {
 import { toast } from 'sonner'
 import { qk } from '@/lib/query-keys'
 import { parseApiError } from '@/lib/api-error'
-import { archiveLot, createLot, fetchLot, fetchLots, updateLot } from './api'
+import {
+  archiveLot,
+  createLot,
+  fetchLot,
+  fetchLots,
+  restoreLot,
+  updateLot,
+} from './api'
 import type { Lot, LotFormInput, LotListParams } from './schemas'
 
 export function lotsQueryOptions(params?: LotListParams) {
@@ -77,6 +84,22 @@ export function useArchiveLot(id: string) {
     },
     onError: (error) => {
       toast.error(parseApiError(error, 'Could not archive lot.').message)
+    },
+  })
+}
+
+export function useRestoreLot(id: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: () => restoreLot(id),
+    onSuccess: (lot: Lot) => {
+      queryClient.invalidateQueries({ queryKey: qk.lots.list() })
+      queryClient.setQueryData(qk.lots.detail(id), lot)
+      toast.success(`Lot "${lot.name}" restored.`)
+    },
+    onError: (error) => {
+      toast.error(parseApiError(error, 'Could not restore lot.').message)
     },
   })
 }

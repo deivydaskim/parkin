@@ -49,3 +49,8 @@ export async function archiveLot(id: string): Promise<Lot> {
   const { data } = await apiClient.post(`/lots/${id}/archive`)
   return lotSchema.parse(data)
 }
+
+export async function restoreLot(id: string): Promise<Lot> {
+  const { data } = await apiClient.post(`/lots/${id}/restore`)
+  return lotSchema.parse(data)
+}

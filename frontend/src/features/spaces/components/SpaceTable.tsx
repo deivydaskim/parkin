@@ -16,7 +16,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { RoleGate } from '@/features/auth/components/RoleGate'
-import { useDeactivateSpace, useUpdateSpace } from '../queries'
+import { useDeactivateSpace, useReactivateSpace, useUpdateSpace } from '../queries'
 import type { Space, SpaceFormInput } from '../schemas'
 import { SpaceForm } from './SpaceForm'
 
@@ -63,6 +63,7 @@ function SpaceRow({ lotId, space }: { lotId: string; space: Space }) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const updateSpaceMutation = useUpdateSpace(space.id, lotId)
   const deactivateSpaceMutation = useDeactivateSpace(space.id, lotId)
+  const reactivateSpaceMutation = useReactivateSpace(space.id, lotId)
 
   function handleUpdate(values: SpaceFormInput) {
     updateSpaceMutation.mutate(values, {
@@ -101,7 +102,7 @@ function SpaceRow({ lotId, space }: { lotId: string; space: Space }) {
           </Dialog>
         </RoleGate>
 
-        {space.status === 'Active' && (
+        {space.status === 'Active' ? (
           <RoleGate roles={['Operator', 'SystemAdmin']}>
             <Button
               variant="destructive"
@@ -112,6 +113,18 @@ function SpaceRow({ lotId, space }: { lotId: string; space: Space }) {
               {deactivateSpaceMutation.isPending
                 ? 'Deactivating…'
                 : 'Deactivate'}
+            </Button>
+          </RoleGate>
+        ) : (
+          <RoleGate roles={['Operator', 'SystemAdmin']}>
+            <Button
+              size="sm"
+              disabled={reactivateSpaceMutation.isPending}
+              onClick={() => reactivateSpaceMutation.mutate()}
+            >
+              {reactivateSpaceMutation.isPending
+                ? 'Reactivating…'
+                : 'Reactivate'}
             </Button>
           </RoleGate>
         )}

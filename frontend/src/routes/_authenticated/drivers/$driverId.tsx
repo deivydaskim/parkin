@@ -6,6 +6,7 @@ import { PlateManager } from '@/features/drivers/components/PlateManager'
 import {
   useArchiveDriver,
   useDriver,
+  useRestoreDriver,
   useUpdateDriver,
 } from '@/features/drivers/queries'
 import { DriverStatus, type DriverFormInput } from '@/features/drivers/schemas'
@@ -19,6 +20,7 @@ function DriverDetailPage() {
   const { data: driver, isLoading } = useDriver(driverId)
   const updateDriverMutation = useUpdateDriver(driverId)
   const archiveDriverMutation = useArchiveDriver(driverId)
+  const restoreDriverMutation = useRestoreDriver(driverId)
 
   function handleUpdate(values: DriverFormInput) {
     updateDriverMutation.mutate(values)
@@ -45,16 +47,25 @@ function DriverDetailPage() {
         </div>
 
         <RoleGate roles={['Operator', 'SystemAdmin']}>
-          <Button
-            variant="destructive"
-            disabled={
-              driver.status !== DriverStatus.Active ||
-              archiveDriverMutation.isPending
-            }
-            onClick={() => archiveDriverMutation.mutate()}
-          >
-            {archiveDriverMutation.isPending ? 'Archiving…' : 'Archive'}
-          </Button>
+          {driver.status === DriverStatus.Archived ? (
+            <Button
+              disabled={restoreDriverMutation.isPending}
+              onClick={() => restoreDriverMutation.mutate()}
+            >
+              {restoreDriverMutation.isPending ? 'Restoring…' : 'Restore'}
+            </Button>
+          ) : (
+            <Button
+              variant="destructive"
+              disabled={
+                driver.status !== DriverStatus.Active ||
+                archiveDriverMutation.isPending
+              }
+              onClick={() => archiveDriverMutation.mutate()}
+            >
+              {archiveDriverMutation.isPending ? 'Archiving…' : 'Archive'}
+            </Button>
+          )}
         </RoleGate>
       </div>
 

@@ -15,7 +15,9 @@ import {
   fetchDriver,
   fetchDrivers,
   fetchPlatesByDriver,
+  reactivatePlate,
   reassignPlate,
+  restoreDriver,
   updateDriver,
 } from './api'
 import type {
@@ -110,6 +112,22 @@ export function useArchiveDriver(id: string) {
   })
 }
 
+export function useRestoreDriver(id: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: () => restoreDriver(id),
+    onSuccess: (driver: Driver) => {
+      queryClient.invalidateQueries({ queryKey: qk.drivers.list() })
+      queryClient.setQueryData(qk.drivers.detail(id), driver)
+      toast.success(`Driver "${driver.name}" restored.`)
+    },
+    onError: (error) => {
+      toast.error(parseApiError(error, 'Could not restore driver.').message)
+    },
+  })
+}
+
 export function useAddPlate(driverId: string) {
   const queryClient = useQueryClient()
 
@@ -163,6 +181,22 @@ export function useDeactivatePlate(driverId: string) {
     },
     onError: (error) => {
       toast.error(parseApiError(error, 'Could not deactivate plate.').message)
+    },
+  })
+}
+
+export function useReactivatePlate(driverId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (plateId: string) => reactivatePlate(plateId),
+    onSuccess: (plate: Plate) => {
+      queryClient.invalidateQueries({ queryKey: qk.plates.list(driverId) })
+      queryClient.invalidateQueries({ queryKey: qk.drivers.detail(driverId) })
+      toast.success(`Plate "${plate.normalizedPlateNumber}" reactivated.`)
+    },
+    onError: (error) => {
+      toast.error(parseApiError(error, 'Could not reactivate plate.').message)
     },
   })
 }

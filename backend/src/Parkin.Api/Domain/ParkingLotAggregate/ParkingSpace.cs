@@ -35,4 +35,6 @@ public class ParkingSpace : EntityBase<ParkingSpace, ParkingSpaceId>
   internal void SetType(SpaceType type) => Type = type;
 
   internal void Deactivate() => Status = SpaceStatus.Inactive;
+
+  internal void Reactivate() => Status = SpaceStatus.Active;
 }
