@@ -8,4 +8,5 @@ public static class AuditEntityTypes
   public const string Driver = "Driver";
   public const string Plate = "Plate";
   public const string AccessGrant = "AccessGrant";
+  public const string ApiKey = "ApiKey";
 }

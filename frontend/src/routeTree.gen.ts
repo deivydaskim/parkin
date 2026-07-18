@@ -16,6 +16,7 @@ import { Route as AuthenticatedSettingsRouteRouteImport } from './routes/_authen
 import { Route as AuthenticatedLotsIndexRouteImport } from './routes/_authenticated/lots/index'
 import { Route as AuthenticatedDriversIndexRouteImport } from './routes/_authenticated/drivers/index'
 import { Route as AuthenticatedSettingsUsersRouteImport } from './routes/_authenticated/settings/users'
+import { Route as AuthenticatedSettingsApiKeysRouteImport } from './routes/_authenticated/settings/api-keys'
 import { Route as AuthenticatedLotsLotIdRouteImport } from './routes/_authenticated/lots/$lotId'
 import { Route as AuthenticatedDriversDriverIdRouteImport } from './routes/_authenticated/drivers/$driverId'
 
@@ -56,6 +57,12 @@ const AuthenticatedSettingsUsersRoute =
     path: '/users',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
+const AuthenticatedSettingsApiKeysRoute =
+  AuthenticatedSettingsApiKeysRouteImport.update({
+    id: '/api-keys',
+    path: '/api-keys',
+    getParentRoute: () => AuthenticatedSettingsRouteRoute,
+  } as any)
 const AuthenticatedLotsLotIdRoute = AuthenticatedLotsLotIdRouteImport.update({
   id: '/lots/$lotId',
   path: '/lots/$lotId',
@@ -74,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
   '/drivers/$driverId': typeof AuthenticatedDriversDriverIdRoute
   '/lots/$lotId': typeof AuthenticatedLotsLotIdRoute
+  '/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/drivers/': typeof AuthenticatedDriversIndexRoute
   '/lots/': typeof AuthenticatedLotsIndexRoute
@@ -84,6 +92,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/drivers/$driverId': typeof AuthenticatedDriversDriverIdRoute
   '/lots/$lotId': typeof AuthenticatedLotsLotIdRoute
+  '/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/drivers': typeof AuthenticatedDriversIndexRoute
   '/lots': typeof AuthenticatedLotsIndexRoute
@@ -96,6 +105,7 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/drivers/$driverId': typeof AuthenticatedDriversDriverIdRoute
   '/_authenticated/lots/$lotId': typeof AuthenticatedLotsLotIdRoute
+  '/_authenticated/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
   '/_authenticated/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/_authenticated/drivers/': typeof AuthenticatedDriversIndexRoute
   '/_authenticated/lots/': typeof AuthenticatedLotsIndexRoute
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/drivers/$driverId'
     | '/lots/$lotId'
+    | '/settings/api-keys'
     | '/settings/users'
     | '/drivers/'
     | '/lots/'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/'
     | '/drivers/$driverId'
     | '/lots/$lotId'
+    | '/settings/api-keys'
     | '/settings/users'
     | '/drivers'
     | '/lots'
@@ -129,6 +141,7 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/_authenticated/drivers/$driverId'
     | '/_authenticated/lots/$lotId'
+    | '/_authenticated/settings/api-keys'
     | '/_authenticated/settings/users'
     | '/_authenticated/drivers/'
     | '/_authenticated/lots/'
@@ -190,6 +203,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsUsersRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
+    '/_authenticated/settings/api-keys': {
+      id: '/_authenticated/settings/api-keys'
+      path: '/api-keys'
+      fullPath: '/settings/api-keys'
+      preLoaderRoute: typeof AuthenticatedSettingsApiKeysRouteImport
+      parentRoute: typeof AuthenticatedSettingsRouteRoute
+    }
     '/_authenticated/lots/$lotId': {
       id: '/_authenticated/lots/$lotId'
       path: '/lots/$lotId'
@@ -208,11 +228,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedSettingsRouteRouteChildren {
+  AuthenticatedSettingsApiKeysRoute: typeof AuthenticatedSettingsApiKeysRoute
   AuthenticatedSettingsUsersRoute: typeof AuthenticatedSettingsUsersRoute
 }
 
 const AuthenticatedSettingsRouteRouteChildren: AuthenticatedSettingsRouteRouteChildren =
   {
+    AuthenticatedSettingsApiKeysRoute: AuthenticatedSettingsApiKeysRoute,
     AuthenticatedSettingsUsersRoute: AuthenticatedSettingsUsersRoute,
   }
 

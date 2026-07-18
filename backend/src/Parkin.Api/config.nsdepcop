@@ -23,6 +23,9 @@
     <Disallowed From="Parkin.Api.GrantFeatures.*"
 				To="Parkin.Api.Infrastructure.*" />
 
+    <Disallowed From="Parkin.Api.ApiKeyFeatures.*"
+				To="Parkin.Api.Infrastructure.*" />
+
     <AnalyzerConfig>
         <IssueKind Name="IllegalDependency" Severity="Error" />
     </AnalyzerConfig>

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
+using Parkin.Api.Infrastructure.ApiKeys;
 
 namespace Parkin.Api.Configurations;
 
@@ -13,8 +14,11 @@ public static class AuthConfig
     IWebHostEnvironment environment)
   {
     // Identity.Application cookie is the default scheme so FastEndpoints authorization uses it.
-    services.AddAuthentication(IdentityConstants.ApplicationScheme)
-            .AddIdentityCookies();
+    // The ApiKey scheme is additive — no endpoint opts into it yet (see T5.2).
+    var authenticationBuilder = services.AddAuthentication(IdentityConstants.ApplicationScheme);
+    authenticationBuilder.AddIdentityCookies();
+    authenticationBuilder.AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
+      ApiKeyAuthenticationOptions.SchemeName, _ => { });
 
     services.ConfigureApplicationCookie(options =>
     {

@@ -22,6 +22,12 @@ function SettingsLayout() {
         >
           Users
         </Link>
+        <Link
+          to="/settings/api-keys"
+          className="mt-2 block text-sm font-medium hover:underline"
+        >
+          API Keys
+        </Link>
       </nav>
       <div className="flex-1">
         <Outlet />

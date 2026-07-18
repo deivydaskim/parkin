@@ -29,4 +29,7 @@ export const qk = {
     list: (driverId: string, params?: Record<string, unknown>) =>
       ['grants', 'list', driverId, params ?? {}] as const,
   },
+  apiKeys: {
+    list: () => ['apiKeys', 'list'] as const,
+  },
 }
