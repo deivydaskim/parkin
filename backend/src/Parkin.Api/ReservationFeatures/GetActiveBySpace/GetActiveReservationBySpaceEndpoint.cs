@@ -13,7 +13,7 @@ public sealed class GetActiveReservationBySpaceRequest
 }
 
 public class GetActiveReservationBySpaceEndpoint(IMediator mediator)
-  : Endpoint<GetActiveReservationBySpaceRequest, Ok<ReservationRecord?>>
+  : Endpoint<GetActiveReservationBySpaceRequest, Results<Ok<ReservationRecord>, NoContent>>
 {
   public override void Configure()
   {
@@ -23,23 +23,28 @@ public class GetActiveReservationBySpaceEndpoint(IMediator mediator)
     Summary(s =>
     {
       s.Summary = "Get a space's active reservation";
-      s.Description = "Returns the space's current ACTIVE reservation, or null if the space isn't currently reserved.";
-      s.Responses[200] = "Active reservation returned, or null if none exists";
+      s.Description = "Returns the space's current ACTIVE reservation, or 204 No Content if the space isn't currently reserved.";
+      s.Responses[200] = "Active reservation returned";
+      s.Responses[204] = "Space has no active reservation";
     });
 
     Tags("Reservations");
 
     Description(builder => builder
       .Accepts<GetActiveReservationBySpaceRequest>()
-      .Produces<ReservationRecord?>(200, "application/json"));
+      .Produces<ReservationRecord>(200, "application/json")
+      .Produces(204));
   }
 
-  public override async Task<Ok<ReservationRecord?>> ExecuteAsync(GetActiveReservationBySpaceRequest request, CancellationToken cancellationToken)
+  public override async Task<Results<Ok<ReservationRecord>, NoContent>>
+    ExecuteAsync(GetActiveReservationBySpaceRequest request, CancellationToken cancellationToken)
   {
     var result = await mediator.Send(
       new GetActiveReservationBySpaceQuery(ParkingSpaceId.From(request.SpaceId)), cancellationToken);
 
-    return TypedResults.Ok<ReservationRecord?>(result.Value is null ? null : ReservationMapping.ToRecord(result.Value));
+    return result.Value is null
+      ? TypedResults.NoContent()
+      : TypedResults.Ok(ReservationMapping.ToRecord(result.Value));
   }
 }
 
