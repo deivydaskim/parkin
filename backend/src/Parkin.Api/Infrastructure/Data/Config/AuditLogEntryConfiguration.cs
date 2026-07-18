@@ -26,9 +26,6 @@ public class AuditLogEntryConfiguration : IEntityTypeConfiguration<AuditLogEntry
       .HasMaxLength(100)
       .IsRequired();
 
-    builder.Property(entity => entity.SourceIp)
-      .HasColumnType("inet");
-
     builder.Property(entity => entity.MetadataJson)
       .HasColumnType("jsonb");
 

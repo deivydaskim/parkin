@@ -46,7 +46,7 @@ export type LotFormInput = z.infer<typeof lotFormSchema>
 export const lotListParamsSchema = z.object({
   page: z.number().int().min(1).optional(),
   perPage: z.number().int().min(1).max(100).optional(),
-  status: lotStatusSchema.or(z.literal('ALL')).optional(),
+  status: lotStatusSchema.or(z.literal('All')).optional(),
 })
 
 export type LotListParams = z.infer<typeof lotListParamsSchema>

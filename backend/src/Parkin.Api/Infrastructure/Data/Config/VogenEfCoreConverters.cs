@@ -5,5 +5,6 @@ using Vogen;
 namespace Parkin.Api.Infrastructure.Data.Config;
 
 [EfCoreConverter<ParkingLotId>]
+[EfCoreConverter<ParkingSpaceId>]
 [EfCoreConverter<AuditLogEntryId>]
 internal partial class VogenEfCoreConverters;

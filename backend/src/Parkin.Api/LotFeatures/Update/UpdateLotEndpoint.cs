@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -48,13 +49,16 @@ public class UpdateEndpoint(IMediator mediator)
   public override async Task<Results<Ok<LotRecord>, NotFound, ProblemHttpResult>>
     ExecuteAsync(UpdateLotRequest request, CancellationToken cancellationToken)
   {
+    var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+    var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
     var command = new UpdateLotCommand(
       ParkingLotId.From(request.LotId),
       request.Name,
       request.Address,
       request.Timezone,
       request.AccessMode,
-      request.FullBehavior);
+      request.FullBehavior,
+      actorId);
 
     var result = await mediator.Send(command, cancellationToken);
 

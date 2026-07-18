@@ -4,4 +4,5 @@ public static class AuditEntityTypes
 {
   public const string User = "User";
   public const string ParkingLot = "ParkingLot";
+  public const string ParkingSpace = "ParkingSpace";
 }

@@ -226,7 +226,7 @@ Plain-English entities, core attributes, and relationships. **PostgreSQL** with 
 - **Reservation**: id, space id, driver id, start date, optional end date, status (`ACTIVE` | `ENDED` | `CANCELLED`), created-by, timestamps.
 - **AccessEvent**: id, lot id, raw plate string, matched plate id (nullable), matched driver id (nullable), direction (`ENTER` | `EXIT`), source (`LPR` | `MANUAL`), decision (`ALLOW` | `DENY`), deny reason (nullable), occurred-at, received-at, idempotency key (unique), acting staff id (if manual/override), session id (nullable), override-of (nullable).
 - **ParkingSession**: id, lot id, driver id (nullable for unknown plates in OPEN lots), plate string, space id (set only for reserved-pool sessions), pool (`GENERAL` | `RESERVED`), entry event id, entry time, exit event id (nullable), exit time (nullable), status (`ACTIVE` | `CLOSED` | `EXPIRED`).
-- **AuditLogEntry**: id, actor type (`STAFF` | `SYSTEM` | `API`), actor id (nullable), action, entity type, entity id, timestamp, source IP (nullable), metadata (JSON).
+- **AuditLogEntry**: id, actor type (`STAFF` | `SYSTEM` | `API`), actor id (nullable), action, entity type, entity id, timestamp, metadata (JSON).
 
 ### Relationships (plain English)
 - A **Driver** has **many Plates**; a **Plate** belongs to exactly **one Driver** at a time.

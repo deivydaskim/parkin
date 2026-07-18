@@ -463,7 +463,6 @@ erDiagram
         text entity_type
         uuid entity_id
         timestamptz occurred_at
-        inet source_ip "nullable"
         jsonb metadata
     }
     STAFF_USER {

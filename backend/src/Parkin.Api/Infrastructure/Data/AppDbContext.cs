@@ -11,6 +11,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) :
   IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options)
 {
   public DbSet<ParkingLot> ParkingLots => Set<ParkingLot>();
+  public DbSet<ParkingSpace> ParkingSpaces => Set<ParkingSpace>();
   public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)

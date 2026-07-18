@@ -9,4 +9,5 @@ public record LotDto(
   string Timezone,
   AccessMode AccessMode,
   FullBehavior FullBehavior,
-  LotStatus Status);
+  LotStatus Status,
+  int Capacity);

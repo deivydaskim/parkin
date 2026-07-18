@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -40,7 +41,9 @@ public class ArchiveEndpoint(IMediator mediator)
   public override async Task<Results<Ok<LotRecord>, NotFound, ProblemHttpResult>>
     ExecuteAsync(ArchiveLotRequest request, CancellationToken cancellationToken)
   {
-    var result = await mediator.Send(new ArchiveLotCommand(ParkingLotId.From(request.LotId)), cancellationToken);
+    var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+    var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
+    var result = await mediator.Send(new ArchiveLotCommand(ParkingLotId.From(request.LotId), actorId), cancellationToken);
 
     return result.ToUpdateResult(LotEnumMapping.ToRecord);
   }

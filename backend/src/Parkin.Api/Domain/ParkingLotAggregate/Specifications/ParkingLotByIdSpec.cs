@@ -4,5 +4,6 @@ public class ParkingLotByIdSpec : Specification<ParkingLot>
 {
   public ParkingLotByIdSpec(ParkingLotId lotId) =>
     Query
-        .Where(lot => lot.Id == lotId);
+        .Where(lot => lot.Id == lotId)
+        .Include(lot => lot.Spaces);
 }

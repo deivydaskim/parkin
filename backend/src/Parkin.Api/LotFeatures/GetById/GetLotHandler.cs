@@ -14,6 +14,6 @@ public class GetLotHandler(IReadRepository<ParkingLot> repository)
     var entity = await repository.FirstOrDefaultAsync(spec, cancellationToken);
     if (entity == null) return Result.NotFound();
 
-    return new LotDto(entity.Id, entity.Name, entity.Address, entity.Timezone, entity.AccessMode, entity.FullBehavior, entity.Status);
+    return new LotDto(entity.Id, entity.Name, entity.Address, entity.Timezone, entity.AccessMode, entity.FullBehavior, entity.Status, entity.Capacity);
   }
 }

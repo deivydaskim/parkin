@@ -2,7 +2,7 @@ namespace Parkin.Api.LotFeatures.List;
 
 public record ListLotsQuery(int? Page = 1,
   int? PerPage = Constants.DEFAULT_PAGE_SIZE,
-  string? Status = null)
+  LotStatusFilter? Status = null)
   : IQuery<Result<PagedResult<LotDto>>>;
 
 public class ListLotsHandler(IListLotsQueryService query) : IQueryHandler<ListLotsQuery, Result<PagedResult<LotDto>>>

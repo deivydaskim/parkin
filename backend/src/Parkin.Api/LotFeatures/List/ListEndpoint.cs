@@ -12,9 +12,8 @@ public sealed class ListLotsRequest
   [BindFrom("per_page")]
   public int PerPage { get; init; } = Constants.DEFAULT_PAGE_SIZE;
 
-  /// <summary>ACTIVE (default), ARCHIVED, or ALL.</summary>
   [BindFrom("status")]
-  public string? Status { get; init; }
+  public LotStatusFilter? Status { get; init; }
 }
 
 public record LotListResponse : PagedResult<LotRecord>
@@ -37,10 +36,10 @@ public class ListEndpoint(IMediator mediator) : Endpoint<ListLotsRequest, LotLis
     Summary(s =>
     {
       s.Summary = "List parking lots with pagination";
-      s.Description = "Retrieves a paginated list of parking lots. Defaults to active-only; pass status=ARCHIVED or status=ALL to include archived lots.";
+      s.Description = "Retrieves a paginated list of parking lots. Defaults to active-only; pass status=Archived or status=All to include archived lots.";
       s.Params["page"] = "1-based page index (default 1)";
       s.Params["per_page"] = $"Page size 1–{Constants.MAX_PAGE_SIZE} (default {Constants.DEFAULT_PAGE_SIZE})";
-      s.Params["status"] = "ACTIVE (default), ARCHIVED, or ALL";
+      s.Params["status"] = "Active (default), Archived, or All";
 
       s.Responses[200] = "Paginated list of lots returned successfully";
       s.Responses[400] = "Invalid pagination parameters";
@@ -104,10 +103,6 @@ public sealed class ListLotsValidator : Validator<ListLotsRequest>
       .InclusiveBetween(1, Constants.MAX_PAGE_SIZE)
       .WithMessage($"per_page must be between 1 and {Constants.MAX_PAGE_SIZE}");
 
-    RuleFor(x => x.Status)
-      .Must(v => v is "ACTIVE" or "ARCHIVED" or "ALL")
-      .WithMessage("status must be ACTIVE, ARCHIVED, or ALL")
-      .When(x => x.Status is not null);
   }
 }
 

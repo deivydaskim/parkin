@@ -6,5 +6,10 @@ public static class AuditActions
   public const string UserChangeRole = "user.change_role";
   public const string UserDisable = "user.disable";
   public const string UserEnable = "user.enable";
+  public const string LotCreated = "lot.created";
+  public const string LotUpdated = "lot.updated";
   public const string LotArchived = "lot.archived";
+  public const string SpaceCreated = "space.created";
+  public const string SpaceUpdated = "space.updated";
+  public const string SpaceDeactivated = "space.deactivated";
 }

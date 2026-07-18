@@ -8,6 +8,9 @@
     <Disallowed From="Parkin.Api.LotFeatures.*"
 				To="Parkin.Api.Infrastructure.*" />
 
+    <Disallowed From="Parkin.Api.SpaceFeatures.*"
+				To="Parkin.Api.Infrastructure.*" />
+
     <Disallowed From="Parkin.Api.Domain.AuditAggregate.*"
 				To="Parkin.Api.Infrastructure.*" />
 

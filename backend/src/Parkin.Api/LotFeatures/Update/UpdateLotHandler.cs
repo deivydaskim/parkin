@@ -9,7 +9,8 @@ public record UpdateLotCommand(
   string? Address,
   string? Timezone,
   AccessMode? AccessMode,
-  FullBehavior? FullBehavior) : ICommand<Result<LotDto>>;
+  FullBehavior? FullBehavior,
+  Guid? ActorId) : ICommand<Result<LotDto>>;
 
 public class UpdateLotHandler(IRepository<ParkingLot> repository)
   : ICommandHandler<UpdateLotCommand, Result<LotDto>>
@@ -31,7 +32,7 @@ public class UpdateLotHandler(IRepository<ParkingLot> repository)
     var name = request.Name ?? lot.Name;
     var address = request.Address ?? lot.Address;
     var timezone = request.Timezone ?? lot.Timezone;
-    lot.UpdateDetails(name, address, timezone);
+    lot.UpdateDetails(name, address, timezone, request.ActorId);
 
     if (request.AccessMode.HasValue)
     {
@@ -45,6 +46,6 @@ public class UpdateLotHandler(IRepository<ParkingLot> repository)
 
     await repository.UpdateAsync(lot, cancellationToken);
 
-    return new LotDto(lot.Id, lot.Name, lot.Address, lot.Timezone, lot.AccessMode, lot.FullBehavior, lot.Status);
+    return new LotDto(lot.Id, lot.Name, lot.Address, lot.Timezone, lot.AccessMode, lot.FullBehavior, lot.Status, lot.Capacity);
   }
 }

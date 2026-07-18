@@ -9,14 +9,14 @@ public class ListLotsQueryService(AppDbContext db) : IListLotsQueryService
 {
   private readonly AppDbContext _db = db;
 
-  public async Task<PagedResult<LotDto>> ListAsync(int page, int perPage, string? status)
+  public async Task<PagedResult<LotDto>> ListAsync(int page, int perPage, LotStatusFilter? status)
   {
     var query = _db.ParkingLots.AsQueryable();
 
-    query = status?.ToUpperInvariant() switch
+    query = status switch
     {
-      "ALL" => query,
-      "ARCHIVED" => query.Where(l => l.Status == LotStatus.Archived),
+      LotStatusFilter.All => query,
+      LotStatusFilter.Archived => query.Where(l => l.Status == LotStatus.Archived),
       _ => query.Where(l => l.Status == LotStatus.Active), // default: active-only
     };
 
@@ -24,7 +24,8 @@ public class ListLotsQueryService(AppDbContext db) : IListLotsQueryService
       .OrderBy(l => l.Name)
       .Skip((page - 1) * perPage)
       .Take(perPage)
-      .Select(l => new LotDto(l.Id, l.Name, l.Address, l.Timezone, l.AccessMode, l.FullBehavior, l.Status))
+      .Select(l => new LotDto(l.Id, l.Name, l.Address, l.Timezone, l.AccessMode, l.FullBehavior, l.Status,
+        l.Spaces.Count(s => s.Status == SpaceStatus.Active && s.Type == SpaceType.General)))
       .AsNoTracking()
       .ToListAsync();
 

@@ -2,5 +2,5 @@ namespace Parkin.Api.LotFeatures.List;
 
 public interface IListLotsQueryService
 {
-  Task<PagedResult<LotDto>> ListAsync(int page, int perPage, string? status);
+  Task<PagedResult<LotDto>> ListAsync(int page, int perPage, LotStatusFilter? status);
 }

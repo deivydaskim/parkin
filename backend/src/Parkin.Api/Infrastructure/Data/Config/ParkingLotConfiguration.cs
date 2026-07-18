@@ -42,5 +42,12 @@ public class ParkingLotConfiguration : IEntityTypeConfiguration<ParkingLot>
       .HasConversion<string>()
       .HasMaxLength(20)
       .IsRequired();
+
+    builder.HasMany(entity => entity.Spaces)
+      .WithOne()
+      .HasForeignKey(space => space.LotId);
+
+    builder.Metadata.FindNavigation(nameof(ParkingLot.Spaces))!
+      .SetPropertyAccessMode(PropertyAccessMode.Field);
   }
 }

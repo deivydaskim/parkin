@@ -1,4 +1,3 @@
-using System.Net;
 using System.Text.Json;
 using Ardalis.GuardClauses;
 
@@ -10,7 +9,7 @@ public class AuditLogEntry : EntityBase<AuditLogEntry, AuditLogEntryId>, IAggreg
   private AuditLogEntry() { }
 
   private AuditLogEntry(AuditLogEntryId id, AuditActorType actorType, Guid? actorId, string action,
-    string entityType, Guid entityId, IPAddress? sourceIp, string? metadataJson)
+    string entityType, Guid entityId, string? metadataJson)
   {
     Guard.Against.NullOrWhiteSpace(action, nameof(action));
     Guard.Against.NullOrWhiteSpace(entityType, nameof(entityType));
@@ -22,14 +21,13 @@ public class AuditLogEntry : EntityBase<AuditLogEntry, AuditLogEntryId>, IAggreg
     EntityType = entityType;
     EntityId = entityId;
     OccurredAt = DateTimeOffset.UtcNow;
-    SourceIp = sourceIp;
     MetadataJson = metadataJson;
   }
 
   public static AuditLogEntry Create(AuditActorType actorType, Guid? actorId, string action,
-    string entityType, Guid entityId, IPAddress? sourceIp, object? metadata = null)
+    string entityType, Guid entityId, object? metadata = null)
     => new(AuditLogEntryId.From(Guid.NewGuid()), actorType, actorId, action, entityType, entityId,
-      sourceIp, metadata is null ? null : JsonSerializer.Serialize(metadata));
+      metadata is null ? null : JsonSerializer.Serialize(metadata));
 
   public AuditActorType ActorType { get; private set; }
   public Guid? ActorId { get; private set; }
@@ -37,6 +35,5 @@ public class AuditLogEntry : EntityBase<AuditLogEntry, AuditLogEntryId>, IAggreg
   public string EntityType { get; private set; } = string.Empty;
   public Guid EntityId { get; private set; }
   public DateTimeOffset OccurredAt { get; private set; }
-  public IPAddress? SourceIp { get; private set; }
   public string? MetadataJson { get; private set; }
 }
