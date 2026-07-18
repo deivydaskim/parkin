@@ -9,4 +9,5 @@ public static class AuditEntityTypes
   public const string Plate = "Plate";
   public const string AccessGrant = "AccessGrant";
   public const string ApiKey = "ApiKey";
+  public const string Reservation = "Reservation";
 }

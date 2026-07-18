@@ -31,6 +31,41 @@ public static class ResultExtensions
   }
 
   /// <summary>
+  /// Maps Result to TypedResults for Create endpoints that can also 404 (referenced resource missing)
+  /// or 409 (conflict with an existing resource, e.g. a partial-unique-index violation).
+  /// </summary>
+  public static Results<Created<TResponse>, ValidationProblem, ProblemHttpResult> ToCreatedOrConflictResult<TValue, TResponse>(
+    this Result<TValue> result,
+    Func<TValue, string> locationBuilder,
+    Func<TValue, TResponse> mapResponse)
+  {
+    return result.Status switch
+    {
+      ResultStatus.Ok => TypedResults.Created(locationBuilder(result.Value), mapResponse(result.Value)),
+      ResultStatus.Invalid => TypedResults.ValidationProblem(
+        result.ValidationErrors
+          .GroupBy(e => e.Identifier ?? string.Empty)
+          .ToDictionary(
+            g => g.Key,
+            g => g.Select(e => e.ErrorMessage).ToArray()
+          )
+      ),
+      ResultStatus.NotFound => TypedResults.Problem(
+        title: "Not found",
+        detail: string.Join("; ", result.Errors),
+        statusCode: StatusCodes.Status404NotFound),
+      ResultStatus.Conflict => TypedResults.Problem(
+        title: "Conflict",
+        detail: string.Join("; ", result.Errors),
+        statusCode: StatusCodes.Status409Conflict),
+      _ => TypedResults.Problem(
+        title: "Create failed",
+        detail: string.Join("; ", result.Errors),
+        statusCode: StatusCodes.Status400BadRequest)
+    };
+  }
+
+  /// <summary>
   /// Maps Result to TypedResults for GetById endpoints that return Ok, NotFound, or ProblemHttpResult
   /// </summary>
   public static Results<Ok<TResponse>, NotFound, ProblemHttpResult> ToGetByIdResult<TValue, TResponse>(
@@ -54,7 +89,9 @@ public static class ResultExtensions
     ResultStatus.NotFound => TypedResults.NotFound(),
     _ => TypedResults.Problem(
         title: "Delete failed",
-        detail: string.Join("; ", result.Errors),
+        detail: result.ValidationErrors.Any()
+          ? string.Join("; ", result.ValidationErrors.Select(e => e.ErrorMessage))
+          : string.Join("; ", result.Errors),
         statusCode: StatusCodes.Status400BadRequest)
   };
 
@@ -70,9 +107,18 @@ public static class ResultExtensions
     ResultStatus.NotFound => TypedResults.NotFound(),
     _ => TypedResults.Problem(
         title: $"{operationName} failed",
-        detail: string.Join("; ", result.Errors),
+        detail: FormatErrors(result),
         statusCode: StatusCodes.Status400BadRequest)
   };
+
+  /// <summary>
+  /// Result.Invalid() populates ValidationErrors, not Errors — join whichever is populated
+  /// so a 400's `detail` is never silently empty.
+  /// </summary>
+  private static string FormatErrors<TValue>(Result<TValue> result) =>
+    result.ValidationErrors.Any()
+      ? string.Join("; ", result.ValidationErrors.Select(e => e.ErrorMessage))
+      : string.Join("; ", result.Errors);
 
   /// <summary>
   /// Maps Result to TypedResults for endpoints that return Ok only (like List endpoints)

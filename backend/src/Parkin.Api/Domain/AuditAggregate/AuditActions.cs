@@ -26,4 +26,6 @@ public static class AuditActions
   public const string GrantRevoked = "grant.revoked";
   public const string ApiKeyCreate = "api_key.create";
   public const string ApiKeyRevoke = "api_key.revoke";
+  public const string ReservationCreated = "reservation.created";
+  public const string ReservationCancelled = "reservation.cancelled";
 }

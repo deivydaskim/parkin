@@ -155,10 +155,10 @@ Priority: **P0** = must-have for v1 launch · **P1** = important, target v1 if t
 ### Epic D — Reservations
 
 **D1 (P0).** *As an Operator, I want to reserve a specific space for a specific driver so that their bay is documented and honored.*
-- **AC:** A reservation ties one space to one driver with a start date and optional end date; **a space may have at most one ACTIVE reservation at a time** — attempting a second is rejected with a clear conflict message; creating a reservation sets the space type to RESERVED and removes it from the general pool; a reserved driver implicitly has access to that lot even if RESTRICTED.
+- **AC:** A reservation ties one space to one driver; **a space may have at most one ACTIVE reservation at a time** — attempting a second is rejected with a clear conflict message; creating a reservation sets the space type to RESERVED and removes it from the general pool; a reserved driver implicitly has access to that lot even if RESTRICTED. Reserving is a single action from the space's row: pick the driver (or pick none, to leave the space unassigned) — no separate screen needed.
 
-**D2 (P0).** *As an Operator, I want to reassign or cancel a reservation so that bays follow staffing changes cleanly.*
-- **AC:** Cancelling ends the active reservation and (optionally) returns the space to GENERAL; reassigning ends the prior reservation and creates a new active one atomically (never two active at once); all changes are audit-logged with timestamp and actor.
+**D2 (P0).** *As an Operator, I want to cancel a reservation so that bays follow staffing changes cleanly.*
+- **AC:** Cancelling ends the active reservation, freeing the space for a new assignment; all changes are audit-logged with actor.
 
 **D3 (P2).** *As a driver, I want to book a space myself.* — Out of scope v1.
 
@@ -223,7 +223,7 @@ Plain-English entities, core attributes, and relationships. **PostgreSQL** with 
 - **ParkingLot**: id, name (unique), optional address, timezone, access mode (`OPEN` | `RESTRICTED`), full behavior (`BLOCK` | `ALLOW_OVERFLOW`), status (active/archived).
 - **ParkingSpace**: id, lot id, label (unique within lot), type (`GENERAL` | `RESERVED`), row ordinal, column ordinal, optional zone, status (active/inactive).
 - **AccessGrant**: id, driver id, lot id, valid-from, optional valid-to, status, created-by, created-at. *(Only meaningful for RESTRICTED lots.)*
-- **Reservation**: id, space id, driver id, start date, optional end date, status (`ACTIVE` | `ENDED` | `CANCELLED`), created-by, timestamps.
+- **Reservation**: id, space id, driver id, lot id (denormalized), status (`ACTIVE` | `CANCELLED`). *(No start/end date, no created-by/created-at on the entity itself — creation and cancellation are captured in the audit log.)*
 - **AccessEvent**: id, lot id, raw plate string, matched plate id (nullable), matched driver id (nullable), direction (`ENTER` | `EXIT`), source (`LPR` | `MANUAL`), decision (`ALLOW` | `DENY`), deny reason (nullable), occurred-at, received-at, idempotency key (unique), acting staff id (if manual/override), session id (nullable), override-of (nullable).
 - **ParkingSession**: id, lot id, driver id (nullable for unknown plates in OPEN lots), plate string, space id (set only for reserved-pool sessions), pool (`GENERAL` | `RESERVED`), entry event id, entry time, exit event id (nullable), exit time (nullable), status (`ACTIVE` | `CLOSED` | `EXPIRED`).
 - **AuditLogEntry**: id, actor type (`STAFF` | `SYSTEM` | `API`), actor id (nullable), action, entity type, entity id, timestamp, metadata (JSON).

@@ -144,8 +144,8 @@ Parkin.slnx
 │       │   │   ├── AccessGrant.cs                 (root: driverId, lotId, validFrom, validTo?, status)
 │       │   │   └── Specifications/ActiveGrantForDriverLotSpec.cs
 │       │   ├── ReservationAggregate/
-│       │   │   ├── Reservation.cs                 (root: spaceId, lotId, driverId, start, end?, status)
-│       │   │   └── Specifications/ActiveReservationBySpaceSpec.cs, ActiveReservationForDriverLotSpec.cs
+│       │   │   ├── Reservation.cs                 (root: spaceId, lotId, driverId, status — ACTIVE|CANCELLED; no dates, no created-by/at — audited separately)
+│       │   │   └── Specifications/ActiveReservationBySpaceSpec.cs, ActiveReservationByDriverLotSpec.cs
 │       │   ├── SessionAggregate/
 │       │   │   ├── ParkingSession.cs              (root: lotId, driverId?, plate, spaceId?, Pool, entry/exit refs, status)
 │       │   │   └── Specifications/ActiveSessionsByLotSpec.cs, OpenSessionForPlateSpec.cs
@@ -167,7 +167,7 @@ Parkin.slnx
 │       ├── SpaceFeatures/       { Create, Update, Deactivate, ListByLot }/
 │       ├── DriverFeatures/      { Create, Update, AssignPlate, ReassignPlate, BulkImport(P1), Export, Anonymize }/
 │       ├── GrantFeatures/       { Grant, Revoke, ListForDriver }/
-│       ├── ReservationFeatures/ { Create, Reassign, Cancel, ListByLot }/
+│       ├── ReservationFeatures/ { Create, Cancel, ListByLot }/  (reserve/free a space for a driver from the space's row — no separate screen)
 │       ├── AccessEventFeatures/
 │       │   └── Ingest/IngestEndpoint.cs + IngestAccessEventCommand.cs + Handler.cs  ★ orchestrates decision + session + audit in one tx
 │       ├── OccupancyFeatures/   { GetLotOccupancy, GetMultiLotDashboard(P1) }/
@@ -267,7 +267,6 @@ parking-web/
     │       ├── lots/                   (index, $lotId, $lotId.spaces — F2, v1's only lot-layout view — new, $lotId.edit)
     │       ├── lots.$lotId.map.tsx     (2D view — F1 — **post-v1, not built yet**)
     │       ├── drivers/                (index, $driverId, new — incl. plates + grants)
-    │       ├── reservations/           (index, new, $reservationId.edit)
     │       ├── gate/                   (gate console — manual entry/exit + override, E5/E6)
     │       ├── occupancy/              (live per-lot + multi-lot dashboard P1)
     │       ├── sessions/               (reconciliation — E7)
@@ -284,7 +283,7 @@ parking-web/
     │   ├── spaces/      { …, components/ (SpaceForm, SpaceTable, OrdinalInputs) }
     │   ├── drivers/     { …, components/ (DriverForm, PlateManager, DriverGrantsPanel), schemas.ts }
     │   ├── grants/      { …, components/ (GrantForm with validFrom/validTo, GrantList) }
-    │   ├── reservations/{ …, components/ (ReservationForm, ReassignDialog, ConflictAlert) }
+    │   ├── reservations/{ …, components/ (ReservationDialog — reserve-for-driver / free, triggered from a space's row, no separate screen) }
     │   ├── occupancy/
     │   │   ├── api/        useLotOccupancy.ts (refetchInterval for near-live), useMultiLotDashboard.ts
     │   │   └── components/ OccupancyStats.tsx, OccupancyTable.tsx (v1's spaces view — F2, WCAG-accessible by default),
@@ -410,11 +409,7 @@ erDiagram
         uuid space_id FK
         uuid lot_id FK "denormalized for per-lot uniqueness"
         uuid driver_id FK
-        date start_date
-        date end_date "nullable"
-        text status "ACTIVE|ENDED|CANCELLED"
-        uuid created_by FK
-        timestamptz created_at
+        text status "ACTIVE|CANCELLED"
     }
     ACCESS_EVENT {
         uuid id PK
@@ -549,7 +544,7 @@ ALTER TABLE parking_lots ADD CONSTRAINT ux_lot_name UNIQUE (name);
 | Spaces | `GET/POST /api/v1/lots/{lotId}/spaces`, `PATCH …/{id}`, `POST …/{id}/deactivate` | **Operator+** | B4–B5 |
 | Drivers | `GET/POST /api/v1/drivers`, plates sub-resource, `POST …/{id}/export`, `POST …/{id}/anonymize` | **Operator+** (erase: **SystemAdmin**) | C1, G2 |
 | Grants | `POST /api/v1/grants`, `POST …/{id}/revoke`, `GET /api/v1/drivers/{id}/grants` | **Operator+** | C2 |
-| Reservations | `GET/POST /api/v1/reservations`, `POST …/{id}/reassign`, `POST …/{id}/cancel` | **Operator+** | D1–D2; 409 on conflict |
+| Reservations | `POST /api/v1/reservations`, `GET /api/v1/spaces/{spaceId}/reservation`, `POST /api/v1/reservations/{id}/cancel` | **Operator+** | D1–D2; 409 on conflict. No list endpoint — the UI only ever needs a space's single active reservation. |
 | **Access events** | `POST /api/v1/access-events` | **API key** | ★ ENTER/EXIT → ALLOW/DENY + reason (+ reserved space label); idempotent (E1–E3) |
 | Occupancy | `GET /api/v1/lots/{id}/occupancy`, `GET /api/v1/occupancy/dashboard` | **Operator** | E4; dashboard P1 |
 | Sessions | `GET /api/v1/lots/{id}/sessions?status=ACTIVE`, `POST …/{sid}/close`, `POST /api/v1/lots/{id}/occupancy/reset` | **Operator** | reconciliation E7 |

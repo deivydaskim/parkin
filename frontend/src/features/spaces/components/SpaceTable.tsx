@@ -16,7 +16,12 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { RoleGate } from '@/features/auth/components/RoleGate'
-import { useDeactivateSpace, useReactivateSpace, useUpdateSpace } from '../queries'
+import { ReservationDialog } from '@/features/reservations/components/ReservationDialog'
+import {
+  useDeactivateSpace,
+  useReactivateSpace,
+  useUpdateSpace,
+} from '../queries'
 import type { Space, SpaceFormInput } from '../schemas'
 import { SpaceForm } from './SpaceForm'
 
@@ -80,6 +85,14 @@ function SpaceRow({ lotId, space }: { lotId: string; space: Space }) {
       <TableCell>{typeLabel[space.type]}</TableCell>
       <TableCell>{statusLabel[space.status]}</TableCell>
       <TableCell className="flex justify-end gap-2 text-right">
+        {space.type === 'Reserved' && (
+          <ReservationDialog
+            lotId={lotId}
+            spaceId={space.id}
+            spaceLabel={space.label}
+          />
+        )}
+
         <RoleGate roles={['Operator', 'SystemAdmin']}>
           <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
             <DialogTrigger asChild>

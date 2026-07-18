@@ -57,7 +57,7 @@ public static class InfrastructureServiceExtensions
            .AddScoped<IListPlatesByDriverQueryService, ListPlatesByDriverQueryService>()
            .AddScoped<IListGrantsByDriverQueryService, ListGrantsByDriverQueryService>()
            .AddScoped<IListApiKeysQueryService, ListApiKeysQueryService>()
-           .AddScoped<IActiveReservationChecker, NoActiveReservationChecker>();
+           .AddScoped<IActiveReservationChecker, ActiveReservationChecker>();
 
     logger.LogInformation("{Project} services registered", "Infrastructure");
 

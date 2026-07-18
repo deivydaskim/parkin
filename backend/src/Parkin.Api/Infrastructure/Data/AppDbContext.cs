@@ -7,6 +7,7 @@ using Parkin.Api.Domain.ApiKeyAggregate;
 using Parkin.Api.Domain.AuditAggregate;
 using Parkin.Api.Domain.DriverAggregate;
 using Parkin.Api.Domain.ParkingLotAggregate;
+using Parkin.Api.Domain.ReservationAggregate;
 using Parkin.Api.Infrastructure.Identity;
 
 namespace Parkin.Api.Infrastructure.Data;
@@ -20,6 +21,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) :
   public DbSet<Plate> Plates => Set<Plate>();
   public DbSet<AccessGrant> AccessGrants => Set<AccessGrant>();
   public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
+  public DbSet<Reservation> Reservations => Set<Reservation>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {

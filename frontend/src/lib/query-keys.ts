@@ -32,4 +32,7 @@ export const qk = {
   apiKeys: {
     list: () => ['apiKeys', 'list'] as const,
   },
+  reservations: {
+    active: (spaceId: string) => ['reservations', 'active', spaceId] as const,
+  },
 }
