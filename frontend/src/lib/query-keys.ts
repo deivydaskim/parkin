@@ -35,4 +35,8 @@ export const qk = {
   reservations: {
     active: (spaceId: string) => ['reservations', 'active', spaceId] as const,
   },
+  audit: {
+    list: (params?: Record<string, unknown>) =>
+      ['audit', 'list', params ?? {}] as const,
+  },
 }

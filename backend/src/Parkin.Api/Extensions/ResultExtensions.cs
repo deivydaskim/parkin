@@ -66,6 +66,37 @@ public static class ResultExtensions
   }
 
   /// <summary>
+  /// Maps Result to TypedResults for Ok-returning endpoints that can also 400 (validation), 404 (not found),
+  /// or 409 (conflict with an existing resource, e.g. a partial-unique-index violation).
+  /// </summary>
+  public static Results<Ok<TResponse>, ValidationProblem, NotFound, ProblemHttpResult> ToOkOrConflictResult<TValue, TResponse>(
+    this Result<TValue> result,
+    Func<TValue, TResponse> mapResponse)
+  {
+    return result.Status switch
+    {
+      ResultStatus.Ok => TypedResults.Ok(mapResponse(result.Value)),
+      ResultStatus.Invalid => TypedResults.ValidationProblem(
+        result.ValidationErrors
+          .GroupBy(e => e.Identifier ?? string.Empty)
+          .ToDictionary(
+            g => g.Key,
+            g => g.Select(e => e.ErrorMessage).ToArray()
+          )
+      ),
+      ResultStatus.NotFound => TypedResults.NotFound(),
+      ResultStatus.Conflict => TypedResults.Problem(
+        title: "Conflict",
+        detail: string.Join("; ", result.Errors),
+        statusCode: StatusCodes.Status409Conflict),
+      _ => TypedResults.Problem(
+        title: "Reassign failed",
+        detail: FormatErrors(result),
+        statusCode: StatusCodes.Status400BadRequest)
+    };
+  }
+
+  /// <summary>
   /// Maps Result to TypedResults for GetById endpoints that return Ok, NotFound, or ProblemHttpResult
   /// </summary>
   public static Results<Ok<TResponse>, NotFound, ProblemHttpResult> ToGetByIdResult<TValue, TResponse>(

@@ -16,6 +16,7 @@ import { Route as AuthenticatedSettingsRouteRouteImport } from './routes/_authen
 import { Route as AuthenticatedLotsIndexRouteImport } from './routes/_authenticated/lots/index'
 import { Route as AuthenticatedDriversIndexRouteImport } from './routes/_authenticated/drivers/index'
 import { Route as AuthenticatedSettingsUsersRouteImport } from './routes/_authenticated/settings/users'
+import { Route as AuthenticatedSettingsAuditRouteImport } from './routes/_authenticated/settings/audit'
 import { Route as AuthenticatedSettingsApiKeysRouteImport } from './routes/_authenticated/settings/api-keys'
 import { Route as AuthenticatedLotsLotIdRouteImport } from './routes/_authenticated/lots/$lotId'
 import { Route as AuthenticatedDriversDriverIdRouteImport } from './routes/_authenticated/drivers/$driverId'
@@ -57,6 +58,12 @@ const AuthenticatedSettingsUsersRoute =
     path: '/users',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
+const AuthenticatedSettingsAuditRoute =
+  AuthenticatedSettingsAuditRouteImport.update({
+    id: '/audit',
+    path: '/audit',
+    getParentRoute: () => AuthenticatedSettingsRouteRoute,
+  } as any)
 const AuthenticatedSettingsApiKeysRoute =
   AuthenticatedSettingsApiKeysRouteImport.update({
     id: '/api-keys',
@@ -82,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/drivers/$driverId': typeof AuthenticatedDriversDriverIdRoute
   '/lots/$lotId': typeof AuthenticatedLotsLotIdRoute
   '/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
+  '/settings/audit': typeof AuthenticatedSettingsAuditRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/drivers/': typeof AuthenticatedDriversIndexRoute
   '/lots/': typeof AuthenticatedLotsIndexRoute
@@ -93,6 +101,7 @@ export interface FileRoutesByTo {
   '/drivers/$driverId': typeof AuthenticatedDriversDriverIdRoute
   '/lots/$lotId': typeof AuthenticatedLotsLotIdRoute
   '/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
+  '/settings/audit': typeof AuthenticatedSettingsAuditRoute
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/drivers': typeof AuthenticatedDriversIndexRoute
   '/lots': typeof AuthenticatedLotsIndexRoute
@@ -106,6 +115,7 @@ export interface FileRoutesById {
   '/_authenticated/drivers/$driverId': typeof AuthenticatedDriversDriverIdRoute
   '/_authenticated/lots/$lotId': typeof AuthenticatedLotsLotIdRoute
   '/_authenticated/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
+  '/_authenticated/settings/audit': typeof AuthenticatedSettingsAuditRoute
   '/_authenticated/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/_authenticated/drivers/': typeof AuthenticatedDriversIndexRoute
   '/_authenticated/lots/': typeof AuthenticatedLotsIndexRoute
@@ -119,6 +129,7 @@ export interface FileRouteTypes {
     | '/drivers/$driverId'
     | '/lots/$lotId'
     | '/settings/api-keys'
+    | '/settings/audit'
     | '/settings/users'
     | '/drivers/'
     | '/lots/'
@@ -130,6 +141,7 @@ export interface FileRouteTypes {
     | '/drivers/$driverId'
     | '/lots/$lotId'
     | '/settings/api-keys'
+    | '/settings/audit'
     | '/settings/users'
     | '/drivers'
     | '/lots'
@@ -142,6 +154,7 @@ export interface FileRouteTypes {
     | '/_authenticated/drivers/$driverId'
     | '/_authenticated/lots/$lotId'
     | '/_authenticated/settings/api-keys'
+    | '/_authenticated/settings/audit'
     | '/_authenticated/settings/users'
     | '/_authenticated/drivers/'
     | '/_authenticated/lots/'
@@ -203,6 +216,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsUsersRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
+    '/_authenticated/settings/audit': {
+      id: '/_authenticated/settings/audit'
+      path: '/audit'
+      fullPath: '/settings/audit'
+      preLoaderRoute: typeof AuthenticatedSettingsAuditRouteImport
+      parentRoute: typeof AuthenticatedSettingsRouteRoute
+    }
     '/_authenticated/settings/api-keys': {
       id: '/_authenticated/settings/api-keys'
       path: '/api-keys'
@@ -229,12 +249,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedSettingsRouteRouteChildren {
   AuthenticatedSettingsApiKeysRoute: typeof AuthenticatedSettingsApiKeysRoute
+  AuthenticatedSettingsAuditRoute: typeof AuthenticatedSettingsAuditRoute
   AuthenticatedSettingsUsersRoute: typeof AuthenticatedSettingsUsersRoute
 }
 
 const AuthenticatedSettingsRouteRouteChildren: AuthenticatedSettingsRouteRouteChildren =
   {
     AuthenticatedSettingsApiKeysRoute: AuthenticatedSettingsApiKeysRoute,
+    AuthenticatedSettingsAuditRoute: AuthenticatedSettingsAuditRoute,
     AuthenticatedSettingsUsersRoute: AuthenticatedSettingsUsersRoute,
   }
 
