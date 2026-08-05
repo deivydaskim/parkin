@@ -54,4 +54,41 @@ public class ReservationTests
       && ((ReservationCancelledEvent)e).ReservationId == reservation.Id
       && ((ReservationCancelledEvent)e).ActorId == actorId);
   }
+
+  [Fact]
+  public void CreateForReassignment_SetsFieldsAndDefaultsToActive()
+  {
+    var previousReservationId = ReservationId.From(Guid.NewGuid());
+    var previousDriverId = DriverId.From(Guid.NewGuid());
+    var actorId = Guid.NewGuid();
+
+    var reservation = Reservation.CreateForReassignment(
+      SpaceId, DriverId, LotId, previousReservationId, previousDriverId, actorId);
+
+    reservation.SpaceId.ShouldBe(SpaceId);
+    reservation.DriverId.ShouldBe(DriverId);
+    reservation.LotId.ShouldBe(LotId);
+    reservation.Status.ShouldBe(ReservationStatus.Active);
+  }
+
+  [Fact]
+  public void CreateForReassignment_RegistersOnlyReservationReassignedEvent()
+  {
+    var previousReservationId = ReservationId.From(Guid.NewGuid());
+    var previousDriverId = DriverId.From(Guid.NewGuid());
+    var actorId = Guid.NewGuid();
+
+    var reservation = Reservation.CreateForReassignment(
+      SpaceId, DriverId, LotId, previousReservationId, previousDriverId, actorId);
+
+    reservation.DomainEvents.Count.ShouldBe(1);
+    reservation.DomainEvents.ShouldContain(e => e is ReservationReassignedEvent
+      && ((ReservationReassignedEvent)e).NewReservationId == reservation.Id
+      && ((ReservationReassignedEvent)e).PreviousReservationId == previousReservationId
+      && ((ReservationReassignedEvent)e).SpaceId == SpaceId
+      && ((ReservationReassignedEvent)e).LotId == LotId
+      && ((ReservationReassignedEvent)e).PreviousDriverId == previousDriverId
+      && ((ReservationReassignedEvent)e).NewDriverId == DriverId
+      && ((ReservationReassignedEvent)e).ActorId == actorId);
+  }
 }
