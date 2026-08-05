@@ -28,6 +28,12 @@ function SettingsLayout() {
         >
           API Keys
         </Link>
+        <Link
+          to="/settings/audit"
+          className="mt-2 block text-sm font-medium hover:underline"
+        >
+          Audit log
+        </Link>
       </nav>
       <div className="flex-1">
         <Outlet />

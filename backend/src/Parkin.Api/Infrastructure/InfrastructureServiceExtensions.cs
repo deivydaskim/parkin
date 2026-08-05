@@ -1,5 +1,6 @@
 using Ardalis.GuardClauses;
 using Parkin.Api.ApiKeyFeatures.List;
+using Parkin.Api.AuditFeatures.List;
 using Parkin.Api.DriverFeatures.List;
 using Parkin.Api.GrantFeatures.List;
 using Parkin.Api.Domain.Interfaces;
@@ -58,6 +59,7 @@ public static class InfrastructureServiceExtensions
            .AddScoped<IListPlatesByDriverQueryService, ListPlatesByDriverQueryService>()
            .AddScoped<IListGrantsByDriverQueryService, ListGrantsByDriverQueryService>()
            .AddScoped<IListApiKeysQueryService, ListApiKeysQueryService>()
+           .AddScoped<IListAuditQueryService, ListAuditQueryService>()
            .AddScoped<IActiveReservationChecker, ActiveReservationChecker>()
            .AddScoped<IUnitOfWork, EfUnitOfWork>();
 
