@@ -26,6 +26,19 @@ public class Reservation : EntityBase<Reservation, ReservationId>, IAggregateRoo
     return reservation;
   }
 
+  // Factory method for the replacement reservation created by a reassign — same space,
+  // new driver, linked back to the reservation it replaces. Registers a single
+  // ReservationReassignedEvent instead of ReservationCreatedEvent so the audit trail
+  // reads as one reassign action rather than an unrelated cancel + create.
+  public static Reservation CreateForReassignment(ParkingSpaceId spaceId, DriverId driverId, ParkingLotId lotId,
+    ReservationId previousReservationId, DriverId previousDriverId, Guid? actorId)
+  {
+    var reservation = new Reservation(ReservationId.From(Guid.NewGuid()), spaceId, driverId, lotId);
+    reservation.RegisterDomainEvent(new ReservationReassignedEvent(
+      reservation.Id, previousReservationId, spaceId, lotId, previousDriverId, driverId, actorId));
+    return reservation;
+  }
+
   public ParkingSpaceId SpaceId { get; private set; }
   public DriverId DriverId { get; private set; }
   public ParkingLotId LotId { get; private set; }
