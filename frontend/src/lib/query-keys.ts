@@ -39,4 +39,7 @@ export const qk = {
     list: (params?: Record<string, unknown>) =>
       ['audit', 'list', params ?? {}] as const,
   },
+  occupancy: {
+    lot: (lotId: string) => ['occupancy', 'lot', lotId] as const,
+  },
 }

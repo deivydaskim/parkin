@@ -24,6 +24,7 @@ import {
   useUpdateLot,
 } from '@/features/lots/queries'
 import { LotStatus, type LotFormInput } from '@/features/lots/schemas'
+import { OccupancyStats } from '@/features/occupancy/components/OccupancyStats'
 import { SpaceForm } from '@/features/spaces/components/SpaceForm'
 import { SpaceTable } from '@/features/spaces/components/SpaceTable'
 import { useCreateSpace, useSpaces } from '@/features/spaces/queries'
@@ -122,6 +123,10 @@ function LotDetailPage() {
           error={updateLotMutation.error}
           submitLabel="Save changes"
         />
+      </div>
+
+      <div className="mt-8">
+        <OccupancyStats lotId={lotId} />
       </div>
 
       <div className="mt-8">

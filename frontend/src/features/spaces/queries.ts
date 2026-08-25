@@ -36,6 +36,7 @@ export function useCreateSpace(lotId: string) {
     onSuccess: (space: Space) => {
       queryClient.invalidateQueries({ queryKey: qk.spaces.list(lotId) })
       queryClient.invalidateQueries({ queryKey: qk.lots.detail(lotId) })
+      queryClient.invalidateQueries({ queryKey: qk.occupancy.lot(lotId) })
       toast.success(`Space "${space.label}" created.`)
     },
     onError: (error) => {
@@ -52,6 +53,7 @@ export function useUpdateSpace(id: string, lotId: string) {
     onSuccess: (space: Space) => {
       queryClient.invalidateQueries({ queryKey: qk.spaces.list(lotId) })
       queryClient.invalidateQueries({ queryKey: qk.lots.detail(lotId) })
+      queryClient.invalidateQueries({ queryKey: qk.occupancy.lot(lotId) })
       toast.success(`Space "${space.label}" updated.`)
     },
     onError: (error) => {
@@ -68,6 +70,7 @@ export function useDeactivateSpace(id: string, lotId: string) {
     onSuccess: (space: Space) => {
       queryClient.invalidateQueries({ queryKey: qk.spaces.list(lotId) })
       queryClient.invalidateQueries({ queryKey: qk.lots.detail(lotId) })
+      queryClient.invalidateQueries({ queryKey: qk.occupancy.lot(lotId) })
       toast.success(`Space "${space.label}" deactivated.`)
     },
     onError: (error) => {
@@ -84,6 +87,7 @@ export function useReactivateSpace(id: string, lotId: string) {
     onSuccess: (space: Space) => {
       queryClient.invalidateQueries({ queryKey: qk.spaces.list(lotId) })
       queryClient.invalidateQueries({ queryKey: qk.lots.detail(lotId) })
+      queryClient.invalidateQueries({ queryKey: qk.occupancy.lot(lotId) })
       toast.success(`Space "${space.label}" reactivated.`)
     },
     onError: (error) => {

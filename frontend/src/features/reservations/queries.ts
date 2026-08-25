@@ -30,6 +30,7 @@ export function useCreateReservation(lotId: string, spaceId: string) {
     onSuccess: (reservation: Reservation) => {
       queryClient.invalidateQueries({ queryKey: qk.reservations.active(spaceId) })
       queryClient.invalidateQueries({ queryKey: qk.spaces.list(lotId) })
+      queryClient.invalidateQueries({ queryKey: qk.occupancy.lot(lotId) })
       toast.success('Space reserved.')
       return reservation
     },
@@ -47,6 +48,7 @@ export function useCancelReservation(lotId: string, spaceId: string) {
     onSuccess: (reservation: Reservation) => {
       queryClient.invalidateQueries({ queryKey: qk.reservations.active(spaceId) })
       queryClient.invalidateQueries({ queryKey: qk.spaces.list(lotId) })
+      queryClient.invalidateQueries({ queryKey: qk.occupancy.lot(lotId) })
       toast.success('Reservation cancelled.')
       return reservation
     },

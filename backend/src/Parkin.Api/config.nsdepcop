@@ -35,6 +35,9 @@
     <Disallowed From="Parkin.Api.AuditFeatures.*"
 				To="Parkin.Api.Infrastructure.*" />
 
+    <Disallowed From="Parkin.Api.OccupancyFeatures.*"
+				To="Parkin.Api.Infrastructure.*" />
+
     <AnalyzerConfig>
         <IssueKind Name="IllegalDependency" Severity="Error" />
     </AnalyzerConfig>
