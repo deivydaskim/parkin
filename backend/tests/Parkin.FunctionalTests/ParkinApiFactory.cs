@@ -8,8 +8,7 @@ namespace Parkin.FunctionalTests;
 
 public sealed class ParkinApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
-  readonly PostgreSqlContainer _container = new PostgreSqlBuilder()
-    .WithImage("postgres:16-alpine")
+  readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:16-alpine")
     .WithDatabase("parkin_functional_tests")
     .WithUsername("postgres")
     .WithPassword("postgres")

@@ -2,11 +2,13 @@ using System.Reflection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Parkin.Api.Domain.AccessEventAggregate;
 using Parkin.Api.Domain.AccessGrantAggregate;
 using Parkin.Api.Domain.ApiKeyAggregate;
 using Parkin.Api.Domain.AuditAggregate;
 using Parkin.Api.Domain.DriverAggregate;
 using Parkin.Api.Domain.ParkingLotAggregate;
+using Parkin.Api.Domain.ParkingSessionAggregate;
 using Parkin.Api.Domain.ReservationAggregate;
 using Parkin.Api.Infrastructure.Identity;
 
@@ -22,6 +24,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) :
   public DbSet<AccessGrant> AccessGrants => Set<AccessGrant>();
   public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
   public DbSet<Reservation> Reservations => Set<Reservation>();
+  public DbSet<AccessEvent> AccessEvents => Set<AccessEvent>();
+  public DbSet<ParkingSession> ParkingSessions => Set<ParkingSession>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {

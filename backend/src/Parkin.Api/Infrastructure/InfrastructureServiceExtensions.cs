@@ -4,6 +4,7 @@ using Parkin.Api.AuditFeatures.List;
 using Parkin.Api.DriverFeatures.List;
 using Parkin.Api.GrantFeatures.List;
 using Parkin.Api.Domain.Interfaces;
+using Parkin.Api.Domain.Services;
 using Parkin.Api.Infrastructure.Data;
 using Parkin.Api.Infrastructure.Data.Queries;
 using Parkin.Api.Infrastructure.Identity;
@@ -61,7 +62,11 @@ public static class InfrastructureServiceExtensions
            .AddScoped<IListApiKeysQueryService, ListApiKeysQueryService>()
            .AddScoped<IListAuditQueryService, ListAuditQueryService>()
            .AddScoped<IActiveReservationChecker, ActiveReservationChecker>()
+           .AddScoped<ILotRowLocker, LotRowLocker>()
            .AddScoped<IUnitOfWork, EfUnitOfWork>();
+
+    services.AddSingleton<IEntryDecisionService, EntryDecisionService>()
+            .AddSingleton<IOccupancyCalculator, OccupancyCalculator>();
 
     logger.LogInformation("{Project} services registered", "Infrastructure");
 

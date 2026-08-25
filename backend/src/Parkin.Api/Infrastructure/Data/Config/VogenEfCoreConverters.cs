@@ -1,8 +1,10 @@
+using Parkin.Api.Domain.AccessEventAggregate;
 using Parkin.Api.Domain.AccessGrantAggregate;
 using Parkin.Api.Domain.ApiKeyAggregate;
 using Parkin.Api.Domain.AuditAggregate;
 using Parkin.Api.Domain.DriverAggregate;
 using Parkin.Api.Domain.ParkingLotAggregate;
+using Parkin.Api.Domain.ParkingSessionAggregate;
 using Parkin.Api.Domain.ReservationAggregate;
 using Vogen;
 
@@ -16,4 +18,6 @@ namespace Parkin.Api.Infrastructure.Data.Config;
 [EfCoreConverter<AccessGrantId>]
 [EfCoreConverter<ApiKeyId>]
 [EfCoreConverter<ReservationId>]
+[EfCoreConverter<AccessEventId>]
+[EfCoreConverter<ParkingSessionId>]
 internal partial class VogenEfCoreConverters;

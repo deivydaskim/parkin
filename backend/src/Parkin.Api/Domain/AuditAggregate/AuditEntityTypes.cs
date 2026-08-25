@@ -10,9 +10,11 @@ public static class AuditEntityTypes
   public const string AccessGrant = "AccessGrant";
   public const string ApiKey = "ApiKey";
   public const string Reservation = "Reservation";
+  public const string AccessEvent = "AccessEvent";
+  public const string ParkingSession = "ParkingSession";
 
   public static readonly string[] All =
   [
-    User, ParkingLot, ParkingSpace, Driver, Plate, AccessGrant, ApiKey, Reservation
+    User, ParkingLot, ParkingSpace, Driver, Plate, AccessGrant, ApiKey, Reservation, AccessEvent, ParkingSession
   ];
 }

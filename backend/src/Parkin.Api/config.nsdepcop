@@ -29,6 +29,9 @@
     <Disallowed From="Parkin.Api.ReservationFeatures.*"
 				To="Parkin.Api.Infrastructure.*" />
 
+    <Disallowed From="Parkin.Api.AccessEventFeatures.*"
+				To="Parkin.Api.Infrastructure.*" />
+
     <Disallowed From="Parkin.Api.AuditFeatures.*"
 				To="Parkin.Api.Infrastructure.*" />
 

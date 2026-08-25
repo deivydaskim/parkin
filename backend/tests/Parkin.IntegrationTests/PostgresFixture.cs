@@ -5,8 +5,7 @@ namespace Parkin.IntegrationTests;
 
 public sealed class PostgresFixture : IAsyncLifetime
 {
-  readonly PostgreSqlContainer _container = new PostgreSqlBuilder()
-    .WithImage("postgres:16-alpine")
+  readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:16-alpine")
     .WithDatabase("parkin_integration_tests")
     .WithUsername("postgres")
     .WithPassword("postgres")

@@ -29,4 +29,5 @@ public static class AuditActions
   public const string ReservationCreated = "reservation.created";
   public const string ReservationCancelled = "reservation.cancelled";
   public const string ReservationReassigned = "reservation.reassigned";
+  public const string AccessEventIngested = "access_event.ingested";
 }
