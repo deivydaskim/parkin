@@ -25,7 +25,7 @@ public class ListLotsQueryService(AppDbContext db) : IListLotsQueryService
       .Skip((page - 1) * perPage)
       .Take(perPage)
       .Select(l => new LotDto(l.Id, l.Name, l.Address, l.Timezone, l.AccessMode, l.FullBehavior, l.Status,
-        l.Spaces.Count(s => s.Status == SpaceStatus.Active && s.Type == SpaceType.General)))
+        l.Spaces.Count(s => s.Status == SpaceStatus.Active && s.Type == SpaceType.General), l.Layout))
       .AsNoTracking()
       .ToListAsync();
 

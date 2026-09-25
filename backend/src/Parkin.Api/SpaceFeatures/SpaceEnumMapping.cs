@@ -7,5 +7,7 @@ internal static class SpaceEnumMapping
     dto.LotId.Value,
     dto.Label,
     dto.Type,
-    dto.Status);
+    dto.Status,
+    dto.Zone,
+    SpacePlacementRecord.FromValue(dto.Placement));
 }

@@ -473,6 +473,10 @@ namespace Parkin.Api.Infrastructure.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<string>("Zone")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("LotId", "Label")
@@ -702,6 +706,36 @@ namespace Parkin.Api.Infrastructure.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Parkin.Api.Domain.ParkingLotAggregate.ParkingLot", b =>
+                {
+                    b.OwnsOne("Parkin.Api.Domain.ParkingLotAggregate.LotLayout", "Layout", b1 =>
+                        {
+                            b1.Property<Guid>("ParkingLotId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<decimal>("LengthMeters")
+                                .HasColumnType("numeric(8,2)")
+                                .HasColumnName("layout_length_meters");
+
+                            b1.Property<int>("LevelCount")
+                                .HasColumnType("integer")
+                                .HasColumnName("layout_level_count");
+
+                            b1.Property<decimal>("WidthMeters")
+                                .HasColumnType("numeric(8,2)")
+                                .HasColumnName("layout_width_meters");
+
+                            b1.HasKey("ParkingLotId");
+
+                            b1.ToTable("ParkingLots");
+
+                            b1.WithOwner()
+                                .HasForeignKey("ParkingLotId");
+                        });
+
+                    b.Navigation("Layout");
+                });
+
             modelBuilder.Entity("Parkin.Api.Domain.ParkingLotAggregate.ParkingSpace", b =>
                 {
                     b.HasOne("Parkin.Api.Domain.ParkingLotAggregate.ParkingLot", null)
@@ -709,6 +743,45 @@ namespace Parkin.Api.Infrastructure.Data.Migrations
                         .HasForeignKey("LotId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.OwnsOne("Parkin.Api.Domain.ParkingLotAggregate.SpacePlacement", "Placement", b1 =>
+                        {
+                            b1.Property<Guid>("ParkingSpaceId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<decimal>("Length")
+                                .HasColumnType("numeric(8,2)")
+                                .HasColumnName("placement_length");
+
+                            b1.Property<int>("Level")
+                                .HasColumnType("integer")
+                                .HasColumnName("placement_level");
+
+                            b1.Property<decimal>("RotationDegrees")
+                                .HasColumnType("numeric(5,2)")
+                                .HasColumnName("placement_rotation_degrees");
+
+                            b1.Property<decimal>("Width")
+                                .HasColumnType("numeric(8,2)")
+                                .HasColumnName("placement_width");
+
+                            b1.Property<decimal>("X")
+                                .HasColumnType("numeric(8,2)")
+                                .HasColumnName("placement_x");
+
+                            b1.Property<decimal>("Y")
+                                .HasColumnType("numeric(8,2)")
+                                .HasColumnName("placement_y");
+
+                            b1.HasKey("ParkingSpaceId");
+
+                            b1.ToTable("ParkingSpaces");
+
+                            b1.WithOwner()
+                                .HasForeignKey("ParkingSpaceId");
+                        });
+
+                    b.Navigation("Placement");
                 });
 
             modelBuilder.Entity("Parkin.Api.Domain.DriverAggregate.Driver", b =>

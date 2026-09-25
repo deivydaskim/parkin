@@ -83,6 +83,11 @@ public static class MiddlewareConfig
       var seedAdmin = services.GetRequiredService<IOptions<SeedAdminOptions>>().Value;
       var seedOperator = services.GetService<IOptions<SeedOperatorOptions>>()?.Value;
       await SeedData.SeedIdentityAsync(roleManager, userManager, seedAdmin, seedOperator, logger);
+
+      if (dbOptions?.SeedDemoData == true)
+      {
+        await SeedData.SeedDemoLotAsync(context, logger);
+      }
     }
     catch (Exception ex)
     {

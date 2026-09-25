@@ -10,4 +10,5 @@ public record LotRecord(
   AccessMode AccessMode,
   FullBehavior FullBehavior,
   LotStatus Status,
-  int Capacity);
+  int Capacity,
+  LotLayoutRecord? Layout);

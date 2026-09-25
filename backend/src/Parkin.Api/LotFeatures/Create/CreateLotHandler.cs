@@ -9,7 +9,8 @@ public record CreateLotCommand(
   string Timezone,
   AccessMode AccessMode,
   FullBehavior FullBehavior,
-  Guid? ActorId) : ICommand<Result<LotDto>>;
+  Guid? ActorId,
+  LotLayout? Layout = null) : ICommand<Result<LotDto>>;
 
 public class CreateLotHandler(IRepository<ParkingLot> repository)
   : ICommandHandler<CreateLotCommand, Result<LotDto>>
@@ -22,9 +23,10 @@ public class CreateLotHandler(IRepository<ParkingLot> repository)
       return Result.Invalid(new ValidationError("Name", "A lot with this name already exists"));
     }
 
-    var lot = ParkingLot.Create(request.Name, request.Timezone, request.Address, request.AccessMode, request.FullBehavior, request.ActorId);
+    var lot = ParkingLot.Create(request.Name, request.Timezone, request.Address, request.AccessMode, request.FullBehavior, request.ActorId,
+      request.Layout);
     await repository.AddAsync(lot, cancellationToken);
 
-    return new LotDto(lot.Id, lot.Name, lot.Address, lot.Timezone, lot.AccessMode, lot.FullBehavior, lot.Status, lot.Capacity);
+    return LotDto.FromEntity(lot);
   }
 }

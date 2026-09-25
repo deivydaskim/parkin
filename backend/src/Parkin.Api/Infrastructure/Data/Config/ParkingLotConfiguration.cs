@@ -43,6 +43,13 @@ public class ParkingLotConfiguration : IEntityTypeConfiguration<ParkingLot>
       .HasMaxLength(20)
       .IsRequired();
 
+    builder.OwnsOne(entity => entity.Layout, layout =>
+    {
+      layout.Property(l => l.WidthMeters).HasColumnName("layout_width_meters").HasColumnType("numeric(8,2)");
+      layout.Property(l => l.LengthMeters).HasColumnName("layout_length_meters").HasColumnType("numeric(8,2)");
+      layout.Property(l => l.LevelCount).HasColumnName("layout_level_count");
+    });
+
     builder.HasMany(entity => entity.Spaces)
       .WithOne()
       .HasForeignKey(space => space.LotId);

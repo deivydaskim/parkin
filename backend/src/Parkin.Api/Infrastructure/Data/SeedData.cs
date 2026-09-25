@@ -1,4 +1,8 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Parkin.Api.Domain.DriverAggregate;
+using Parkin.Api.Domain.ParkingLotAggregate;
+using Parkin.Api.Domain.ReservationAggregate;
 using Parkin.Api.Infrastructure.Identity;
 using Microsoft.Extensions.Logging;
 
@@ -6,6 +10,73 @@ namespace Parkin.Api.Infrastructure.Data;
 
 public static class SeedData
 {
+  public const string DemoLotName = "Demo Parking - Central";
+
+  private const decimal BayWidth = 2.5m;
+  private const decimal BayLength = 5m;
+  private const decimal RowStartX = 4m;
+
+  private sealed record DemoRow(string Prefix, int Count, decimal CenterY, decimal Rotation, int Level,
+    string Zone, int ReservedFrom = int.MaxValue);
+
+  private static readonly DemoRow[] DemoRows =
+  [
+    new("A", 14, 3.5m, 0m, 0, "North", ReservedFrom: 13),
+    new("B", 14, 15m, 180m, 0, "North"),
+    new("C", 14, 20m, 0m, 0, "South"),
+    new("D", 10, 31.5m, 180m, 0, "South", ReservedFrom: 1),
+    new("L1-A", 12, 3.5m, 0m, 1, "Upper deck"),
+    new("L1-B", 12, 15m, 180m, 1, "Upper deck", ReservedFrom: 11),
+  ];
+
+  public static async Task SeedDemoLotAsync(AppDbContext context, ILogger logger)
+  {
+    if (await context.ParkingLots.AnyAsync(lot => lot.Name == DemoLotName))
+    {
+      logger.LogInformation("Demo lot {Name} already exists - skipping.", DemoLotName);
+      return;
+    }
+
+    var layout = LotLayout.Create(48m, 34m, levelCount: 2).Value;
+    var lot = ParkingLot.Create(DemoLotName, "Europe/Vilnius", "1 Demo Street", layout: layout);
+
+    foreach (var row in DemoRows)
+    {
+      for (var index = 1; index <= row.Count; index++)
+      {
+        var x = RowStartX + BayWidth / 2 + (index - 1) * BayWidth;
+        var placement = SpacePlacement.Create(x, row.CenterY, row.Rotation, row.Level, BayWidth, BayLength).Value;
+        var type = index >= row.ReservedFrom ? SpaceType.Reserved : SpaceType.General;
+        lot.AddSpace($"{row.Prefix}{index:00}", type, actorId: null, row.Zone, placement);
+      }
+    }
+
+    lot.AddSpace("X01", SpaceType.General, actorId: null, "Overflow");
+    lot.AddSpace("X02", SpaceType.General, actorId: null, "Overflow");
+
+    var closedBay = lot.Spaces.First(space => space.Label == "B07");
+    lot.DeactivateSpace(closedBay.Id, actorId: null);
+
+    context.ParkingLots.Add(lot);
+
+    var reservedSpaces = lot.Spaces
+      .Where(space => space.Type == SpaceType.Reserved)
+      .OrderBy(space => space.Label)
+      .Take(3)
+      .ToList();
+    string[] driverNames = ["Ona Petraitė", "Jonas Kazlauskas", "Rūta Jankauskienė"];
+
+    foreach (var (space, driverName) in reservedSpaces.Zip(driverNames))
+    {
+      var driver = Driver.Create(driverName, contact: null, actorId: null);
+      context.Drivers.Add(driver);
+      context.Reservations.Add(Reservation.Create(space.Id, driver.Id, lot.Id, actorId: null));
+    }
+
+    await context.SaveChangesAsync();
+    logger.LogInformation("Seeded demo lot {Name} with {Count} spaces.", DemoLotName, lot.Spaces.Count);
+  }
+
   public static async Task SeedIdentityAsync(
     RoleManager<IdentityRole<Guid>> roleManager,
     UserManager<ApplicationUser> userManager,

@@ -10,7 +10,9 @@ public record UpdateLotCommand(
   string? Timezone,
   AccessMode? AccessMode,
   FullBehavior? FullBehavior,
-  Guid? ActorId) : ICommand<Result<LotDto>>;
+  Guid? ActorId,
+  LotLayout? Layout = null,
+  bool ClearLayout = false) : ICommand<Result<LotDto>>;
 
 public class UpdateLotHandler(IRepository<ParkingLot> repository)
   : ICommandHandler<UpdateLotCommand, Result<LotDto>>
@@ -27,6 +29,12 @@ public class UpdateLotHandler(IRepository<ParkingLot> repository)
       {
         return Result.Invalid(new ValidationError("Name", "A lot with this name already exists"));
       }
+    }
+
+    if (request.Layout is not null || request.ClearLayout)
+    {
+      var layoutResult = lot.SetLayout(request.Layout);
+      if (!layoutResult.IsSuccess) return Result.Invalid(layoutResult.ValidationErrors);
     }
 
     var name = request.Name ?? lot.Name;
@@ -46,6 +54,6 @@ public class UpdateLotHandler(IRepository<ParkingLot> repository)
 
     await repository.UpdateAsync(lot, cancellationToken);
 
-    return new LotDto(lot.Id, lot.Name, lot.Address, lot.Timezone, lot.AccessMode, lot.FullBehavior, lot.Status, lot.Capacity);
+    return LotDto.FromEntity(lot);
   }
 }

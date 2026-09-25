@@ -7,4 +7,10 @@ public record SpaceDto(
   ParkingLotId LotId,
   string Label,
   SpaceType Type,
-  SpaceStatus Status);
+  SpaceStatus Status,
+  string? Zone,
+  SpacePlacement? Placement)
+{
+  public static SpaceDto FromEntity(ParkingSpace space) =>
+    new(space.Id, space.LotId, space.Label, space.Type, space.Status, space.Zone, space.Placement);
+}

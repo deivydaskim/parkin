@@ -9,6 +9,7 @@ using Parkin.Api.Infrastructure.Data;
 using Parkin.Api.Infrastructure.Data.Queries;
 using Parkin.Api.Infrastructure.Identity;
 using Parkin.Api.LotFeatures.List;
+using Parkin.Api.LotLayoutFeatures.Get;
 using Parkin.Api.PlateFeatures.List;
 using Parkin.Api.SpaceFeatures;
 using Parkin.Api.SpaceFeatures.List;
@@ -61,6 +62,7 @@ public static class InfrastructureServiceExtensions
            .AddScoped<IListGrantsByDriverQueryService, ListGrantsByDriverQueryService>()
            .AddScoped<IListApiKeysQueryService, ListApiKeysQueryService>()
            .AddScoped<IListAuditQueryService, ListAuditQueryService>()
+           .AddScoped<ILotLayoutQueryService, LotLayoutQueryService>()
            .AddScoped<IActiveReservationChecker, ActiveReservationChecker>()
            .AddScoped<ILotRowLocker, LotRowLocker>()
            .AddScoped<IUnitOfWork, EfUnitOfWork>();

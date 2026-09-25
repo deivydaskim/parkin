@@ -10,4 +10,9 @@ public record LotDto(
   AccessMode AccessMode,
   FullBehavior FullBehavior,
   LotStatus Status,
-  int Capacity);
+  int Capacity,
+  LotLayout? Layout)
+{
+  public static LotDto FromEntity(ParkingLot lot) =>
+    new(lot.Id, lot.Name, lot.Address, lot.Timezone, lot.AccessMode, lot.FullBehavior, lot.Status, lot.Capacity, lot.Layout);
+}

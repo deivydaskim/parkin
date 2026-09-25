@@ -3,7 +3,14 @@ using Parkin.Api.Domain.ParkingLotAggregate.Specifications;
 
 namespace Parkin.Api.SpaceFeatures.Update;
 
-public record UpdateSpaceCommand(ParkingSpaceId SpaceId, string? Label, SpaceType? Type, Guid? ActorId) : ICommand<Result<SpaceDto>>;
+public record UpdateSpaceCommand(
+  ParkingSpaceId SpaceId,
+  string? Label,
+  SpaceType? Type,
+  Guid? ActorId,
+  string? Zone = null,
+  SpacePlacement? Placement = null,
+  bool ClearPlacement = false) : ICommand<Result<SpaceDto>>;
 
 public class UpdateSpaceHandler(IRepository<ParkingLot> repository, IActiveReservationChecker checker)
   : ICommandHandler<UpdateSpaceCommand, Result<SpaceDto>>
@@ -29,9 +36,12 @@ public class UpdateSpaceHandler(IRepository<ParkingLot> repository, IActiveReser
       return Result.Invalid(new ValidationError("Type", "Space has an active reservation and its type cannot be changed"));
     }
 
-    lot.UpdateSpace(request.SpaceId, request.Label, request.Type, request.ActorId);
+    var update = new SpaceUpdate(request.Label, request.Type, request.Zone, request.Placement, request.ClearPlacement);
+    var updateResult = lot.UpdateSpace(request.SpaceId, update, request.ActorId);
+    if (!updateResult.IsSuccess) return Result.Invalid(updateResult.ValidationErrors);
+
     await repository.UpdateAsync(lot, cancellationToken);
 
-    return new SpaceDto(space.Id, space.LotId, space.Label, space.Type, space.Status);
+    return SpaceDto.FromEntity(space);
   }
 }

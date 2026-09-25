@@ -15,6 +15,7 @@ public sealed class CreateLotRequest
   public string Timezone { get; init; } = string.Empty;
   public AccessMode AccessMode { get; init; } = AccessMode.Open;
   public FullBehavior FullBehavior { get; init; } = FullBehavior.Block;
+  public LotLayoutRequest? Layout { get; init; }
 }
 
 public class CreateEndpoint(IMediator mediator)
@@ -37,7 +38,7 @@ public class CreateEndpoint(IMediator mediator)
         AccessMode = AccessMode.Open,
         FullBehavior = FullBehavior.Block
       };
-      s.ResponseExamples[201] = new LotRecord(Guid.Empty, "Downtown Garage", "100 Main St", "America/New_York", AccessMode.Open, FullBehavior.Block, LotStatus.Active, Capacity: 0);
+      s.ResponseExamples[201] = new LotRecord(Guid.Empty, "Downtown Garage", "100 Main St", "America/New_York", AccessMode.Open, FullBehavior.Block, LotStatus.Active, Capacity: 0, Layout: null);
 
       s.Responses[201] = "Lot created successfully";
       s.Responses[400] = "Invalid request data, or a lot with this name already exists";
@@ -56,13 +57,21 @@ public class CreateEndpoint(IMediator mediator)
   {
     var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
     var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
+    var layout = request.Layout?.ToValue();
+    if (layout is { IsSuccess: false })
+    {
+      return Result<LotDto>.Invalid(layout.ValidationErrors)
+        .ToCreatedResult(lot => $"/lots/{lot.Id.Value}", LotEnumMapping.ToRecord);
+    }
+
     var command = new CreateLotCommand(
       request.Name,
       request.Address,
       request.Timezone,
       request.AccessMode,
       request.FullBehavior,
-      actorId);
+      actorId,
+      layout?.Value);
 
     var result = await mediator.Send(command, cancellationToken);
 
@@ -88,5 +97,9 @@ public sealed class CreateLotValidator : Validator<CreateLotRequest>
       .Must(tz => TimeZoneInfo.TryFindSystemTimeZoneById(tz, out _))
       .WithMessage("Timezone must be a valid IANA time zone identifier")
       .When(x => !string.IsNullOrWhiteSpace(x.Timezone));
+
+    RuleFor(x => x.Layout!)
+      .SetValidator(new LotLayoutRequestValidator())
+      .When(x => x.Layout is not null);
   }
 }

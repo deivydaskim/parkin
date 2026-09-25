@@ -10,4 +10,6 @@ public class DatabaseOptions
   /// WARNING: This will delete all existing data!
   /// </summary>
   public bool RecreateOnStartup { get; set; } = false;
+
+  public bool SeedDemoData { get; set; } = false;
 }

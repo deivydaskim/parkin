@@ -31,6 +31,7 @@ public sealed class ParkinApiFactory : WebApplicationFactory<Program>, IAsyncLif
       config.AddInMemoryCollection(new Dictionary<string, string?>
       {
         ["ConnectionStrings:AppDb"] = _container.GetConnectionString(),
+        ["DatabaseOptions:SeedDemoData"] = "false",
       });
     });
   }

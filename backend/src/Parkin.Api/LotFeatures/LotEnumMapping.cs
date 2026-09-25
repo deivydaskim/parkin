@@ -10,5 +10,6 @@ internal static class LotEnumMapping
     dto.AccessMode,
     dto.FullBehavior,
     dto.Status,
-    dto.Capacity);
+    dto.Capacity,
+    LotLayoutRecord.FromValue(dto.Layout));
 }

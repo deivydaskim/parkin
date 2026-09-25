@@ -18,6 +18,8 @@ public sealed class UpdateLotRequest
   public string? Timezone { get; init; }
   public AccessMode? AccessMode { get; init; }
   public FullBehavior? FullBehavior { get; init; }
+  public LotLayoutRequest? Layout { get; init; }
+  public bool ClearLayout { get; init; }
 }
 
 public class UpdateEndpoint(IMediator mediator)
@@ -31,7 +33,8 @@ public class UpdateEndpoint(IMediator mediator)
     Summary(s =>
     {
       s.Summary = "Update a parking lot";
-      s.Description = "Partially updates a parking lot. Only the fields present in the request body are applied.";
+      s.Description = "Partially updates a parking lot. Only the fields present in the request body are applied. " +
+        "layout sets the ground footprint and level count; clearLayout=true removes it.";
       s.Responses[200] = "Lot updated successfully";
       s.Responses[404] = "Lot with specified ID not found";
       s.Responses[400] = "Invalid request data, or a lot with this name already exists";
@@ -51,6 +54,13 @@ public class UpdateEndpoint(IMediator mediator)
   {
     var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
     var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
+
+    var layout = request.Layout?.ToValue();
+    if (layout is { IsSuccess: false })
+    {
+      return Result<LotDto>.Invalid(layout.ValidationErrors).ToUpdateResult(LotEnumMapping.ToRecord);
+    }
+
     var command = new UpdateLotCommand(
       ParkingLotId.From(request.LotId),
       request.Name,
@@ -58,7 +68,9 @@ public class UpdateEndpoint(IMediator mediator)
       request.Timezone,
       request.AccessMode,
       request.FullBehavior,
-      actorId);
+      actorId,
+      layout?.Value,
+      request.ClearLayout);
 
     var result = await mediator.Send(command, cancellationToken);
 
@@ -93,5 +105,14 @@ public sealed class UpdateLotValidator : Validator<UpdateLotRequest>
       .NotEmpty()
       .WithMessage("Timezone cannot be blank")
       .When(x => x.Timezone is not null);
+
+    RuleFor(x => x.Layout!)
+      .SetValidator(new LotLayoutRequestValidator())
+      .When(x => x.Layout is not null);
+
+    RuleFor(x => x.ClearLayout)
+      .Equal(false)
+      .WithMessage("Send either layout or clearLayout, not both")
+      .When(x => x.Layout is not null);
   }
 }

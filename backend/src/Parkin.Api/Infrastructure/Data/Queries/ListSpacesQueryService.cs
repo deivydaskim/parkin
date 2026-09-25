@@ -24,7 +24,7 @@ public class ListSpacesQueryService(AppDbContext db) : IListSpacesQueryService
       .OrderBy(s => s.Label)
       .Skip((page - 1) * perPage)
       .Take(perPage)
-      .Select(s => new SpaceDto(s.Id, s.LotId, s.Label, s.Type, s.Status))
+      .Select(s => new SpaceDto(s.Id, s.LotId, s.Label, s.Type, s.Status, s.Zone, s.Placement))
       .AsNoTracking()
       .ToListAsync();
 

@@ -15,6 +15,8 @@ public sealed class CreateSpaceRequest
   public Guid LotId { get; init; }
   public string Label { get; init; } = string.Empty;
   public SpaceType Type { get; init; } = SpaceType.General;
+  public string? Zone { get; init; }
+  public SpacePlacementRequest? Placement { get; init; }
 }
 
 public class CreateSpaceEndpoint(IMediator mediator)
@@ -28,7 +30,8 @@ public class CreateSpaceEndpoint(IMediator mediator)
     Summary(s =>
     {
       s.Summary = "Create a parking space";
-      s.Description = "Creates a new parking space within a lot. Label must be unique within the lot.";
+      s.Description = "Creates a new parking space within a lot. Label must be unique within the lot. " +
+        "Zone and placement (lot-local metres, rotation, level, bay size) are optional; unplaced spaces are valid.";
       s.Responses[201] = "Space created successfully";
       s.Responses[400] = "Invalid request data, or a space with this label already exists in the lot";
       s.Responses[404] = "Lot with specified ID not found";
@@ -48,7 +51,15 @@ public class CreateSpaceEndpoint(IMediator mediator)
   {
     var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
     var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
-    var command = new CreateSpaceCommand(ParkingLotId.From(request.LotId), request.Label, request.Type, actorId);
+    var placement = request.Placement?.ToValue();
+    if (placement is { IsSuccess: false })
+    {
+      return Result<SpaceDto>.Invalid(placement.ValidationErrors)
+        .ToCreatedResult(space => $"/spaces/{space.Id.Value}", SpaceEnumMapping.ToRecord);
+    }
+
+    var command = new CreateSpaceCommand(ParkingLotId.From(request.LotId), request.Label, request.Type, actorId,
+      request.Zone, placement?.Value);
 
     var result = await mediator.Send(command, cancellationToken);
 
@@ -71,5 +82,13 @@ public sealed class CreateSpaceValidator : Validator<CreateSpaceRequest>
       .WithMessage("Label is required")
       .MaximumLength(100)
       .WithMessage("Label must not exceed 100 characters");
+
+    RuleFor(x => x.Zone)
+      .MaximumLength(ParkingSpace.ZoneMaxLength)
+      .WithMessage($"Zone must not exceed {ParkingSpace.ZoneMaxLength} characters");
+
+    RuleFor(x => x.Placement!)
+      .SetValidator(new SpacePlacementRequestValidator())
+      .When(x => x.Placement is not null);
   }
 }

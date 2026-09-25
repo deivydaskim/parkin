@@ -23,6 +23,6 @@ public class DeactivateSpaceHandler(IRepository<ParkingLot> repository, IActiveR
     lot.DeactivateSpace(request.SpaceId, request.ActorId);
     await repository.UpdateAsync(lot, cancellationToken);
 
-    return new SpaceDto(space.Id, space.LotId, space.Label, space.Type, space.Status);
+    return SpaceDto.FromEntity(space);
   }
 }

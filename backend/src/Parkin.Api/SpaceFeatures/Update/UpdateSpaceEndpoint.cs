@@ -15,6 +15,9 @@ public sealed class UpdateSpaceRequest
   public Guid SpaceId { get; init; }
   public string? Label { get; init; }
   public SpaceType? Type { get; init; }
+  public string? Zone { get; init; }
+  public SpacePlacementRequest? Placement { get; init; }
+  public bool ClearPlacement { get; init; }
 }
 
 public class UpdateSpaceEndpoint(IMediator mediator)
@@ -28,10 +31,11 @@ public class UpdateSpaceEndpoint(IMediator mediator)
     Summary(s =>
     {
       s.Summary = "Update a parking space";
-      s.Description = "Partially updates a parking space. Only the fields present in the request body are applied.";
+      s.Description = "Partially updates a parking space. Only the fields present in the request body are applied. " +
+        "An empty zone clears it; clearPlacement=true un-places the space.";
       s.Responses[200] = "Space updated successfully";
       s.Responses[404] = "Space with specified ID not found";
-      s.Responses[400] = "Invalid request data, or a space with this label already exists in the lot";
+      s.Responses[400] = "Invalid request data, a duplicate label, or a placement outside the lot layout";
     });
 
     Tags("Spaces");
@@ -48,7 +52,15 @@ public class UpdateSpaceEndpoint(IMediator mediator)
   {
     var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
     var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
-    var command = new UpdateSpaceCommand(ParkingSpaceId.From(request.SpaceId), request.Label, request.Type, actorId);
+
+    var placement = request.Placement?.ToValue();
+    if (placement is { IsSuccess: false })
+    {
+      return Result<SpaceDto>.Invalid(placement.ValidationErrors).ToUpdateResult(SpaceEnumMapping.ToRecord);
+    }
+
+    var command = new UpdateSpaceCommand(ParkingSpaceId.From(request.SpaceId), request.Label, request.Type, actorId,
+      request.Zone, placement?.Value, request.ClearPlacement);
 
     var result = await mediator.Send(command, cancellationToken);
 
@@ -73,5 +85,18 @@ public sealed class UpdateSpaceValidator : Validator<UpdateSpaceRequest>
       .NotEmpty()
       .WithMessage("Label cannot be blank")
       .When(x => x.Label is not null);
+
+    RuleFor(x => x.Zone)
+      .MaximumLength(ParkingSpace.ZoneMaxLength)
+      .WithMessage($"Zone must not exceed {ParkingSpace.ZoneMaxLength} characters");
+
+    RuleFor(x => x.Placement!)
+      .SetValidator(new SpacePlacementRequestValidator())
+      .When(x => x.Placement is not null);
+
+    RuleFor(x => x.ClearPlacement)
+      .Equal(false)
+      .WithMessage("Send either placement or clearPlacement, not both")
+      .When(x => x.Placement is not null);
   }
 }

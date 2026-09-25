@@ -14,6 +14,7 @@ public static class AuditActions
   public const string SpaceUpdated = "space.updated";
   public const string SpaceDeactivated = "space.deactivated";
   public const string SpaceReactivated = "space.reactivated";
+  public const string LotLayoutApplied = "lot.layout_applied";
   public const string DriverCreated = "driver.created";
   public const string DriverUpdated = "driver.updated";
   public const string DriverArchived = "driver.archived";

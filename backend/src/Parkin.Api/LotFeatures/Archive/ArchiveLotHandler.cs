@@ -16,6 +16,6 @@ public class ArchiveLotHandler(IRepository<ParkingLot> repository)
     lot.Archive(request.ActorId);
     await repository.UpdateAsync(lot, cancellationToken);
 
-    return new LotDto(lot.Id, lot.Name, lot.Address, lot.Timezone, lot.AccessMode, lot.FullBehavior, lot.Status, lot.Capacity);
+    return LotDto.FromEntity(lot);
   }
 }

@@ -4,6 +4,8 @@ namespace Parkin.Api.Domain.ParkingLotAggregate;
 
 public class ParkingSpace : EntityBase<ParkingSpace, ParkingSpaceId>
 {
+  public const int ZoneMaxLength = 50;
+
   // Private constructor for EF Core
   private ParkingSpace() { }
 
@@ -25,6 +27,11 @@ public class ParkingSpace : EntityBase<ParkingSpace, ParkingSpaceId>
   public string Label { get; private set; } = string.Empty;
   public SpaceType Type { get; private set; }
   public SpaceStatus Status { get; private set; }
+  public string? Zone { get; private set; }
+  public SpacePlacement? Placement { get; private set; }
+
+  public static string? NormalizeZone(string? zone) =>
+    string.IsNullOrWhiteSpace(zone) ? null : zone.Trim();
 
   internal void Rename(string label)
   {
@@ -33,6 +40,10 @@ public class ParkingSpace : EntityBase<ParkingSpace, ParkingSpaceId>
   }
 
   internal void SetType(SpaceType type) => Type = type;
+
+  internal void SetZone(string? zone) => Zone = NormalizeZone(zone);
+
+  internal void Place(SpacePlacement? placement) => Placement = placement;
 
   internal void Deactivate() => Status = SpaceStatus.Inactive;
 

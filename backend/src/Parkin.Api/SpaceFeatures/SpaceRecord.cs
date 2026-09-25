@@ -7,4 +7,6 @@ public record SpaceRecord(
   Guid LotId,
   string Label,
   SpaceType Type,
-  SpaceStatus Status);
+  SpaceStatus Status,
+  string? Zone,
+  SpacePlacementRecord? Placement);
