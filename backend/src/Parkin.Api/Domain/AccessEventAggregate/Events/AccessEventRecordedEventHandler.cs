@@ -10,8 +10,8 @@ public class AccessEventRecordedEventHandler(IRepository<AuditLogEntry> auditRep
     var accessEvent = notification.AccessEvent;
 
     var entry = AuditLogEntry.Create(
-      AuditActorType.Api,
-      notification.ActorId,
+      accessEvent.ActingStaffId is null ? AuditActorType.Api : AuditActorType.Staff,
+      accessEvent.ActingStaffId ?? notification.ActorId,
       AuditActions.AccessEventIngested,
       AuditEntityTypes.AccessEvent,
       accessEvent.Id.Value,
@@ -24,7 +24,8 @@ public class AccessEventRecordedEventHandler(IRepository<AuditLogEntry> auditRep
         decision = accessEvent.Decision.ToString(),
         reason = accessEvent.DenyReason?.ToString(),
         driverId = accessEvent.MatchedDriverId?.Value,
-        sessionId = accessEvent.SessionId?.Value
+        sessionId = accessEvent.SessionId?.Value,
+        actingStaffId = accessEvent.ActingStaffId
       });
 
     await auditRepository.AddAsync(entry, cancellationToken);

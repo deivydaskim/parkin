@@ -330,4 +330,57 @@ public class IngestAccessEventHandlerTests
     opened.ShouldNotBeNull();
     opened.Plate.ShouldBe("AAA111");
   }
+
+  [Fact]
+  public async Task Handle_ManualEnter_TagsTheEventWithSourceAndActingStaff()
+  {
+    var lot = GivenLot();
+    var staffId = Guid.NewGuid();
+
+    AccessEvent? recorded = null;
+    await _accessEventRepository.AddAsync(Arg.Do<AccessEvent>(e => recorded = e), Arg.Any<CancellationToken>());
+
+    var command = new IngestAccessEventCommand(lot.Id, "AAA 111", Direction.Enter, EventSource.Manual, Now,
+      "manual:key-1", staffId, staffId);
+    var result = await CreateSut().Handle(command, CancellationToken.None);
+
+    result.Value.Decision.ShouldBe(Decision.Allow);
+    recorded.ShouldNotBeNull();
+    recorded.Source.ShouldBe(EventSource.Manual);
+    recorded.ActingStaffId.ShouldBe(staffId);
+    await _sessionRepository.Received(1).AddAsync(Arg.Any<ParkingSession>(), Arg.Any<CancellationToken>());
+  }
+
+  [Fact]
+  public async Task Handle_GateEnter_LeavesActingStaffEmpty()
+  {
+    var lot = GivenLot();
+
+    AccessEvent? recorded = null;
+    await _accessEventRepository.AddAsync(Arg.Do<AccessEvent>(e => recorded = e), Arg.Any<CancellationToken>());
+
+    await CreateSut().Handle(Command(lot.Id), CancellationToken.None);
+
+    recorded.ShouldNotBeNull();
+    recorded.ActingStaffId.ShouldBeNull();
+  }
+
+  [Fact]
+  public async Task Handle_ManualEventOnUnknownLot_AuditsTheStaffMember()
+  {
+    _lotRepository.FirstOrDefaultAsync(Arg.Any<ParkingLotByIdSpec>(), Arg.Any<CancellationToken>())
+      .Returns((ParkingLot?)null);
+    var staffId = Guid.NewGuid();
+
+    AuditLogEntry? audited = null;
+    await _auditRepository.AddAsync(Arg.Do<AuditLogEntry>(e => audited = e), Arg.Any<CancellationToken>());
+
+    var command = new IngestAccessEventCommand(ParkingLotId.From(Guid.NewGuid()), "AAA 111", Direction.Enter,
+      EventSource.Manual, Now, "manual:key-1", staffId, staffId);
+    await CreateSut().Handle(command, CancellationToken.None);
+
+    audited.ShouldNotBeNull();
+    audited.ActorType.ShouldBe(AuditActorType.Staff);
+    audited.ActorId.ShouldBe(staffId);
+  }
 }

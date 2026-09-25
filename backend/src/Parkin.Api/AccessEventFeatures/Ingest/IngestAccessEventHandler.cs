@@ -24,7 +24,8 @@ public record IngestAccessEventCommand(
   EventSource Source,
   DateTimeOffset OccurredAt,
   string IdempotencyKey,
-  Guid? ActorId) : ICommand<Result<AccessEventDecisionDto>>;
+  Guid? ActorId,
+  Guid? ActingStaffId = null) : ICommand<Result<AccessEventDecisionDto>>;
 
 public class IngestAccessEventHandler(
   IRepository<AccessEvent> accessEventRepository,
@@ -147,7 +148,7 @@ public class IngestAccessEventHandler(
     var pool = decision.Pool!.Value;
     var accessEvent = AccessEvent.Record(lot.Id, request.RawPlate, normalizedPlate, matchedPlate?.Id,
       matchedDriver?.Id, request.Direction, request.Source, Decision.Allow, denyReason: null,
-      request.OccurredAt, request.IdempotencyKey, request.ActorId);
+      request.OccurredAt, request.IdempotencyKey, request.ActorId, request.ActingStaffId);
 
     var session = ParkingSession.OpenForEntry(lot.Id, knownDriver?.Id, normalizedPlate,
       pool == SessionPool.Reserved ? reservedSpace!.Id : null, pool, accessEvent.Id, request.OccurredAt);
@@ -177,7 +178,7 @@ public class IngestAccessEventHandler(
 
     var accessEvent = AccessEvent.Record(lot.Id, request.RawPlate, normalizedPlate, matchedPlate?.Id,
       matchedDriver?.Id, request.Direction, request.Source, Decision.Allow, denyReason: null,
-      request.OccurredAt, request.IdempotencyKey, request.ActorId);
+      request.OccurredAt, request.IdempotencyKey, request.ActorId, request.ActingStaffId);
     accessEvent.AttachSession(session.Id);
 
     session.Close(accessEvent.Id, request.OccurredAt);
@@ -195,7 +196,7 @@ public class IngestAccessEventHandler(
   {
     var accessEvent = AccessEvent.Record(lot.Id, request.RawPlate, normalizedPlate, matchedPlate?.Id,
       matchedDriver?.Id, request.Direction, request.Source, Decision.Deny, reason, request.OccurredAt,
-      request.IdempotencyKey, request.ActorId);
+      request.IdempotencyKey, request.ActorId, request.ActingStaffId);
 
     await accessEventRepository.AddAsync(accessEvent, cancellationToken);
 
@@ -209,8 +210,8 @@ public class IngestAccessEventHandler(
     IngestAccessEventCommand request, string normalizedPlate, CancellationToken cancellationToken)
   {
     var entry = AuditLogEntry.Create(
-      AuditActorType.Api,
-      request.ActorId,
+      request.ActingStaffId is null ? AuditActorType.Api : AuditActorType.Staff,
+      request.ActingStaffId ?? request.ActorId,
       AuditActions.AccessEventIngested,
       AuditEntityTypes.ParkingLot,
       request.LotId.Value,
