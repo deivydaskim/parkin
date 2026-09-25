@@ -73,7 +73,7 @@ Priority: **P0** = must-have for v1 launch · **P1** = important, target v1 if t
 | Lot "full" behavior | Per-lot setting: **BLOCK** new general entries once full, or **ALLOW_OVERFLOW** (admit + flag over-capacity). | Operator | **P0** | Reserved holders always bypass. |
 | Parking space CRUD | Create/edit/deactivate spaces; set label and type. | Operator | **P0** | |
 | Space type (General / Reserved) | Mark a space general or reserved-for-a-driver. | Operator | **P0** | Reserved spaces excluded from general pool. |
-| Space layout ordinals | Row/column (or zone) ordinals per space to drive the 2D view *without a builder*. | Operator | **P2** | Deferred with the 2D view (not in v1); see §6 + Open Questions Q4. |
+| Space placement | Metric position (x/y), rotation, level, bay size and optional zone per space, plus an optional lot footprint — drives the 3D view *without a drag-and-drop builder* (forms + auto-arrange rows). | Operator | **P0** | Pulled into v1 with the 3D view; see §6 + Open Questions Q4. |
 | Driver records & plates | Manage drivers; each driver has one or more license plates. | Operator | **P0** | One plate maps to one driver at a time. |
 | Access grants | Grant/revoke a driver access to a restricted lot, with optional validity window. | Operator | **P0** | Time-boxing enables visitor access. |
 | Reservation management | Assign/reassign/cancel a reserved space for a driver. | Operator | **P0** | One active reservation per space. |
@@ -81,8 +81,8 @@ Priority: **P0** = must-have for v1 launch · **P1** = important, target v1 if t
 | Entry decision engine | Evaluates open/restricted, grants, reservations, and lot-full to allow or deny. | (System) | **P0** | Logic specified in §6. |
 | Parking session lifecycle | Open a session on allowed entry; close on exit; never let counts go negative. | (System) | **P0** | Basis of occupancy. |
 | Live occupancy view | Per-lot aggregate: general used/free, reserved count, over-capacity flag. | Operator | **P0** | Lot-level only (no per-space sensing). |
-| 2D lot visualization | Render spaces from layout ordinals; color by type/assignment; show assignee on a reserved bay. | Operator | **P2** | **Not in v1** — deferred to a future release; see below. |
-| Tabular parking spaces view | Data table of every space (label, type, assignee, status) — v1's only view of lot layout. | Operator | **P0** | Replaces the 2D map for v1; inherently accessible (no WCAG map-equivalence work needed). |
+| Interactive 3D lot view | Render the lot in 3D from space placements; orbit/zoom/select; color by type/assignment/status; show assignee on a reserved bay; aggregate occupancy overlay. | Operator | **P0** | **v1's primary lot-layout view.** Configuration + aggregate count only, never per-bay occupancy (rule 9). |
+| Tabular parking spaces view | Data table of every space (label, type, assignee, status, zone). | Operator | **P0** | Kept as the **accessible equivalent** of the 3D view and the no-WebGL fallback — not the primary view. |
 | Manual entry/exit logging | Operator records an entry/exit when LPR fails or for walk-ups. | Operator | **P0** | Audit-logged with actor. |
 | Manual override of a decision | Operator overrides a deny/allow at the gate. | Operator | **P0** | Audit-logged with reason. |
 | Manual occupancy reconciliation/reset | Operator corrects/zeroes a lot's count to fix drift from missed events. | Operator | **P0** | Mitigates count drift; see §6 rules. |
@@ -92,7 +92,7 @@ Priority: **P0** = must-have for v1 launch · **P1** = important, target v1 if t
 | Occupancy history & basic reports | Entries/exits and peak-occupancy over time. | Operator, System Admin | **P1** | |
 | Email notifications (access/reservation) | Notify a driver/manager on grant or reservation change. | Operator | **P1** | Requires driver contact data. |
 | Multi-lot dashboards | Roll-up occupancy across all of a company's lots. | System Admin | **P1** | |
-| Graphical drag-and-drop lot/space builder | Visual editor to place spaces and define layout. | Operator | **P2** | Explicitly **out of scope for v1**. |
+| Graphical drag-and-drop lot/space builder | Free drag/rotate of bays directly in the 3D scene. | Operator | **P2** | Explicitly **out of scope for v1** — v1 places bays via forms, numeric nudges and auto-arranged rows. |
 | Driver self-service portal | Drivers log in to view their access/reservation. | Driver | **P2** | |
 | Driver self-booking / reservations | Drivers reserve spaces themselves. | Driver | **P2** | Explicitly out of scope v1. |
 | SSO / OIDC / SAML federation | Enterprise identity federation (e.g., Entra ID). | System Admin | **P2** | Likely first enterprise ask post-v1. |
@@ -137,10 +137,10 @@ Priority: **P0** = must-have for v1 launch · **P1** = important, target v1 if t
 **B4 (P0).** *As an Operator, I want to create, edit, and deactivate spaces so that the lot's inventory is accurate.*
 - **AC:** A space has a label unique within its lot and a type (GENERAL/RESERVED); deactivating a space removes it from capacity and the live view but preserves history; a RESERVED space cannot be deactivated while it has an active reservation (must cancel first).
 
-**B5 (P2).** *As an Operator, I want to set each space's row/column (or zone) so that the 2D view can render the layout without a builder.* — Deferred with the 2D view; not needed for v1's tabular-only layout.
-- **AC:** Each space accepts row and column ordinals (and optional zone); the 2D view positions spaces from these values; spaces without ordinals appear in an "unplaced" tray rather than breaking the view.
+**B5 (P0).** *As an Operator, I want to set each space's position in the lot so that the 3D view shows the real layout without needing a builder.*
+- **AC:** Each space optionally accepts a placement — x/y on the floor plane in metres, rotation, level (for multi-storey sites) and bay width/length (sensible defaults) — plus an optional zone; a lot optionally accepts a footprint (width/length) and level count; placements must fall inside the footprint and on an existing level when those are set; an operator can lay out whole rows at once (auto-arrange: start point, angle, bay count, bay size/angle, aisle gap) and save them in one atomic, audited action; spaces without a placement appear in an "Unplaced" tray rather than breaking the view; overlapping bays produce a warning, not an error.
 
-**B6 (P2).** *As an Operator, I want a drag-and-drop builder to place spaces visually.* — Roadmap.
+**B6 (P2).** *As an Operator, I want to drag and rotate bays directly in the 3D view.* — Roadmap (builds on B5's placement data).
 
 ### Epic C — Drivers, Plates & Access Grants
 
@@ -191,13 +191,13 @@ Priority: **P0** = must-have for v1 launch · **P1** = important, target v1 if t
 
 ### Epic F — Visualization & Monitoring
 
-> **v1 scope note:** the 2D lot map (F1) is **deferred — not in v1**. v1 ships the tabular spaces view (F2) only; F1 is retained here for the future roadmap.
+> **v1 scope note (revised):** v1 ships an **interactive 3D lot view (F1)** as the primary way to see a lot's layout. The tabular view (F2) remains as its accessible equivalent and no-WebGL fallback.
 
-**F2 (P0).** *As an Operator, I want a tabular view of the lot's spaces so that I can see its layout, which bays are reserved, and to whom.*
-- **AC:** A data table lists every space with label, type, assigned driver (if reserved), status, and zone; a clearly labeled aggregate occupancy indicator is shown;
+**F1 (P0).** *As an Operator, I want an interactive 3D view of the lot so that I can see its layout, which bays are reserved, and to whom.*
+- **AC:** Spaces render at their placement (position, rotation, level); the operator can orbit, pan, zoom, switch levels, reset the camera and toggle a top-down view; general, reserved-assigned, reserved-unassigned and inactive spaces are visually distinct (not by color alone); hovering/selecting a space shows its label, type, status, zone and — if reserved — its assigned driver, with reserve/cancel and edit-placement actions available from the selection; unplaced spaces are listed in a tray; a clearly labeled **lot-level, gate-counted** aggregate occupancy indicator is shown and bays are never colored as occupied/free; the view renders ≥ 100 spaces in < 1 s and stays interactive; browsers without WebGL get a message and a link to the table view.
 
-**F1 (P2).** *As an Operator, I want a 2D view of the lot so that I can see its layout, which bays are reserved, and to whom.* — Not in v1; future roadmap.
-- **AC:** Spaces render from row/column ordinals; general and reserved spaces are visually distinct; hovering/selecting a reserved space shows its assigned driver; a clearly labeled aggregate occupancy indicator is shown; the view performs acceptably for at least 100 spaces (< 1 s render).
+**F2 (P0).** *As an Operator, I want a tabular view of the lot's spaces so that I have an accessible, non-3D way to see which bays are reserved, and to whom.*
+- **AC:** A data table lists every space with label, type, assigned driver (if reserved), status, and zone; it is keyboard- and screen-reader-accessible and serves as the documented accessible equivalent of F1.
 
 
 ### Epic G — Audit & Compliance
@@ -220,8 +220,8 @@ Plain-English entities, core attributes, and relationships. **PostgreSQL** with 
 - **StaffUser** (logs in): id, name, email (unique), password hash, role (`SystemAdmin` | `Operator`), status (active/disabled), timestamps. *(Backed by ASP.NET Core Identity.)*
 - **Driver** (does **not** log in v1): id, name, optional contact (email/phone), status, timestamps.
 - **Plate**: id, driver id, normalized plate number (unique across instance), optional country/region, active flag.
-- **ParkingLot**: id, name (unique), optional address, timezone, access mode (`OPEN` | `RESTRICTED`), full behavior (`BLOCK` | `ALLOW_OVERFLOW`), status (active/archived).
-- **ParkingSpace**: id, lot id, label (unique within lot), type (`GENERAL` | `RESERVED`), row ordinal, column ordinal, optional zone, status (active/inactive).
+- **ParkingLot**: id, name (unique), optional address, timezone, access mode (`OPEN` | `RESTRICTED`), full behavior (`BLOCK` | `ALLOW_OVERFLOW`), status (active/archived), optional layout (footprint width/length in metres, level count).
+- **ParkingSpace**: id, lot id, label (unique within lot), type (`GENERAL` | `RESERVED`), optional zone, optional placement (x, y in metres on the lot floor plane, rotation in degrees, level, bay width/length), status (active/inactive).
 - **AccessGrant**: id, driver id, lot id, valid-from, optional valid-to, status, created-by, created-at. *(Only meaningful for RESTRICTED lots.)*
 - **Reservation**: id, space id, driver id, lot id (denormalized), status (`ACTIVE` | `CANCELLED`). *(No start/end date, no created-by/created-at on the entity itself — creation and cancellation are captured in the audit log.)*
 - **AccessEvent**: id, lot id, raw plate string, matched plate id (nullable), matched driver id (nullable), direction (`ENTER` | `EXIT`), source (`LPR` | `MANUAL`), decision (`ALLOW` | `DENY`), deny reason (nullable), occurred-at, received-at, idempotency key (unique), acting staff id (if manual/override), session id (nullable), override-of (nullable).
@@ -246,7 +246,7 @@ Plain-English entities, core attributes, and relationships. **PostgreSQL** with 
 6. **EXIT closes the matching open session** for that plate/lot, most-recent first. If none exists, record an anomaly; **never drive occupancy negative.**
 7. **Events are idempotent** by client-supplied idempotency key; replays return the original outcome and never double-count.
 8. **One plate maps to one driver** at a time; reassignment is explicit and audited.
-9. **Occupancy is lot-level only.** Because detection is gate-counted (no per-space sensors), the system does **not** know which physical bay a car occupies; the tabular spaces view (2D map deferred, not in v1) shows *configuration* (layout, types, reserved-bay assignees) plus an *aggregate* count, not live per-space status.
+9. **Occupancy is lot-level only.** Because detection is gate-counted (no per-space sensors), the system does **not** know which physical bay a car occupies; the 3D lot view (and its tabular equivalent) shows *configuration* (layout, types, reserved-bay assignees) plus an *aggregate* count, not live per-space status — bays are never colored occupied/free.
 10. **Count drift is expected** (a missed exit leaves a stale session). Mitigations: manual reconciliation/reset (P0) and configurable auto-expiry of long-open sessions (P1).
 11. **Access decisions and all admin mutations are audit-logged.**
 12. **Retention & erasure:** access events/sessions are retained only for the configured period; a driver's personal data can be exported and erased/anonymized while preserving aggregate counts.
@@ -285,7 +285,7 @@ Plain-English entities, core attributes, and relationships. **PostgreSQL** with 
 - **Deployment:** **Single-tenant — one instance and one database per client company.** No multi-tenant data sharing inside an instance.
 - **No payments anywhere** in the product.
 - **No driver self-registration or self-booking in v1.** Access grants and reservations are admin-created.
-- **No graphical lot/space builder in v1**; spaces are created via forms with row/column ordinals.
+- **No drag-and-drop lot/space builder in v1**; spaces are created via forms and positioned via placement fields, numeric nudges and auto-arranged rows.
 - **Occupancy is gate-counted via an inbound Access Events API.** The product does **not** include or control LPR cameras or barrier hardware; it ingests their events and returns decisions.
 - **No third-party integrations to build** — with one unavoidable consequence below.
 - **~30% unit test coverage target** using xUnit/Shouldly/NSubstitute (§7 Testing).
@@ -296,10 +296,11 @@ Plain-English entities, core attributes, and relationships. **PostgreSQL** with 
 - **Validation:** FluentValidation on all inbound DTOs.
 - **Machine credential:** API key (hashed, rotatable) for the Access Events endpoint in v1.
 - **Packaging & provisioning:** containerized (Docker) per tenant, stood up via Infrastructure-as-Code so that "one instance per company" is repeatable and upgradable (Open Questions Q8).
-- **2D layout data:** row/column ordinals (+ optional zone) per space, auto-arranged into a grid — deferred along with the 2D view itself (not in v1; Open Questions Q4).
+- **Layout data:** free-form metric placement per space (x/y, rotation, level, bay size) + optional zone and lot footprint; rows generated client-side by an auto-arrange tool (Open Questions Q4).
+- **3D rendering:** three.js via React Three Fiber (+ drei helpers), lazy-loaded on the lot-view route only.
 
 ### Open architectural decisions
-Cloud/hosting provider; gate fail-safe behavior; per-space vs lot-level occupancy semantics for the (now post-v1) 2D view; the precise 2D layout data approach; cookie-vs-JWT auth; tenant provisioning/upgrade tooling; future SSO. Each is itemized in §10 with a recommended default so engineering is not blocked.
+Cloud/hosting provider; gate fail-safe behavior; cookie-vs-JWT auth; tenant provisioning/upgrade tooling; future SSO. Each is itemized in §10 with a recommended default so engineering is not blocked.
 
 ---
 
@@ -309,10 +310,10 @@ This system will **not**, in v1:
 
 1. **Process any payment, fee, fine, billing, or refund.** No money flows through the product at all.
 2. **Let drivers self-register, self-book, or self-reserve.** All grants and reservations are created by staff.
-3. **Provide a graphical drag-and-drop lot/space builder.** Spaces are configured via forms + ordinals.
+3. **Provide a drag-and-drop lot/space builder.** Spaces are configured via forms, placement fields and auto-arranged rows.
 4. **Provide a driver-facing app or portal** (web or mobile). Drivers are managed records, not users.
-5. **Provide a 2D graphical lot map.** v1 ships a tabular spaces view only (Story F2); the 2D map (F1) and its layout-ordinal input (Story B5) are deferred to a future release.
-6. **Detect per-space occupancy.** No bay-level sensors/cameras; occupancy is lot-level, counted at the gate. The v1 tabular view shows configuration + an aggregate count, not live per-bay status.
+5. **Provide photorealistic/CAD-grade lot modeling** (imported floor plans, terrain, ramps as geometry, custom 3D assets). The v1 3D view renders simple bays on flat level slabs.
+6. **Detect per-space occupancy.** No bay-level sensors/cameras; occupancy is lot-level, counted at the gate. The v1 3D view shows configuration + an aggregate count, not live per-bay status.
 7. **Include or control LPR/ANPR cameras or barrier-gate hardware**, or run plate-recognition itself. It only ingests events and returns decisions.
 8. **Be multi-tenant within one instance.** One deployment serves one company.
 9. **Provide SSO / SAML / OIDC federation** with corporate identity providers.
@@ -332,8 +333,8 @@ Each item has a recommended default so work can proceed; confirm before the note
 |---|---|---|---|---|
 | Q1 | **GDPR almost certainly applies.** Storing license plates + entry/exit timestamps + identity is processing personal data of (presumably EU/Lithuanian) data subjects. What is the lawful basis, retention period, and erasure/export process? *(This PRD bakes in retention + erasure controls; this is not legal advice.)* | Treat GDPR as **in scope**: define lawful basis, default 90-day event retention, and erasure/anonymization. | Product + Legal/DPO | **Before storing real plate data / before beta** |
 | Q2 | **Gate fail-safe:** when the platform is unreachable, should the barrier default **open** or **closed**? Safety, liability, and security all hinge on this. | Decide per deployment; document explicitly. Lean **closed for restricted lots, open for open lots** unless customer dictates otherwise. | Product + customer security/ops | Before integration testing |
-| Q3 | **Occupancy semantics for the tabular spaces view.** Confirm that v1 shows lot-level aggregate + static per-space config (not live per-bay status), since detection is gate-counted only. | Confirm aggregate-only; label it clearly in the UI. | Product | Before the spaces-view sprint |
-| Q4 | **2D layout data without a builder** *(post-v1, not blocking).* How do spaces get their positions — row/column ordinals, free x/y coordinates, or auto-grid? | **Row/column (+zone) ordinals → auto-grid.** Free-form x/y deferred to the P2 builder. | Eng + Design | Before the (post-v1) 2D-view sprint |
+| Q3 | **Occupancy semantics for the 3D lot view.** Confirm that v1 shows lot-level aggregate + static per-space config (not live per-bay status), since detection is gate-counted only. | Confirm aggregate-only; label it clearly in the UI; never color bays occupied/free. | Product | Before the lot-view sprint |
+| Q4 | **Layout data without a builder.** How do spaces get their positions — row/column ordinals, free x/y coordinates, or auto-grid? | **Resolved: free-form metric x/y + rotation + level (+ bay size, zone) per space**, because a 3D scene needs real geometry (angled bays, aisles, levels). Grid convenience comes from a client-side auto-arrange rows tool that emits x/y; drag-and-drop stays P2 (B6). | Eng + Design | Resolved 2026-09-25 |
 | Q5 | **Access Events API contract:** confirm the platform *exposes* the endpoint and the gate *calls in*; define request/response schema, idempotency, error codes, and auth (API key vs OAuth client-credentials). | Platform exposes a synchronous `POST /access-events`; **API key** for v1, idempotency key required, ALLOW/DENY + reason in response. | Eng (backend) | Before the API spec is finalized |
 | Q6 | **SPA auth token strategy:** same-site cookies vs JWT bearer. | **Same-site, HttpOnly cookies** for the first-party SPA; revisit JWT if a non-browser client appears. | Eng (backend) | Before auth implementation |
 | Q7 | **Driver login in v1?** Do drivers get any portal, or are they purely admin-managed records? This sizes the auth surface. | **No driver login in v1** (records only). Driver portal is P2. | Product | Before auth design |

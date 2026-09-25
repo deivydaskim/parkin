@@ -100,7 +100,7 @@ ASCII as requested. The dashed boundary is the single deployed tenant instance; 
 
 | Component | Responsibility | Key PRD ties |
 |---|---|---|
-| React SPA | Staff UI for both roles; renders tabular spaces view (2D map deferred, not in v1); gate console | F1 (post-v1), F2, E4–E7, A1 |
+| React SPA | Staff UI for both roles; renders the interactive 3D lot view (three.js / React Three Fiber) + its tabular accessible equivalent; gate console | B5, F1, F2, E4–E7, A1 |
 | Reverse proxy / ingress | TLS termination, HSTS, global rate limiting on `/auth/*` and `/access-events` | §7 Security |
 | Api (FastEndpoints) | HTTP surface, two auth schemes, RBAC, request validation, error shaping | A1–A5, E1–E3 |
 | Feature slices (`<Name>Features/`) | Endpoint + Command/Query + Handler per slice, via Mediator; transaction boundaries; DTO mapping | all CRUD epics |
@@ -130,9 +130,11 @@ Parkin.slnx
 │   └── Parkin.Api/                              ← the ONE project. Everything below is a folder, not an assembly.
 │       ├── Domain/                              ← NsDepCop: cannot reference Infrastructure.*
 │       │   ├── ParkingLotAggregate/
-│       │   │   ├── ParkingLot.cs                 (aggregate root: name, tz, AccessMode, FullBehavior, status)
-│       │   │   ├── ParkingLotId.cs                (Vogen [ValueObject<int>])
-│       │   │   ├── ParkingSpace.cs                (entity within the lot: label, SpaceType, row/col/zone, status)
+│       │   │   ├── ParkingLot.cs                 (aggregate root: name, tz, AccessMode, FullBehavior, status, LotLayout?)
+│       │   │   ├── ParkingLotId.cs                (Vogen [ValueObject<Guid>])
+│       │   │   ├── ParkingSpace.cs                (entity within the lot: label, SpaceType, zone?, SpacePlacement?, status)
+│       │   │   ├── SpacePlacement.cs              (owned VO: X, Y metres, RotationDegrees, Level, Width, Length)
+│       │   │   ├── LotLayout.cs                   (owned VO: WidthMeters, LengthMeters, LevelCount)
 │       │   │   ├── Events/LotArchivedEvent.cs, SpaceDeactivatedEvent.cs
 │       │   │   └── Specifications/ActiveSpacesByLotSpec.cs, LotByNameSpec.cs
 │       │   ├── DriverAggregate/
@@ -264,8 +266,8 @@ parking-web/
     │   └── _authenticated/             (layout route: redirects to /login if unauthenticated)
     │       ├── route.tsx               (sidebar + topbar; reads current user)
     │       ├── index.tsx               (dashboard / live occupancy landing)
-    │       ├── lots/                   (index, $lotId, $lotId.spaces — F2, v1's only lot-layout view — new, $lotId.edit)
-    │       ├── lots.$lotId.map.tsx     (2D view — F1 — **post-v1, not built yet**)
+    │       ├── lots/                   (index, $lotId — incl. SpaceTable, the accessible F2 view — new, $lotId.edit,
+    │       │                            $lotId.map — interactive 3D view, F1, **lazy route** so three.js is code-split)
     │       ├── drivers/                (index, $driverId, new — incl. plates + grants)
     │       ├── gate/                   (gate console — manual entry/exit + override, E5/E6)
     │       ├── occupancy/              (live per-lot + multi-lot dashboard P1)
@@ -280,14 +282,17 @@ parking-web/
     │   │   ├── stores/     auth-store.ts  (Zustand: current user/roles only — no token; the cookie is invisible to JS)
     │   │   └── schemas.ts  (zod: loginSchema, resetPasswordSchema)
     │   ├── lots/        { api/, components/ (LotForm, LotTable, AccessModeToggle, FullBehaviorSelect), hooks/, schemas.ts }
-    │   ├── spaces/      { …, components/ (SpaceForm, SpaceTable, OrdinalInputs) }
+    │   ├── spaces/      { …, components/ (SpaceForm incl. zone + PlacementFields, SpaceTable incl. Assignee column) }
+    │   ├── lot-view/    { api/ useLotLayout.ts (GET /lots/{id}/layout);
+    │   │                  components/ LotScene (R3F <Canvas frameloop="demand">), SpaceBays (instanced), SpaceDetailsPanel,
+    │   │                  UnplacedTray, LevelSwitcher, ViewControls (reset / top-down / fit), LayoutLegend, AutoArrangeDialog;
+    │   │                  lib/ generateRowPlacements.ts (pure auto-arrange generator) }
     │   ├── drivers/     { …, components/ (DriverForm, PlateManager, DriverGrantsPanel), schemas.ts }
     │   ├── grants/      { …, components/ (GrantForm with validFrom/validTo, GrantList) }
     │   ├── reservations/{ …, components/ (ReservationDialog — reserve-for-driver / free, triggered from a space's row, no separate screen) }
     │   ├── occupancy/
     │   │   ├── api/        useLotOccupancy.ts (refetchInterval for near-live), useMultiLotDashboard.ts
-    │   │   └── components/ OccupancyStats.tsx, OccupancyTable.tsx (v1's spaces view — F2, WCAG-accessible by default),
-    │   │                   LotMap2D.tsx (SVG/CSS-grid from ordinals) + UnplacedTray.tsx (**post-v1, not built yet** — F1)
+    │   │   └── components/ OccupancyStats.tsx (also the aggregate overlay in the 3D view)
     │   ├── gate/        { api/ useManualEvent.ts, useOverrideDecision.ts; components/ ManualEntryForm, DecisionBanner, OverrideDialog }
     │   ├── sessions/    { …, components/ (ActiveSessionsTable, CloseSessionDialog, ResetCountDialog) }
     │   ├── users/       { …, components/ (UserForm, RoleSelect, DisableUserDialog) }
@@ -318,6 +323,7 @@ parking-web/
 - **Transport/validation:** `axios`, `zod`, `react-hook-form`, `@hookform/resolvers`
 - **UI:** `tailwindcss`, `class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`, shadcn/ui components, `sonner` (toasts)
 - **Client state:** `zustand` (kept deliberately small)
+- **3D lot view:** `three`, `@react-three/fiber` **v9** (the React 19-compatible major), `@react-three/drei` (Map/OrbitControls, `Instances`, `Html`/`Text` labels, `Bounds`), `@types/three` — imported only from the lazy `$lotId.map` route
 - **Dates/timezones:** `date-fns` + `@date-fns/tz` (or Luxon) — **non-negotiable**, because lots are timezone-aware (B1) and access-event display must respect the lot's tz
 
 **Conventions worth fixing now**
@@ -325,8 +331,9 @@ parking-web/
 - **One Zod schema per resource, reused twice:** as the RHF resolver *and* to `.parse()` the Axios response — so the type the UI trusts is the type that was actually validated at runtime.
 - **Query-key factory** in `lib/query-keys.ts` (e.g. `qk.lots.list(filters)`, `qk.occupancy.lot(lotId)`) to keep invalidation correct and discoverable.
 - **`RoleGate` hides UI only.** The server is the authority (A2). Treat client role checks purely as UX.
-- **`OccupancyTable` (F2)** is v1's only lot-layout view — a standard data table, WCAG-compliant by construction (no separate accessible-equivalent work needed since there's no map to keep in sync with).
-- **2D map (F1) — post-v1, not built in v1** = CSS-grid/SVG positioned from `(row, col, zone)` ordinals; spaces with no ordinals fall into an `UnplacedTray` (B5, also post-v1). When built, the map is *configuration + an aggregate count*, never live per-bay status (rule 9, Q3) — label it as such in the UI, and it must ship alongside `OccupancyTable` as its accessible equivalent.
+- **3D lot view (F1)** is v1's primary lot-layout view: a React Three Fiber scene built from each space's `SpacePlacement` (metric x/y on the floor plane → scene X/Z, `level` → Y offset per slab, `rotationDegrees` → Y rotation). Bays render as **instanced meshes** (one draw call per visual style) and the canvas uses `frameloop="demand"` so it's idle when nothing changes — this is what keeps 100–500 bays interactive. Spaces without a placement fall into `UnplacedTray` (B5). The scene is *configuration + an aggregate count*, never live per-bay status (rule 9, Q3): encode GENERAL / RESERVED-assigned / RESERVED-unassigned / INACTIVE (not by color alone), never occupied/free, and label the `OccupancyStats` overlay "lot-level, gate-counted."
+- **One read model feeds both views:** `GET /lots/{lotId}/layout` (spaces + placement + active-reservation assignee) drives the 3D scene *and* the `SpaceTable` Assignee column, so the accessible table (F2) can't drift from the scene. Browsers without WebGL get a message and a link to the table.
+- **Layout authoring stays builder-free:** placement fields in `SpaceForm`, numeric nudges in `SpaceDetailsPanel`, and `AutoArrangeDialog` whose pure `generateRowPlacements` emits x/y for whole rows, previewed live and saved with one `PUT /lots/{lotId}/layout`. Overlap/out-of-footprint are client-side warnings; the server only enforces footprint bounds and level range. Free drag-and-drop is B6 (P2).
 
 ---
 
@@ -383,15 +390,22 @@ erDiagram
         text access_mode "OPEN|RESTRICTED"
         text full_behavior "BLOCK|ALLOW_OVERFLOW"
         text status "ACTIVE|ARCHIVED"
+        numeric layout_width_m "nullable"
+        numeric layout_length_m "nullable"
+        int layout_level_count "nullable"
     }
     PARKING_SPACE {
         uuid id PK
         uuid lot_id FK
         text label "UNIQUE within lot"
         text space_type "GENERAL|RESERVED"
-        int row_ordinal "nullable"
-        int col_ordinal "nullable"
         text zone "nullable"
+        numeric placement_x_m "nullable"
+        numeric placement_y_m "nullable"
+        numeric placement_rotation_deg "nullable"
+        int placement_level "nullable"
+        numeric placement_width_m "nullable"
+        numeric placement_length_m "nullable"
         text status "ACTIVE|INACTIVE"
     }
     ACCESS_GRANT {
@@ -541,7 +555,8 @@ ALTER TABLE parking_lots ADD CONSTRAINT ux_lot_name UNIQUE (name);
 | Users | `POST/GET/PATCH /api/v1/users`, `POST …/{id}/disable` | **SystemAdmin** | disable ends sessions immediately (A4) |
 | API keys | `POST/GET /api/v1/api-keys`, `POST …/{id}/revoke` | **SystemAdmin** | create returns key **once** (A5) |
 | Lots | `GET/POST /api/v1/lots`, `GET/PATCH …/{id}`, `POST …/{id}/archive` | **Operator+** | B1–B3 |
-| Spaces | `GET/POST /api/v1/lots/{lotId}/spaces`, `PATCH …/{id}`, `POST …/{id}/deactivate` | **Operator+** | B4–B5 |
+| Spaces | `GET/POST /api/v1/lots/{lotId}/spaces`, `PATCH …/{id}`, `POST …/{id}/deactivate` | **Operator+** | B4–B5; POST/PATCH accept optional `zone` + `placement` (`null` clears) |
+| Lot layout | `GET /api/v1/lots/{lotId}/layout`, `PUT /api/v1/lots/{lotId}/layout` | **Operator+** | B5, F1–F2. GET = read projection (lot footprint + every space with placement + active-reservation assignee). PUT = atomic batch `{ layout?, spaces: [{ spaceId, placement\|null, zone? }] }`, one audit entry |
 | Drivers | `GET/POST /api/v1/drivers`, plates sub-resource, `POST …/{id}/export`, `POST …/{id}/anonymize` | **Operator+** (erase: **SystemAdmin**) | C1, G2 |
 | Grants | `POST /api/v1/grants`, `POST …/{id}/revoke`, `GET /api/v1/drivers/{id}/grants` | **Operator+** | C2 |
 | Reservations | `POST /api/v1/reservations`, `GET /api/v1/spaces/{spaceId}/reservation`, `POST /api/v1/reservations/{id}/cancel` | **Operator+** | D1–D2; 409 on conflict. No list endpoint — the UI only ever needs a space's single active reservation. |
@@ -705,8 +720,8 @@ flowchart TD
 |---|---|---|
 | Q1 | GDPR basis/retention/erasure | In scope: configurable retention (90-day default), `RetentionPurgeJob`, per-driver export + anonymize preserving aggregates. **Confirm lawful basis with DPO before beta.** |
 | Q2 | Gate fail-safe open/closed | Decision body ≠ transport failure; fail-safe configured at the gate per deployment (default: closed/restricted, open/open). Platform stays restart-fast & stateless. |
-| Q3 | Tabular spaces view semantics | Aggregate count + static per-space config only; UI labels it "lot-level, gate-counted." No per-bay status (rule 9). 2D map (F1) is post-v1. |
-| Q4 | Layout data without builder *(post-v1, not blocking)* | `(row, col, zone)` ordinals → CSS-grid/SVG auto-grid; unplaced spaces in a tray (B5). Free-form x/y deferred to P2 builder. Not needed until the 2D map is built. |
+| Q3 | 3D lot view semantics | Aggregate count + static per-space config only; UI labels it "lot-level, gate-counted." Bays never colored occupied/free (rule 9). |
+| Q4 | Layout data without builder | Free-form metric `SpacePlacement` (x, y, rotation, level, bay size) + zone per space, optional `LotLayout` footprint/levels. Ordinals rejected — too weak for 3D (no angled bays/aisles/levels). Rows generated client-side (`generateRowPlacements`) and saved via batch `PUT /lots/{id}/layout`; unplaced spaces in a tray. Drag-and-drop stays P2 (B6). |
 | Q5 | Access Events contract | Synchronous `POST /api/v1/access-events`, **API key**, `Idempotency-Key` required, ALLOW/DENY + reason, 200-for-decision semantics. |
 | Q6 | SPA token strategy | **Same-site HttpOnly cookie auth** (ASP.NET Identity), the PRD's recommended default — no token ever touches client-side JS. Gate/integration auth uses a separate **API key** scheme, not JWT; revisit only if a future client truly can't carry cookies (e.g. a mobile app on a different origin). |
 | Q7 | Driver login in v1 | None. Drivers are admin-managed records; no driver auth surface built. |
@@ -722,10 +737,10 @@ flowchart TD
 
 1. **Foundations:** *(mostly already scaffolded — Parkin.Api/AspireHost/ServiceDefaults, `Directory.Packages.props`, CI-ready)* add Identity to `AppDbContext`, the three test projects (currently absent), first parking-domain migration, health checks already via Aspire, Serilog already wired.
 2. **Auth (Epic A):** login/logout via Identity cookie scheme, RBAC policies, user & API-key management. Lock in `RbacTests` early. *(Self-service password reset is P2/post-v1 — not part of this slice.)*
-3. **Lots & spaces (Epic B):** lot/space CRUD, access mode, full behavior. *(Layout ordinals — B5 — deferred with the post-v1 2D map.)*
+3. **Lots & spaces (Epic B):** lot/space CRUD, access mode, full behavior. *(Space placement — B5 — lands with the 3D view in step 6.)*
 4. **Drivers, plates, grants, reservations (Epics C, D):** with the partial-unique-index invariants verified by integration tests.
 5. **★ Access events & occupancy (Epic E):** `EntryDecisionService` (unit-test exhaustively first), ingestion endpoint, sessions, live occupancy, manual entry/override, reconciliation. This is the riskiest, highest-value slice — give it the most test budget.
-6. **Visualization (Epic F):** tabular spaces view (F2). *(2D map — F1 — is post-v1.)*
+6. **Visualization (B5 + Epic F):** space placement model + layout API (B5) → interactive 3D lot view with its tabular accessible equivalent (F1/F2) → auto-arrange + in-view placement editing (B5).
 7. **Audit & compliance (Epic G):** audit querying UI (G1, P0), retention config + export/anonymize (G2, P1 — target v1 if time allows).
 8. **P1 if time:** auto-expiry job, CSV import, occupancy history/reports, multi-lot dashboard, access/reservation emails.
 
