@@ -28,20 +28,29 @@ export async function fetchLot(id: string): Promise<Lot> {
 
 // A blank address in the form means "none" — send undefined rather than "" so
 // the API stores it as null instead of an empty string.
-function normalizeAddress<T extends { address?: string }>(input: T) {
-  return { ...input, address: input.address?.trim() || undefined }
+function toLotBody({ hasLayout, layout, address, ...rest }: LotFormInput) {
+  return {
+    ...rest,
+    address: address?.trim() || undefined,
+    layout: hasLayout ? layout : undefined,
+  }
 }
 
 export async function createLot(input: LotFormInput): Promise<Lot> {
-  const { data } = await apiClient.post('/lots', normalizeAddress(input))
+  const { data } = await apiClient.post('/lots', toLotBody(input))
   return lotSchema.parse(data)
 }
 
 export async function updateLot(
   id: string,
-  input: Partial<LotFormInput>,
+  input: LotFormInput,
+  hadLayout: boolean,
 ): Promise<Lot> {
-  const { data } = await apiClient.patch(`/lots/${id}`, normalizeAddress(input))
+  const body = {
+    ...toLotBody(input),
+    clearLayout: !input.hasLayout && hadLayout ? true : undefined,
+  }
+  const { data } = await apiClient.patch(`/lots/${id}`, body)
   return lotSchema.parse(data)
 }
 

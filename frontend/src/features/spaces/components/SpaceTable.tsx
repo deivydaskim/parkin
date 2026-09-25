@@ -16,7 +16,10 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { RoleGate } from '@/features/auth/components/RoleGate'
+import { useLotLayout } from '@/features/lot-view/queries'
 import { ReservationDialog } from '@/features/reservations/components/ReservationDialog'
+import { toUpdateSpaceInput } from '../api'
+import { spaceToFormValues } from '../form-values'
 import {
   useDeactivateSpace,
   useReactivateSpace,
@@ -40,7 +43,21 @@ const statusLabel: Record<Space['status'], string> = {
   Inactive: 'Inactive',
 }
 
+function formatPosition(space: Space) {
+  if (!space.placement) return 'Unplaced'
+  const { x, y, rotationDegrees, level } = space.placement
+  return `${x}, ${y} m · ${rotationDegrees}° · L${level}`
+}
+
 export function SpaceTable({ lotId, spaces }: Props) {
+  const { data: layoutView } = useLotLayout(lotId)
+  const assigneeBySpaceId = new Map(
+    (layoutView?.spaces ?? []).map((space) => [
+      space.id,
+      space.reservation?.driverName ?? null,
+    ]),
+  )
+
   if (spaces.length === 0) {
     return <p className="text-sm text-muted-foreground">No spaces found.</p>
   }
@@ -52,31 +69,48 @@ export function SpaceTable({ lotId, spaces }: Props) {
           <TableHead>Label</TableHead>
           <TableHead>Type</TableHead>
           <TableHead>Status</TableHead>
+          <TableHead>Zone</TableHead>
+          <TableHead>Position</TableHead>
+          <TableHead>Assignee</TableHead>
           <TableHead />
         </TableRow>
       </TableHeader>
       <TableBody>
         {spaces.map((space) => (
-          <SpaceRow key={space.id} lotId={lotId} space={space} />
+          <SpaceRow
+            key={space.id}
+            lotId={lotId}
+            space={space}
+            assignee={assigneeBySpaceId.get(space.id) ?? null}
+          />
         ))}
       </TableBody>
     </Table>
   )
 }
 
-function SpaceRow({ lotId, space }: { lotId: string; space: Space }) {
+type SpaceRowProps = {
+  lotId: string
+  space: Space
+  assignee: string | null
+}
+
+function SpaceRow({ lotId, space, assignee }: SpaceRowProps) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const updateSpaceMutation = useUpdateSpace(space.id, lotId)
   const deactivateSpaceMutation = useDeactivateSpace(space.id, lotId)
   const reactivateSpaceMutation = useReactivateSpace(space.id, lotId)
 
   function handleUpdate(values: SpaceFormInput) {
-    updateSpaceMutation.mutate(values, {
-      onSuccess: () => {
-        setIsEditDialogOpen(false)
-        updateSpaceMutation.reset()
+    updateSpaceMutation.mutate(
+      toUpdateSpaceInput(values, space.placement !== null),
+      {
+        onSuccess: () => {
+          setIsEditDialogOpen(false)
+          updateSpaceMutation.reset()
+        },
       },
-    })
+    )
   }
 
   return (
@@ -84,6 +118,13 @@ function SpaceRow({ lotId, space }: { lotId: string; space: Space }) {
       <TableCell className="font-medium">{space.label}</TableCell>
       <TableCell>{typeLabel[space.type]}</TableCell>
       <TableCell>{statusLabel[space.status]}</TableCell>
+      <TableCell>{space.zone ?? '—'}</TableCell>
+      <TableCell className="text-xs tabular-nums">
+        {formatPosition(space)}
+      </TableCell>
+      <TableCell>
+        {space.type === 'Reserved' ? (assignee ?? 'Unassigned') : '—'}
+      </TableCell>
       <TableCell className="flex justify-end gap-2 text-right">
         {space.type === 'Reserved' && (
           <ReservationDialog
@@ -105,7 +146,7 @@ function SpaceRow({ lotId, space }: { lotId: string; space: Space }) {
                 <DialogTitle>Edit parking space</DialogTitle>
               </DialogHeader>
               <SpaceForm
-                defaultValues={{ label: space.label, type: space.type }}
+                defaultValues={spaceToFormValues(space)}
                 onSubmit={handleUpdate}
                 isSubmitting={updateSpaceMutation.isPending}
                 error={updateSpaceMutation.error}

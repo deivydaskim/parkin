@@ -1,9 +1,10 @@
 import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch, type Control } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { AxiosError } from 'axios'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import {
   Form,
   FormControl,
@@ -15,6 +16,7 @@ import {
 import {
   AccessMode,
   FullBehavior,
+  defaultLotLayout,
   lotFormSchema,
   type LotFormInput,
 } from '../schemas'
@@ -28,6 +30,8 @@ const emptyDefaults: LotFormInput = {
   timezone: '',
   accessMode: AccessMode.Open,
   fullBehavior: FullBehavior.Block,
+  hasLayout: false,
+  layout: defaultLotLayout,
 }
 
 type Props = {
@@ -50,6 +54,7 @@ export function LotForm({
     resolver: zodResolver(lotFormSchema),
     defaultValues: { ...emptyDefaults, ...defaultValues },
   })
+  const hasLayout = useWatch({ control: form.control, name: 'hasLayout' })
 
   useEffect(() => {
     if (!(error instanceof AxiosError) || error.response?.status !== 400) return
@@ -146,10 +151,87 @@ export function LotForm({
           )}
         />
 
+        <fieldset className="space-y-3 rounded-md border p-3">
+          <FormField
+            control={form.control}
+            name="hasLayout"
+            render={({ field }) => (
+              <FormItem className="flex items-center justify-between gap-3">
+                <div>
+                  <FormLabel>Lot footprint</FormLabel>
+                  <p className="text-xs text-muted-foreground">
+                    Ground size and levels for the 3D view. Optional.
+                  </p>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    aria-label="Define the lot footprint"
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          {hasLayout ? (
+            <div className="grid grid-cols-3 gap-3">
+              <LayoutNumberField
+                control={form.control}
+                name="layout.widthMeters"
+                label="Width (m)"
+              />
+              <LayoutNumberField
+                control={form.control}
+                name="layout.lengthMeters"
+                label="Length (m)"
+              />
+              <LayoutNumberField
+                control={form.control}
+                name="layout.levelCount"
+                label="Levels"
+              />
+            </div>
+          ) : null}
+        </fieldset>
+
         <Button type="submit" className="w-full" disabled={isSubmitting}>
           {isSubmitting ? 'Saving…' : submitLabel}
         </Button>
       </form>
     </Form>
+  )
+}
+
+type LayoutNumberFieldProps = {
+  control: Control<LotFormInput>
+  name: 'layout.widthMeters' | 'layout.lengthMeters' | 'layout.levelCount'
+  label: string
+}
+
+function LayoutNumberField({ control, name, label }: LayoutNumberFieldProps) {
+  return (
+    <FormField
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>{label}</FormLabel>
+          <FormControl>
+            <Input
+              type="number"
+              inputMode="decimal"
+              step={name === 'layout.levelCount' ? 1 : 0.5}
+              name={field.name}
+              ref={field.ref}
+              onBlur={field.onBlur}
+              value={Number.isNaN(field.value) ? '' : field.value}
+              onChange={(event) => field.onChange(event.target.valueAsNumber)}
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
   )
 }

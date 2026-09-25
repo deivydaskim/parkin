@@ -60,11 +60,17 @@ export function useUpdateLot(id: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (input: Partial<LotFormInput>) => updateLot(id, input),
+    mutationFn: (input: LotFormInput) =>
+      updateLot(
+        id,
+        input,
+        !!queryClient.getQueryData<Lot>(qk.lots.detail(id))?.layout,
+      ),
     onSuccess: (lot: Lot) => {
       queryClient.invalidateQueries({ queryKey: qk.lots.list() })
       queryClient.setQueryData(qk.lots.detail(id), lot)
       toast.success(`Lot "${lot.name}" updated.`)
+      queryClient.invalidateQueries({ queryKey: qk.lotLayout.detail(id) })
     },
     onError: (error) => {
       toast.error(parseApiError(error, 'Could not update lot.').message)

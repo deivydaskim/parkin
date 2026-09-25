@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute } from '@tanstack/react-router'
+import { Box } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -23,11 +24,16 @@ import {
   useRestoreLot,
   useUpdateLot,
 } from '@/features/lots/queries'
-import { LotStatus, type LotFormInput } from '@/features/lots/schemas'
+import {
+  LotStatus,
+  defaultLotLayout,
+  type LotFormInput,
+} from '@/features/lots/schemas'
 import { OccupancyStats } from '@/features/occupancy/components/OccupancyStats'
 import { SpaceForm } from '@/features/spaces/components/SpaceForm'
 import { SpaceTable } from '@/features/spaces/components/SpaceTable'
 import { useCreateSpace, useSpaces } from '@/features/spaces/queries'
+import { toCreateSpaceInput } from '@/features/spaces/api'
 import type { SpaceFormInput, SpaceListParams } from '@/features/spaces/schemas'
 
 const spaceStatusFilterOptions: Array<{
@@ -63,7 +69,7 @@ function LotDetailPage() {
   }
 
   function handleCreateSpace(values: SpaceFormInput) {
-    createSpaceMutation.mutate(values, {
+    createSpaceMutation.mutate(toCreateSpaceInput(values), {
       onSuccess: () => {
         setIsSpaceDialogOpen(false)
         createSpaceMutation.reset()
@@ -89,24 +95,33 @@ function LotDetailPage() {
           </p>
         </div>
 
-        <RoleGate roles={['Operator', 'SystemAdmin']}>
-          {lot.status === LotStatus.Archived ? (
-            <Button
-              disabled={restoreLotMutation.isPending}
-              onClick={() => restoreLotMutation.mutate()}
-            >
-              {restoreLotMutation.isPending ? 'Restoring…' : 'Restore'}
-            </Button>
-          ) : (
-            <Button
-              variant="destructive"
-              disabled={archiveLotMutation.isPending}
-              onClick={() => archiveLotMutation.mutate()}
-            >
-              {archiveLotMutation.isPending ? 'Archiving…' : 'Archive'}
-            </Button>
-          )}
-        </RoleGate>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/lots/$lotId/map" params={{ lotId }}>
+              <Box />
+              3D view
+            </Link>
+          </Button>
+
+          <RoleGate roles={['Operator', 'SystemAdmin']}>
+            {lot.status === LotStatus.Archived ? (
+              <Button
+                disabled={restoreLotMutation.isPending}
+                onClick={() => restoreLotMutation.mutate()}
+              >
+                {restoreLotMutation.isPending ? 'Restoring…' : 'Restore'}
+              </Button>
+            ) : (
+              <Button
+                variant="destructive"
+                disabled={archiveLotMutation.isPending}
+                onClick={() => archiveLotMutation.mutate()}
+              >
+                {archiveLotMutation.isPending ? 'Archiving…' : 'Archive'}
+              </Button>
+            )}
+          </RoleGate>
+        </div>
       </div>
 
       <div className="max-w-sm">
@@ -117,6 +132,8 @@ function LotDetailPage() {
             timezone: lot.timezone,
             accessMode: lot.accessMode,
             fullBehavior: lot.fullBehavior,
+            hasLayout: lot.layout !== null,
+            layout: lot.layout ?? defaultLotLayout,
           }}
           onSubmit={handleUpdate}
           isSubmitting={updateLotMutation.isPending}

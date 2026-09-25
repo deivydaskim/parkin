@@ -2,6 +2,7 @@ import { useLotOccupancy } from '../queries'
 
 type Props = {
   lotId: string
+  compact?: boolean
 }
 
 type StatProps = {
@@ -33,7 +34,7 @@ function Stat({ label, value, hint, emphasis = 'default' }: StatProps) {
   )
 }
 
-export function OccupancyStats({ lotId }: Props) {
+export function OccupancyStats({ lotId, compact = false }: Props) {
   const { data, isLoading, isError } = useLotOccupancy(lotId)
 
   if (isLoading) {
@@ -70,7 +71,13 @@ export function OccupancyStats({ lotId }: Props) {
         </span>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div
+        className={
+          compact
+            ? 'grid grid-cols-2 gap-2'
+            : 'grid gap-3 sm:grid-cols-2 lg:grid-cols-4'
+        }
+      >
         <Stat
           label="General capacity"
           value={String(data.generalCapacity)}
@@ -85,7 +92,9 @@ export function OccupancyStats({ lotId }: Props) {
         <Stat
           label="General free"
           value={String(data.generalFree)}
-          hint={data.isGeneralPoolFull ? 'No room in the general pool' : undefined}
+          hint={
+            data.isGeneralPoolFull ? 'No room in the general pool' : undefined
+          }
         />
         <Stat
           label="Reserved"

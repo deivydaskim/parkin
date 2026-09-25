@@ -12,6 +12,36 @@ export const lotStatusSchema = z.enum(['Active', 'Archived'])
 export type LotStatus = z.infer<typeof lotStatusSchema>
 export const LotStatus = lotStatusSchema.enum
 
+export const lotLayoutSchema = z.object({
+  widthMeters: z.number(),
+  lengthMeters: z.number(),
+  levelCount: z.number().int(),
+})
+
+export type LotLayout = z.infer<typeof lotLayoutSchema>
+
+export const lotLayoutFormSchema = z.object({
+  widthMeters: z
+    .number({ error: 'Width must be a number' })
+    .gt(0, 'Width must be greater than 0')
+    .max(100_000, 'Width must be at most 100000 m'),
+  lengthMeters: z
+    .number({ error: 'Length must be a number' })
+    .gt(0, 'Length must be greater than 0')
+    .max(100_000, 'Length must be at most 100000 m'),
+  levelCount: z
+    .number({ error: 'Levels must be a number' })
+    .int('Levels must be a whole number')
+    .min(1, 'At least one level')
+    .max(200, 'At most 200 levels'),
+})
+
+export const defaultLotLayout: LotLayout = {
+  widthMeters: 50,
+  lengthMeters: 30,
+  levelCount: 1,
+}
+
 // Full resource, as returned by the API.
 export const lotSchema = z.object({
   id: z.uuid(),
@@ -22,6 +52,7 @@ export const lotSchema = z.object({
   fullBehavior: fullBehaviorSchema,
   status: lotStatusSchema,
   capacity: z.number().int().nonnegative(),
+  layout: lotLayoutSchema.nullable(),
 })
 
 export type Lot = z.infer<typeof lotSchema>
@@ -39,6 +70,8 @@ export const lotFormSchema = z.object({
   timezone: z.string().min(1, 'Timezone is required'),
   accessMode: accessModeSchema,
   fullBehavior: fullBehaviorSchema,
+  hasLayout: z.boolean(),
+  layout: lotLayoutFormSchema,
 })
 
 export type LotFormInput = z.infer<typeof lotFormSchema>

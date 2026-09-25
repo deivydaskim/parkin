@@ -20,6 +20,7 @@ import { Route as AuthenticatedSettingsAuditRouteImport } from './routes/_authen
 import { Route as AuthenticatedSettingsApiKeysRouteImport } from './routes/_authenticated/settings/api-keys'
 import { Route as AuthenticatedLotsLotIdRouteImport } from './routes/_authenticated/lots/$lotId'
 import { Route as AuthenticatedDriversDriverIdRouteImport } from './routes/_authenticated/drivers/$driverId'
+import { Route as AuthenticatedLotsLotIdMapRouteImport } from './routes/_authenticated/lots/$lotId_.map'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -81,6 +82,12 @@ const AuthenticatedDriversDriverIdRoute =
     path: '/drivers/$driverId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedLotsLotIdMapRoute =
+  AuthenticatedLotsLotIdMapRouteImport.update({
+    id: '/lots/$lotId_/map',
+    path: '/lots/$lotId/map',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -93,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/drivers/': typeof AuthenticatedDriversIndexRoute
   '/lots/': typeof AuthenticatedLotsIndexRoute
+  '/lots/$lotId/map': typeof AuthenticatedLotsLotIdMapRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -105,6 +113,7 @@ export interface FileRoutesByTo {
   '/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/drivers': typeof AuthenticatedDriversIndexRoute
   '/lots': typeof AuthenticatedLotsIndexRoute
+  '/lots/$lotId/map': typeof AuthenticatedLotsLotIdMapRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -119,6 +128,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/_authenticated/drivers/': typeof AuthenticatedDriversIndexRoute
   '/_authenticated/lots/': typeof AuthenticatedLotsIndexRoute
+  '/_authenticated/lots/$lotId_/map': typeof AuthenticatedLotsLotIdMapRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -133,6 +143,7 @@ export interface FileRouteTypes {
     | '/settings/users'
     | '/drivers/'
     | '/lots/'
+    | '/lots/$lotId/map'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -145,6 +156,7 @@ export interface FileRouteTypes {
     | '/settings/users'
     | '/drivers'
     | '/lots'
+    | '/lots/$lotId/map'
   id:
     | '__root__'
     | '/_authenticated'
@@ -158,6 +170,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/users'
     | '/_authenticated/drivers/'
     | '/_authenticated/lots/'
+    | '/_authenticated/lots/$lotId_/map'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -244,6 +257,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDriversDriverIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/lots/$lotId_/map': {
+      id: '/_authenticated/lots/$lotId_/map'
+      path: '/lots/$lotId/map'
+      fullPath: '/lots/$lotId/map'
+      preLoaderRoute: typeof AuthenticatedLotsLotIdMapRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -272,6 +292,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLotsLotIdRoute: typeof AuthenticatedLotsLotIdRoute
   AuthenticatedDriversIndexRoute: typeof AuthenticatedDriversIndexRoute
   AuthenticatedLotsIndexRoute: typeof AuthenticatedLotsIndexRoute
+  AuthenticatedLotsLotIdMapRoute: typeof AuthenticatedLotsLotIdMapRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -281,6 +302,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLotsLotIdRoute: AuthenticatedLotsLotIdRoute,
   AuthenticatedDriversIndexRoute: AuthenticatedDriversIndexRoute,
   AuthenticatedLotsIndexRoute: AuthenticatedLotsIndexRoute,
+  AuthenticatedLotsLotIdMapRoute: AuthenticatedLotsLotIdMapRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

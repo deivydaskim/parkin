@@ -3,6 +3,7 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type QueryClient,
 } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { qk } from '@/lib/query-keys'
@@ -14,7 +15,7 @@ import {
   reactivateSpace,
   updateSpace,
 } from './api'
-import type { Space, SpaceFormInput, SpaceListParams } from './schemas'
+import type { Space, SpaceListParams, SpaceWriteInput } from './schemas'
 
 export function spacesQueryOptions(lotId: string, params?: SpaceListParams) {
   return queryOptions({
@@ -28,15 +29,23 @@ export function useSpaces(lotId: string, params?: SpaceListParams) {
   return useQuery(spacesQueryOptions(lotId, params))
 }
 
+export function invalidateLotSpaceViews(
+  queryClient: QueryClient,
+  lotId: string,
+) {
+  queryClient.invalidateQueries({ queryKey: qk.spaces.list(lotId) })
+  queryClient.invalidateQueries({ queryKey: qk.lots.detail(lotId) })
+  queryClient.invalidateQueries({ queryKey: qk.occupancy.lot(lotId) })
+  queryClient.invalidateQueries({ queryKey: qk.lotLayout.detail(lotId) })
+}
+
 export function useCreateSpace(lotId: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (input: SpaceFormInput) => createSpace(lotId, input),
+    mutationFn: (input: SpaceWriteInput) => createSpace(lotId, input),
     onSuccess: (space: Space) => {
-      queryClient.invalidateQueries({ queryKey: qk.spaces.list(lotId) })
-      queryClient.invalidateQueries({ queryKey: qk.lots.detail(lotId) })
-      queryClient.invalidateQueries({ queryKey: qk.occupancy.lot(lotId) })
+      invalidateLotSpaceViews(queryClient, lotId)
       toast.success(`Space "${space.label}" created.`)
     },
     onError: (error) => {
@@ -49,11 +58,9 @@ export function useUpdateSpace(id: string, lotId: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (input: Partial<SpaceFormInput>) => updateSpace(id, input),
+    mutationFn: (input: SpaceWriteInput) => updateSpace(id, input),
     onSuccess: (space: Space) => {
-      queryClient.invalidateQueries({ queryKey: qk.spaces.list(lotId) })
-      queryClient.invalidateQueries({ queryKey: qk.lots.detail(lotId) })
-      queryClient.invalidateQueries({ queryKey: qk.occupancy.lot(lotId) })
+      invalidateLotSpaceViews(queryClient, lotId)
       toast.success(`Space "${space.label}" updated.`)
     },
     onError: (error) => {
@@ -68,9 +75,7 @@ export function useDeactivateSpace(id: string, lotId: string) {
   return useMutation({
     mutationFn: () => deactivateSpace(id),
     onSuccess: (space: Space) => {
-      queryClient.invalidateQueries({ queryKey: qk.spaces.list(lotId) })
-      queryClient.invalidateQueries({ queryKey: qk.lots.detail(lotId) })
-      queryClient.invalidateQueries({ queryKey: qk.occupancy.lot(lotId) })
+      invalidateLotSpaceViews(queryClient, lotId)
       toast.success(`Space "${space.label}" deactivated.`)
     },
     onError: (error) => {
@@ -85,9 +90,7 @@ export function useReactivateSpace(id: string, lotId: string) {
   return useMutation({
     mutationFn: () => reactivateSpace(id),
     onSuccess: (space: Space) => {
-      queryClient.invalidateQueries({ queryKey: qk.spaces.list(lotId) })
-      queryClient.invalidateQueries({ queryKey: qk.lots.detail(lotId) })
-      queryClient.invalidateQueries({ queryKey: qk.occupancy.lot(lotId) })
+      invalidateLotSpaceViews(queryClient, lotId)
       toast.success(`Space "${space.label}" reactivated.`)
     },
     onError: (error) => {

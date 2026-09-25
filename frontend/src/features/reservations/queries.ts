@@ -7,10 +7,17 @@ import {
 import { toast } from 'sonner'
 import { qk } from '@/lib/query-keys'
 import { parseApiError } from '@/lib/api-error'
-import { cancelReservation, createReservation, fetchActiveReservation } from './api'
+import {
+  cancelReservation,
+  createReservation,
+  fetchActiveReservation,
+} from './api'
 import type { Reservation } from './schemas'
 
-export function activeReservationQueryOptions(spaceId: string, enabled: boolean) {
+export function activeReservationQueryOptions(
+  spaceId: string,
+  enabled: boolean,
+) {
   return queryOptions({
     queryKey: qk.reservations.active(spaceId),
     queryFn: () => fetchActiveReservation(spaceId),
@@ -28,9 +35,12 @@ export function useCreateReservation(lotId: string, spaceId: string) {
   return useMutation({
     mutationFn: (driverId: string) => createReservation(spaceId, driverId),
     onSuccess: (reservation: Reservation) => {
-      queryClient.invalidateQueries({ queryKey: qk.reservations.active(spaceId) })
+      queryClient.invalidateQueries({
+        queryKey: qk.reservations.active(spaceId),
+      })
       queryClient.invalidateQueries({ queryKey: qk.spaces.list(lotId) })
       queryClient.invalidateQueries({ queryKey: qk.occupancy.lot(lotId) })
+      queryClient.invalidateQueries({ queryKey: qk.lotLayout.detail(lotId) })
       toast.success('Space reserved.')
       return reservation
     },
@@ -46,9 +56,12 @@ export function useCancelReservation(lotId: string, spaceId: string) {
   return useMutation({
     mutationFn: (reservationId: string) => cancelReservation(reservationId),
     onSuccess: (reservation: Reservation) => {
-      queryClient.invalidateQueries({ queryKey: qk.reservations.active(spaceId) })
+      queryClient.invalidateQueries({
+        queryKey: qk.reservations.active(spaceId),
+      })
       queryClient.invalidateQueries({ queryKey: qk.spaces.list(lotId) })
       queryClient.invalidateQueries({ queryKey: qk.occupancy.lot(lotId) })
+      queryClient.invalidateQueries({ queryKey: qk.lotLayout.detail(lotId) })
       toast.success('Reservation cancelled.')
       return reservation
     },
