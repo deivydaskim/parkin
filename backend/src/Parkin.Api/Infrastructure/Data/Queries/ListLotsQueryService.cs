@@ -9,7 +9,7 @@ public class ListLotsQueryService(AppDbContext db) : IListLotsQueryService
 {
   private readonly AppDbContext _db = db;
 
-  public async Task<PagedResult<LotDto>> ListAsync(int page, int perPage, LotStatusFilter? status)
+  public async Task<PagedResult<LotDto>> ListAsync(int page, int perPage, LotStatusFilter? status, string? search = null)
   {
     var query = _db.ParkingLots.AsQueryable();
 
@@ -19,6 +19,13 @@ public class ListLotsQueryService(AppDbContext db) : IListLotsQueryService
       LotStatusFilter.Archived => query.Where(l => l.Status == LotStatus.Archived),
       _ => query.Where(l => l.Status == LotStatus.Active), // default: active-only
     };
+
+    if (!string.IsNullOrWhiteSpace(search))
+    {
+      var pattern = LikePattern.Containing(search.Trim());
+      query = query.Where(l => EF.Functions.ILike(l.Name, pattern) ||
+        (l.Address != null && EF.Functions.ILike(l.Address, pattern)));
+    }
 
     var items = await query
       .OrderBy(l => l.Name)

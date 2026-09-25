@@ -1,4 +1,5 @@
 import {
+  keepPreviousData,
   queryOptions,
   useMutation,
   useQuery,
@@ -22,6 +23,7 @@ export function spacesQueryOptions(lotId: string, params?: SpaceListParams) {
     queryKey: qk.spaces.list(lotId, params),
     queryFn: () => fetchSpaces(lotId, params),
     enabled: !!lotId,
+    placeholderData: keepPreviousData,
   })
 }
 

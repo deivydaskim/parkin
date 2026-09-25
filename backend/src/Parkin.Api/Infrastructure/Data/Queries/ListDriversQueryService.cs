@@ -9,7 +9,7 @@ public class ListDriversQueryService(AppDbContext db) : IListDriversQueryService
 {
   private readonly AppDbContext _db = db;
 
-  public async Task<PagedResult<DriverDto>> ListAsync(int page, int perPage, DriverStatusFilter? status)
+  public async Task<PagedResult<DriverDto>> ListAsync(int page, int perPage, DriverStatusFilter? status, string? search = null)
   {
     var query = _db.Drivers.AsQueryable();
 
@@ -19,6 +19,15 @@ public class ListDriversQueryService(AppDbContext db) : IListDriversQueryService
       DriverStatusFilter.Archived => query.Where(d => d.Status == DriverStatus.Archived),
       _ => query.Where(d => d.Status == DriverStatus.Active), // default: active-only
     };
+
+    if (!string.IsNullOrWhiteSpace(search))
+    {
+      var pattern = LikePattern.Containing(search.Trim());
+      var platePattern = LikePattern.Containing(PlateNormalizer.Normalize(search));
+      query = query.Where(d => EF.Functions.ILike(d.Name, pattern) ||
+        (d.Contact != null && EF.Functions.ILike(d.Contact, pattern)) ||
+        d.Plates.Any(p => EF.Functions.ILike(p.NormalizedPlateNumber, platePattern)));
+    }
 
     var items = await query
       .OrderBy(d => d.Name)

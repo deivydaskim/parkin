@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { AxiosError } from 'axios'
+import { UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -71,11 +73,18 @@ export function CreateUserDialog() {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button>New user</Button>
+        <Button>
+          <UserPlus />
+          New staff member
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create staff account</DialogTitle>
+          <DialogDescription>
+            Share the password with them securely; they sign in with their
+            email.
+          </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>

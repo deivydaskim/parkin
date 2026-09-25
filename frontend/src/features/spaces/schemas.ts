@@ -32,6 +32,8 @@ export const spaceSchema = z.object({
   status: spaceStatusSchema,
   zone: z.string().nullable(),
   placement: spacePlacementSchema.nullable(),
+  reservedDriverId: z.uuid().nullable(),
+  reservedDriverName: z.string().nullable(),
 })
 
 export type Space = z.infer<typeof spaceSchema>
@@ -97,6 +99,8 @@ export const spaceListParamsSchema = z.object({
   page: z.number().int().min(1).optional(),
   perPage: z.number().int().min(1).max(100).optional(),
   status: spaceStatusSchema.or(z.literal('All')).optional(),
+  type: spaceTypeSchema.optional(),
+  search: z.string().optional(),
 })
 
 export type SpaceListParams = z.infer<typeof spaceListParamsSchema>

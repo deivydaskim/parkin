@@ -18,6 +18,8 @@ export async function fetchSpaces(
       page: params?.page,
       per_page: params?.perPage,
       status: params?.status,
+      type: params?.type,
+      search: params?.search || undefined,
     },
   })
   return spaceListResponseSchema.parse(data)

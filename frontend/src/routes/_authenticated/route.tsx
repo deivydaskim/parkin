@@ -1,5 +1,7 @@
 import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
-import { AppNav } from '@/components/AppNav'
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { AppHeader } from '@/components/layout/AppHeader'
+import { AppSidebar } from '@/components/layout/AppSidebar'
 import { currentUserQueryOptions } from '@/features/auth/queries'
 import { useAuthStore } from '@/features/auth/store'
 
@@ -19,9 +21,14 @@ export const Route = createFileRoute('/_authenticated')({
 
 function AuthenticatedLayout() {
   return (
-    <div className="flex min-h-svh flex-col">
-      <AppNav />
-      <Outlet />
-    </div>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset className="min-w-0">
+        <AppHeader />
+        <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <Outlet />
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }

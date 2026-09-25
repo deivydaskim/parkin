@@ -137,10 +137,10 @@ export function LotView({ lotId }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-6">
+    <div className="flex flex-col gap-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">{data.lot.name} — 3D view</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{data.lot.name} — 3D layout</h1>
           <p className="text-sm text-muted-foreground">
             {layout
               ? `Footprint ${layout.widthMeters} × ${layout.lengthMeters} m · ${layout.levelCount} level(s)`
@@ -165,7 +165,7 @@ export function LotView({ lotId }: Props) {
           <Button size="sm" variant="outline" asChild>
             <Link to="/lots/$lotId" params={{ lotId }}>
               <Table2 />
-              Table view
+              Back to lot
             </Link>
           </Button>
         </div>

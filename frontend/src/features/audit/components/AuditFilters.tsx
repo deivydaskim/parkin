@@ -1,170 +1,179 @@
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { useState } from 'react'
+import { ChevronDown, Filter, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useUsers } from '@/features/users/queries'
+import { cn } from '@/lib/utils'
+import { actorTypeLabels, entityTypeLabels } from '../labels'
 import {
+  auditActorTypeSchema,
   auditEntityTypes,
-  auditFiltersSchema,
-  type AuditFilters as AuditFiltersInput,
+  type AuditFilters as AuditFiltersValue,
 } from '../schemas'
 
 type Props = {
-  defaultValues: AuditFiltersInput
-  onApply: (filters: AuditFiltersInput) => void
-  onClear: () => void
+  value: AuditFiltersValue
+  onChange: (next: AuditFiltersValue) => void
 }
 
-const ANY_VALUE = 'ANY'
+const ANY = '__any__'
 
-export function AuditFilters({ defaultValues, onApply, onClear }: Props) {
-  const form = useForm<AuditFiltersInput>({
-    resolver: zodResolver(auditFiltersSchema),
-    defaultValues,
-  })
+function activeCount(filters: AuditFiltersValue) {
+  return Object.values(filters).filter(Boolean).length
+}
 
-  function handleSubmit(values: AuditFiltersInput) {
-    onApply(values)
-  }
+export function AuditFilters({ value, onChange }: Props) {
+  const [open, setOpen] = useState(activeCount(value) > 0)
+  const { data: usersData } = useUsers({ perPage: 100 })
+  const staff = usersData?.items ?? []
+  const count = activeCount(value)
+  const actorIsKnown = !value.actor || staff.some((user) => user.id === value.actor)
 
-  function handleClear() {
-    form.reset({ from: '', to: '', actor: '', actorType: '', entity: '' })
-    onClear()
+  function update(patch: Partial<AuditFiltersValue>) {
+    onChange({ ...value, ...patch })
   }
 
   return (
-    <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(handleSubmit)}
-        className="flex flex-wrap items-end gap-3"
-      >
-        <FormField
-          control={form.control}
-          name="from"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>From</FormLabel>
-              <FormControl>
-                <Input type="date" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+    <div className="rounded-xl border bg-card">
+      <div className="flex items-center justify-between gap-2 p-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setOpen((current) => !current)}
+          aria-expanded={open}
+        >
+          <Filter />
+          Filters
+          {count > 0 ? (
+            <span className="rounded-full bg-primary px-1.5 text-xs text-primary-foreground tabular-nums">
+              {count}
+            </span>
+          ) : null}
+          <ChevronDown
+            className={cn('transition-transform', open && 'rotate-180')}
+          />
+        </Button>
+        {count > 0 ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() =>
+              onChange({ from: '', to: '', actor: '', actorType: '', entity: '' })
+            }
+          >
+            <X />
+            Clear all
+          </Button>
+        ) : null}
+      </div>
 
-        <FormField
-          control={form.control}
-          name="to"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>To</FormLabel>
-              <FormControl>
-                <Input type="date" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="actor"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Actor ID</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Staff/API-key GUID"
-                  className="w-64"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="actorType"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Actor type</FormLabel>
-              <Select
-                value={field.value || ANY_VALUE}
-                onValueChange={(value) =>
-                  field.onChange(value === ANY_VALUE ? '' : value)
-                }
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Any" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value={ANY_VALUE}>Any</SelectItem>
-                  <SelectItem value="Staff">Staff</SelectItem>
-                  <SelectItem value="System">System</SelectItem>
-                  <SelectItem value="Api">Api</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="entity"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Entity type</FormLabel>
-              <Select
-                value={field.value || ANY_VALUE}
-                onValueChange={(value) =>
-                  field.onChange(value === ANY_VALUE ? '' : value)
-                }
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Any" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value={ANY_VALUE}>Any</SelectItem>
-                  {auditEntityTypes.map((entityType) => (
-                    <SelectItem key={entityType} value={entityType}>
-                      {entityType}
+      {open ? (
+        <div className="grid gap-4 border-t p-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="space-y-2">
+            <Label htmlFor="audit-from">From</Label>
+            <Input
+              id="audit-from"
+              type="date"
+              value={value.from ?? ''}
+              max={value.to || undefined}
+              onChange={(event) => update({ from: event.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="audit-to">To</Label>
+            <Input
+              id="audit-to"
+              type="date"
+              value={value.to ?? ''}
+              min={value.from || undefined}
+              onChange={(event) => update({ to: event.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="audit-actor">Staff member</Label>
+            <Select
+              value={value.actor || ANY}
+              onValueChange={(next) => update({ actor: next === ANY ? '' : next })}
+            >
+              <SelectTrigger id="audit-actor" className="w-full">
+                <SelectValue placeholder="Anyone" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ANY}>Anyone</SelectItem>
+                <SelectGroup>
+                  <SelectLabel>Staff</SelectLabel>
+                  {staff.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.displayName}
                     </SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="flex gap-2">
-          <Button type="submit">Apply filters</Button>
-          <Button type="button" variant="outline" onClick={handleClear}>
-            Clear
-          </Button>
+                </SelectGroup>
+                {!actorIsKnown && value.actor ? (
+                  <SelectItem value={value.actor} className="font-mono text-xs">
+                    {value.actor}
+                  </SelectItem>
+                ) : null}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="audit-actor-type">Actor type</Label>
+            <Select
+              value={value.actorType || ANY}
+              onValueChange={(next) =>
+                update({
+                  actorType: next === ANY ? '' : (next as AuditFiltersValue['actorType']),
+                })
+              }
+            >
+              <SelectTrigger id="audit-actor-type" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ANY}>Any</SelectItem>
+                {auditActorTypeSchema.options.map((actorType) => (
+                  <SelectItem key={actorType} value={actorType}>
+                    {actorTypeLabels[actorType]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="audit-entity">Record type</Label>
+            <Select
+              value={value.entity || ANY}
+              onValueChange={(next) =>
+                update({
+                  entity: next === ANY ? '' : (next as AuditFiltersValue['entity']),
+                })
+              }
+            >
+              <SelectTrigger id="audit-entity" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ANY}>Any</SelectItem>
+                {auditEntityTypes.map((entityType) => (
+                  <SelectItem key={entityType} value={entityType}>
+                    {entityTypeLabels[entityType]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      </form>
-    </Form>
+      ) : null}
+    </div>
   )
 }

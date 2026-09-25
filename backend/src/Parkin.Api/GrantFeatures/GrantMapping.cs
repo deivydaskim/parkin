@@ -8,5 +8,6 @@ internal static class GrantMapping
     dto.ParkingLotId.Value,
     dto.ValidFrom,
     dto.ValidTo,
-    dto.Status);
+    dto.Status,
+    dto.ParkingLotName);
 }

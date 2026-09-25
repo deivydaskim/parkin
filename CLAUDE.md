@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Repository layout
 
 - `backend/` — .NET 10 solution (`Parkin.slnx`). All current backend code lives here. Run backend commands from this directory.
-- `frontend/` — **scaffolded shell** (Vite + React 19 + TypeScript, TanStack Router/Query, Tailwind v4 + shadcn/ui, axios, Zod). It has the app skeleton (login route, `_authenticated` layout, api client, UI kit) but **no parking-domain screens yet**. Run frontend commands (`pnpm dev`, etc.) from this directory.
+- `frontend/` — the operator console SPA (Vite + React 19 + TypeScript, TanStack Router/Query, Tailwind v4 + shadcn/ui, axios, Zod). The `_authenticated` layout is a collapsible sidebar shell (`components/layout/`) with breadcrumbs driven by each route's `staticData.crumb`. Screens: dashboard, gate console, lots (+ spaces, 3D layout), drivers (+ plates, grants), and SystemAdmin-only staff / API keys / audit log. Shared building blocks (`PageHeader`, `EmptyState`, `ConfirmDialog`, `StatusBadge`, `SearchInput`, `DataTablePagination`, `EntityCombobox`, …) live in `src/components/`; design tokens (incl. `success`/`warning`/`info`) in `src/styles/globals.css`. List filters live in the URL via `validateSearch`. Run frontend commands (`pnpm dev`, etc.) from this directory.
 
 ### Project docs & specs
 

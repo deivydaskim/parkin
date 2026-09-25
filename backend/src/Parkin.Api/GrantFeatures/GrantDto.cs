@@ -10,4 +10,5 @@ public record GrantDto(
   ParkingLotId ParkingLotId,
   DateTimeOffset ValidFrom,
   DateTimeOffset? ValidTo,
-  GrantStatus Status);
+  GrantStatus Status,
+  string? ParkingLotName = null);

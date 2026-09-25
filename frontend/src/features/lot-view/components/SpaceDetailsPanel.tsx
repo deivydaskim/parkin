@@ -144,6 +144,7 @@ export function SpaceDetailsPanel({
             lotId={lotId}
             spaceId={space.id}
             spaceLabel={space.label}
+            holderName={space.reservation?.driverName}
           />
         ) : null}
 

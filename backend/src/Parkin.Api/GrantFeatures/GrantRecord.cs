@@ -8,4 +8,5 @@ public record GrantRecord(
   Guid ParkingLotId,
   DateTimeOffset ValidFrom,
   DateTimeOffset? ValidTo,
-  GrantStatus Status);
+  GrantStatus Status,
+  string? ParkingLotName);

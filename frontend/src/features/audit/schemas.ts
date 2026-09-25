@@ -28,6 +28,7 @@ export const auditLogEntrySchema = z.object({
   entityId: z.uuid(),
   occurredAt: z.iso.datetime({ offset: true }),
   metadataJson: z.string().nullable(),
+  actorName: z.string().nullable(),
 })
 
 export type AuditLogEntry = z.infer<typeof auditLogEntrySchema>

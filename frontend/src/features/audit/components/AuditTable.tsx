@@ -1,5 +1,4 @@
-import { Fragment, useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { ChevronRight, KeyRound, Server, UserRound } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -8,134 +7,78 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { formatDateTime } from '@/lib/format'
+import { actorDisplayName, entityTypeLabel, humanizeAction } from '../labels'
 import type { AuditLogEntry } from '../schemas'
 
 type Props = {
   entries: AuditLogEntry[]
-  page: number
-  totalCount: number
-  totalPages: number
-  onPageChange: (page: number) => void
+  onSelect: (entry: AuditLogEntry) => void
 }
 
-function formatMetadata(metadataJson: string | null): string | null {
-  if (!metadataJson) return null
-  try {
-    return JSON.stringify(JSON.parse(metadataJson), null, 2)
-  } catch {
-    return metadataJson
-  }
-}
+const actorIcons = {
+  Staff: UserRound,
+  System: Server,
+  Api: KeyRound,
+} as const
 
-export function AuditTable({
-  entries,
-  page,
-  totalCount,
-  totalPages,
-  onPageChange,
-}: Props) {
-  const [expandedId, setExpandedId] = useState<string | null>(null)
-
-  if (entries.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">No audit entries found.</p>
-    )
-  }
-
+export function AuditTable({ entries, onSelect }: Props) {
   return (
-    <div className="space-y-3">
+    <div className="overflow-hidden rounded-xl border bg-card">
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead>Timestamp</TableHead>
-            <TableHead>Actor</TableHead>
-            <TableHead>Action</TableHead>
-            <TableHead>Entity</TableHead>
-            <TableHead>Entity ID</TableHead>
-            <TableHead />
+          <TableRow className="bg-muted/40 hover:bg-muted/40">
+            <TableHead>When</TableHead>
+            <TableHead>Who</TableHead>
+            <TableHead>What happened</TableHead>
+            <TableHead className="hidden md:table-cell">Record</TableHead>
+            <TableHead className="w-8" />
           </TableRow>
         </TableHeader>
         <TableBody>
           {entries.map((entry) => {
-            const metadata = formatMetadata(entry.metadataJson)
-            const isExpanded = expandedId === entry.id
-
+            const ActorIcon = actorIcons[entry.actorType]
             return (
-              <Fragment key={entry.id}>
-                <TableRow>
-                  <TableCell>
-                    {new Date(entry.occurredAt).toLocaleString()}
-                  </TableCell>
-                  <TableCell>
-                    {entry.actorType}
-                    {entry.actorId ? (
-                      <span className="ml-1 font-mono text-xs text-muted-foreground">
-                        {entry.actorId}
-                      </span>
-                    ) : null}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs">
-                    {entry.action}
-                  </TableCell>
-                  <TableCell>{entry.entityType}</TableCell>
-                  <TableCell className="font-mono text-xs">
-                    {entry.entityId}
-                  </TableCell>
-                  <TableCell>
-                    {metadata ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          setExpandedId(isExpanded ? null : entry.id)
-                        }
-                      >
-                        {isExpanded ? 'Hide' : 'Details'}
-                      </Button>
-                    ) : null}
-                  </TableCell>
-                </TableRow>
-                {isExpanded && metadata ? (
-                  <TableRow>
-                    <TableCell colSpan={6}>
-                      <pre className="overflow-x-auto rounded bg-muted p-2 text-xs">
-                        {metadata}
-                      </pre>
-                    </TableCell>
-                  </TableRow>
-                ) : null}
-              </Fragment>
+              <TableRow
+                key={entry.id}
+                className="cursor-pointer"
+                onClick={() => onSelect(entry)}
+              >
+                <TableCell className="text-sm whitespace-nowrap text-muted-foreground tabular-nums">
+                  {formatDateTime(entry.occurredAt)}
+                </TableCell>
+                <TableCell>
+                  <span className="flex items-center gap-2">
+                    <ActorIcon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                    <span className="truncate">{actorDisplayName(entry)}</span>
+                  </span>
+                </TableCell>
+                <TableCell className="font-medium">
+                  <button
+                    type="button"
+                    className="text-left hover:underline focus-visible:underline focus-visible:outline-none"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onSelect(entry)
+                    }}
+                  >
+                    {humanizeAction(entry.action)}
+                  </button>
+                </TableCell>
+                <TableCell className="hidden text-sm text-muted-foreground md:table-cell">
+                  {entityTypeLabel(entry.entityType)}{' '}
+                  <span className="font-mono text-xs">
+                    {entry.entityId.slice(0, 8)}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <ChevronRight className="size-4 text-muted-foreground" />
+                </TableCell>
+              </TableRow>
             )
           })}
         </TableBody>
       </Table>
-
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>
-          Page {page} of {Math.max(totalPages, 1)} ({totalCount} total)
-        </span>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => onPageChange(page - 1)}
-          >
-            Previous
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages}
-            onClick={() => onPageChange(page + 1)}
-          >
-            Next
-          </Button>
-        </div>
-      </div>
     </div>
   )
 }

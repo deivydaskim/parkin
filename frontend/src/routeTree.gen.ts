@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedGateRouteImport } from './routes/_authenticated/gate'
 import { Route as AuthenticatedSettingsRouteRouteImport } from './routes/_authenticated/settings/route'
 import { Route as AuthenticatedLotsIndexRouteImport } from './routes/_authenticated/lots/index'
 import { Route as AuthenticatedDriversIndexRouteImport } from './routes/_authenticated/drivers/index'
@@ -34,6 +35,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedGateRoute = AuthenticatedGateRouteImport.update({
+  id: '/gate',
+  path: '/gate',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedSettingsRouteRoute =
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/login': typeof LoginRoute
   '/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
+  '/gate': typeof AuthenticatedGateRoute
   '/drivers/$driverId': typeof AuthenticatedDriversDriverIdRoute
   '/lots/$lotId': typeof AuthenticatedLotsLotIdRoute
   '/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
@@ -105,6 +112,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
+  '/gate': typeof AuthenticatedGateRoute
   '/': typeof AuthenticatedIndexRoute
   '/drivers/$driverId': typeof AuthenticatedDriversDriverIdRoute
   '/lots/$lotId': typeof AuthenticatedLotsLotIdRoute
@@ -120,6 +128,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
+  '/_authenticated/gate': typeof AuthenticatedGateRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/drivers/$driverId': typeof AuthenticatedDriversDriverIdRoute
   '/_authenticated/lots/$lotId': typeof AuthenticatedLotsLotIdRoute
@@ -136,6 +145,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/settings'
+    | '/gate'
     | '/drivers/$driverId'
     | '/lots/$lotId'
     | '/settings/api-keys'
@@ -148,6 +158,7 @@ export interface FileRouteTypes {
   to:
     | '/login'
     | '/settings'
+    | '/gate'
     | '/'
     | '/drivers/$driverId'
     | '/lots/$lotId'
@@ -162,6 +173,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/login'
     | '/_authenticated/settings'
+    | '/_authenticated/gate'
     | '/_authenticated/'
     | '/_authenticated/drivers/$driverId'
     | '/_authenticated/lots/$lotId'
@@ -199,6 +211,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/gate': {
+      id: '/_authenticated/gate'
+      path: '/gate'
+      fullPath: '/gate'
+      preLoaderRoute: typeof AuthenticatedGateRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/settings': {
@@ -287,6 +306,7 @@ const AuthenticatedSettingsRouteRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedSettingsRouteRoute: typeof AuthenticatedSettingsRouteRouteWithChildren
+  AuthenticatedGateRoute: typeof AuthenticatedGateRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedDriversDriverIdRoute: typeof AuthenticatedDriversDriverIdRoute
   AuthenticatedLotsLotIdRoute: typeof AuthenticatedLotsLotIdRoute
@@ -297,6 +317,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSettingsRouteRoute: AuthenticatedSettingsRouteRouteWithChildren,
+  AuthenticatedGateRoute: AuthenticatedGateRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedDriversDriverIdRoute: AuthenticatedDriversDriverIdRoute,
   AuthenticatedLotsLotIdRoute: AuthenticatedLotsLotIdRoute,

@@ -1,6 +1,7 @@
 using FastEndpoints;
 using FluentValidation;
 using Parkin.Api.Authorization;
+using Parkin.Api.Domain.ParkingLotAggregate;
 
 namespace Parkin.Api.SpaceFeatures.List;
 
@@ -18,6 +19,12 @@ public sealed class ListSpacesRequest
 
   [BindFrom("status")]
   public SpaceStatusFilter? Status { get; init; }
+
+  [BindFrom("type")]
+  public SpaceType? Type { get; init; }
+
+  [BindFrom("search")]
+  public string? Search { get; init; }
 }
 
 public record SpaceListResponse : PagedResult<SpaceRecord>
@@ -44,6 +51,8 @@ public class ListSpacesEndpoint(IMediator mediator) : Endpoint<ListSpacesRequest
       s.Params["page"] = "1-based page index (default 1)";
       s.Params["per_page"] = $"Page size 1–{Constants.MAX_PAGE_SIZE} (default {Constants.DEFAULT_PAGE_SIZE})";
       s.Params["status"] = "Active (default), Inactive, or All";
+      s.Params["type"] = "Only General or only Reserved spaces (default: both)";
+      s.Params["search"] = "Case-insensitive match on the space label";
 
       s.Responses[200] = "Paginated list of spaces returned successfully";
       s.Responses[400] = "Invalid pagination parameters";
@@ -59,7 +68,8 @@ public class ListSpacesEndpoint(IMediator mediator) : Endpoint<ListSpacesRequest
 
   public override async Task HandleAsync(ListSpacesRequest request, CancellationToken cancellationToken)
   {
-    var result = await _mediator.Send(new ListSpacesQuery(request.LotId, request.Page, request.PerPage, request.Status), cancellationToken);
+    var result = await _mediator.Send(new ListSpacesQuery(request.LotId, request.Page, request.PerPage, request.Status,
+      request.Type, request.Search), cancellationToken);
     if (!result.IsSuccess)
     {
       await Send.ErrorsAsync(statusCode: 400, cancellationToken);
@@ -111,6 +121,9 @@ public sealed class ListSpacesValidator : Validator<ListSpacesRequest>
       .InclusiveBetween(1, Constants.MAX_PAGE_SIZE)
       .WithMessage($"per_page must be between 1 and {Constants.MAX_PAGE_SIZE}");
 
+    RuleFor(x => x.Search)
+      .MaximumLength(100)
+      .WithMessage("search must not exceed 100 characters");
   }
 }
 

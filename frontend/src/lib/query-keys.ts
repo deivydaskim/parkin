@@ -44,5 +44,10 @@ export const qk = {
   },
   occupancy: {
     lot: (lotId: string) => ['occupancy', 'lot', lotId] as const,
+    all: () => ['occupancy', 'all'] as const,
+  },
+  accessEvents: {
+    list: (lotId: string, params?: Record<string, unknown>) =>
+      ['accessEvents', 'list', lotId, params ?? {}] as const,
   },
 }

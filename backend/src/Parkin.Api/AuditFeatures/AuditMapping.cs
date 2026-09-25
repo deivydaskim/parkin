@@ -10,5 +10,6 @@ internal static class AuditMapping
     dto.EntityType,
     dto.EntityId,
     dto.OccurredAt,
-    dto.MetadataJson);
+    dto.MetadataJson,
+    dto.ActorName);
 }

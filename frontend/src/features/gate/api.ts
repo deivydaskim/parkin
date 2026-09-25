@@ -1,7 +1,10 @@
 import { apiClient } from '@/lib/api-client'
 import {
   accessEventDecisionSchema,
+  accessEventListResponseSchema,
   type AccessEventDecision,
+  type AccessEventListParams,
+  type AccessEventListResponse,
   type ManualEventFormInput,
 } from './schemas'
 
@@ -14,4 +17,14 @@ export async function recordManualEvent(
     headers: { 'Idempotency-Key': idempotencyKey },
   })
   return accessEventDecisionSchema.parse(data)
+}
+
+export async function fetchAccessEvents(
+  lotId: string,
+  params?: AccessEventListParams,
+): Promise<AccessEventListResponse> {
+  const { data } = await apiClient.get(`/lots/${lotId}/access-events`, {
+    params: { page: params?.page, per_page: params?.perPage },
+  })
+  return accessEventListResponseSchema.parse(data)
 }

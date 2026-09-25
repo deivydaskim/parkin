@@ -1,4 +1,5 @@
 import {
+  keepPreviousData,
   queryOptions,
   useMutation,
   useQuery,
@@ -33,6 +34,7 @@ export function driversQueryOptions(params?: DriverListParams) {
   return queryOptions({
     queryKey: qk.drivers.list(params),
     queryFn: () => fetchDrivers(params),
+    placeholderData: keepPreviousData,
   })
 }
 

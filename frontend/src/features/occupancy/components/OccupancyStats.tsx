@@ -1,44 +1,33 @@
+import { Car, CircleParking, SquareParking, Star } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Card } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import { OccupancyBar } from '@/components/OccupancyBar'
+import { StatCard } from '@/components/StatCard'
+import { cn } from '@/lib/utils'
 import { useLotOccupancy } from '../queries'
+import type { LotOccupancy } from '../schemas'
 
 type Props = {
   lotId: string
   compact?: boolean
 }
 
-type StatProps = {
-  label: string
-  value: string
-  hint?: string
-  emphasis?: 'default' | 'warning'
-}
-
-function Stat({ label, value, hint, emphasis = 'default' }: StatProps) {
-  return (
-    <div className="rounded-lg border p-4">
-      <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        {label}
-      </p>
-      <p
-        className={
-          emphasis === 'warning'
-            ? 'mt-1 text-2xl font-semibold tabular-nums text-destructive'
-            : 'mt-1 text-2xl font-semibold tabular-nums'
-        }
-      >
-        {value}
-      </p>
-      {hint ? (
-        <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
-      ) : null}
-    </div>
-  )
-}
-
 export function OccupancyStats({ lotId, compact = false }: Props) {
   const { data, isLoading, isError } = useLotOccupancy(lotId)
 
   if (isLoading) {
-    return <p className="text-sm text-muted-foreground">Loading occupancy…</p>
+    return (
+      <div className="space-y-3" aria-busy aria-label="Loading occupancy">
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-2.5 w-full rounded-full" />
+        <div className={cn('grid gap-3', compact ? 'grid-cols-2' : 'sm:grid-cols-4')}>
+          {Array.from({ length: 4 }, (_, index) => (
+            <Skeleton key={index} className="h-20 rounded-xl" />
+          ))}
+        </div>
+      </div>
+    )
   }
 
   if (isError || !data) {
@@ -49,63 +38,113 @@ export function OccupancyStats({ lotId, compact = false }: Props) {
     )
   }
 
+  return compact ? <CompactStats data={data} /> : <FullStats data={data} />
+}
+
+function StateBadge({ data }: { data: LotOccupancy }) {
   const overBy = data.generalUsed - data.generalCapacity
-
+  if (data.isOverCapacity) {
+    return <Badge variant="destructive">Over capacity by {overBy}</Badge>
+  }
+  if (data.isGeneralPoolFull) {
+    return (
+      <Badge className="border-destructive/30 bg-destructive/10 text-destructive">
+        Full
+      </Badge>
+    )
+  }
   return (
-    <div>
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <h2 className="text-lg font-semibold">Live occupancy</h2>
+    <Badge className="border-success/30 bg-success/12 text-success">
+      Accepting cars
+    </Badge>
+  )
+}
 
-        {data.isOverCapacity ? (
-          <span className="rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-medium text-destructive">
-            Over capacity by {overBy}
-          </span>
-        ) : data.isGeneralPoolFull ? (
-          <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
-            Full
-          </span>
-        ) : null}
+function UpdatedAt({ asOf }: { asOf: string }) {
+  return (
+    <span className="text-xs text-muted-foreground">
+      Updated {new Date(asOf).toLocaleTimeString()}
+    </span>
+  )
+}
 
-        <span className="ml-auto text-xs text-muted-foreground">
-          Updated {new Date(data.asOf).toLocaleTimeString()}
-        </span>
-      </div>
-
-      <div
-        className={
-          compact
-            ? 'grid grid-cols-2 gap-2'
-            : 'grid gap-3 sm:grid-cols-2 lg:grid-cols-4'
-        }
-      >
-        <Stat
+function FullStats({ data }: { data: LotOccupancy }) {
+  return (
+    <div className="space-y-4">
+      <Card className="gap-4 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <h2 className="font-semibold">Live occupancy</h2>
+            <StateBadge data={data} />
+          </div>
+          <UpdatedAt asOf={data.asOf} />
+        </div>
+        <OccupancyBar used={data.generalUsed} capacity={data.generalCapacity} />
+        <p className="text-xs text-muted-foreground">
+          Occupancy is lot-level and counted at the gate — not per-space sensed.
+        </p>
+      </Card>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard
           label="General capacity"
-          value={String(data.generalCapacity)}
+          value={data.generalCapacity}
+          icon={SquareParking}
+          tone="primary"
           hint="Active general spaces"
         />
-        <Stat
+        <StatCard
           label="General used"
-          value={String(data.generalUsed)}
+          value={data.generalUsed}
+          icon={Car}
+          tone={data.isOverCapacity ? 'destructive' : 'default'}
+          valueClassName={data.isOverCapacity ? 'text-destructive' : undefined}
           hint="Open general sessions"
-          emphasis={data.isOverCapacity ? 'warning' : 'default'}
         />
-        <Stat
+        <StatCard
           label="General free"
-          value={String(data.generalFree)}
-          hint={
-            data.isGeneralPoolFull ? 'No room in the general pool' : undefined
-          }
+          value={data.generalFree}
+          icon={CircleParking}
+          tone={data.generalFree > 0 ? 'success' : 'destructive'}
+          hint={data.isGeneralPoolFull ? 'No room in the general pool' : 'Ready for arrivals'}
         />
-        <Stat
-          label="Reserved"
+        <StatCard
+          label="Reserved in use"
           value={`${data.reservedOccupied} / ${data.reservedSpaceCount}`}
+          icon={Star}
+          tone="warning"
           hint="Occupied / reserved spaces"
         />
       </div>
+    </div>
+  )
+}
 
-      <p className="mt-3 text-xs text-muted-foreground">
-        Occupancy is lot-level and counted at the gate — not per-space sensed.
-      </p>
+function CompactStats({ data }: { data: LotOccupancy }) {
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <StateBadge data={data} />
+        <UpdatedAt asOf={data.asOf} />
+      </div>
+      <OccupancyBar used={data.generalUsed} capacity={data.generalCapacity} />
+      <dl className="grid grid-cols-2 gap-3 text-sm">
+        <CompactStat label="General free" value={data.generalFree} />
+        <CompactStat label="General used" value={data.generalUsed} />
+        <CompactStat label="Capacity" value={data.generalCapacity} />
+        <CompactStat
+          label="Reserved in use"
+          value={`${data.reservedOccupied} / ${data.reservedSpaceCount}`}
+        />
+      </dl>
+    </div>
+  )
+}
+
+function CompactStat({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-lg bg-muted/60 px-3 py-2">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="text-lg font-semibold tabular-nums">{value}</dd>
     </div>
   )
 }

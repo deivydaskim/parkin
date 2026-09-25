@@ -25,3 +25,14 @@ export async function cancelReservation(
   const { data } = await apiClient.post(`/reservations/${reservationId}/cancel`)
   return reservationSchema.parse(data)
 }
+
+export async function reassignReservation(
+  reservationId: string,
+  driverId: string,
+): Promise<Reservation> {
+  const { data } = await apiClient.post(
+    `/reservations/${reservationId}/reassign`,
+    { driverId },
+  )
+  return reservationSchema.parse(data)
+}

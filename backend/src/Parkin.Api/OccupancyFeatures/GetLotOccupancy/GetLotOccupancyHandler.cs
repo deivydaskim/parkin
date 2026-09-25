@@ -42,6 +42,7 @@ public class GetLotOccupancyHandler(
       occupancy.IsOverCapacity,
       reservedSpaceCount,
       occupancy.ReservedCount,
-      DateTimeOffset.UtcNow);
+      DateTimeOffset.UtcNow,
+      lot.Name);
   }
 }

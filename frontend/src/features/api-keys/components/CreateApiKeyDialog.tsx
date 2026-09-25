@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Check, Copy } from 'lucide-react'
+import { Check, Copy, KeyRound, Plus, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -15,6 +16,7 @@ import { Input } from '@/components/ui/input'
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -62,44 +64,73 @@ export function CreateApiKeyDialog() {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button>New API key</Button>
+        <Button>
+          <Plus />
+          New API key
+        </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent
+        onInteractOutside={(event) => {
+          if (rawKey) event.preventDefault()
+        }}
+      >
         {rawKey ? (
           <>
             <DialogHeader>
-              <DialogTitle>API key created</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <KeyRound className="size-5 text-success" />
+                API key created
+              </DialogTitle>
               <DialogDescription>
-                Copy this key now — it will not be shown again.
+                Configure your gate or integration with this key.
               </DialogDescription>
             </DialogHeader>
 
+            <div className="flex items-start gap-2 rounded-lg border border-warning/50 bg-warning/15 p-3 text-sm">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning-foreground dark:text-warning" />
+              <p>
+                <span className="font-semibold">Copy it now.</span> For
+                security the full key is never shown again — if you lose it,
+                revoke it and create a new one.
+              </p>
+            </div>
+
             <div className="flex items-center gap-2">
-              <Input readOnly value={rawKey} className="font-mono text-sm" />
+              <Input
+                readOnly
+                value={rawKey}
+                className="font-mono text-sm"
+                onFocus={(event) => event.target.select()}
+                aria-label="New API key"
+              />
               <Button
                 type="button"
-                variant="outline"
-                size="icon-sm"
+                variant={copied ? 'secondary' : 'default'}
                 onClick={handleCopy}
-                aria-label="Copy API key"
               >
                 {copied ? <Check /> : <Copy />}
+                {copied ? 'Copied' : 'Copy'}
               </Button>
             </div>
 
-            <Button onClick={() => handleOpenChange(false)}>Done</Button>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => handleOpenChange(false)}>
+                I've saved it
+              </Button>
+            </DialogFooter>
           </>
         ) : (
           <>
             <DialogHeader>
               <DialogTitle>Generate API key</DialogTitle>
+              <DialogDescription>
+                Gates and plate readers authenticate with an API key sent as
+                the X-Api-Key header.
+              </DialogDescription>
             </DialogHeader>
 
             <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-4"
-              >
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
                   name="name"
@@ -107,8 +138,15 @@ export function CreateApiKeyDialog() {
                     <FormItem>
                       <FormLabel>Name</FormLabel>
                       <FormControl>
-                        <Input autoComplete="off" {...field} />
+                        <Input
+                          autoComplete="off"
+                          placeholder="North Garage entry reader"
+                          {...field}
+                        />
                       </FormControl>
+                      <FormDescription>
+                        Helps you recognise it in the audit log.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -119,9 +157,7 @@ export function CreateApiKeyDialog() {
                   className="w-full"
                   disabled={createApiKeyMutation.isPending}
                 >
-                  {createApiKeyMutation.isPending
-                    ? 'Generating…'
-                    : 'Generate key'}
+                  {createApiKeyMutation.isPending ? 'Generating…' : 'Generate key'}
                 </Button>
               </form>
             </Form>

@@ -17,7 +17,8 @@ public class ListGrantsByDriverQueryService(AppDbContext db) : IListGrantsByDriv
       .OrderByDescending(g => g.CreatedAt)
       .Skip((page - 1) * perPage)
       .Take(perPage)
-      .Select(g => new GrantDto(g.Id, g.DriverId, g.ParkingLotId, g.ValidFrom, g.ValidTo, g.Status))
+      .Select(g => new GrantDto(g.Id, g.DriverId, g.ParkingLotId, g.ValidFrom, g.ValidTo, g.Status,
+        _db.ParkingLots.Where(l => l.Id == g.ParkingLotId).Select(l => l.Name).FirstOrDefault()))
       .AsNoTracking()
       .ToListAsync();
 

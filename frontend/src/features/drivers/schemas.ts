@@ -32,6 +32,7 @@ export const driverListParamsSchema = z.object({
   page: z.number().int().min(1).optional(),
   perPage: z.number().int().min(1).max(100).optional(),
   status: driverStatusSchema.or(z.literal('All')).optional(),
+  search: z.string().optional(),
 })
 
 export type DriverListParams = z.infer<typeof driverListParamsSchema>

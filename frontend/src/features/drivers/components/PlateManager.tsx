@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { ArrowRightLeft, Plus, Power, PowerOff, RectangleHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Form,
   FormControl,
@@ -14,30 +16,21 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
+import type { ComboboxOption } from '@/components/EntityCombobox'
+import { EmptyState } from '@/components/EmptyState'
+import { PlateChip } from '@/components/PlateChip'
+import { ListSkeleton } from '@/components/Skeletons'
+import { StatusBadge } from '@/components/StatusBadge'
+import { RoleGate } from '@/features/auth/components/RoleGate'
 import {
   useAddPlate,
   useDeactivatePlate,
-  useDrivers,
   usePlates,
   useReactivatePlate,
   useReassignPlate,
@@ -48,17 +41,17 @@ import {
   type Plate,
   type PlateFormInput,
 } from '../schemas'
+import { DriverCombobox } from './DriverCombobox'
 
 type Props = {
   driverId: string
+  canEdit: boolean
 }
 
-export function PlateManager({ driverId }: Props) {
-  const { data: platesData, isLoading } = usePlates(driverId)
+export function PlateManager({ driverId, canEdit }: Props) {
+  const { data: platesData, isLoading } = usePlates(driverId, { perPage: 100 })
   const addPlateMutation = useAddPlate(driverId)
-  const reassignPlateMutation = useReassignPlate(driverId)
-  const deactivatePlateMutation = useDeactivatePlate(driverId)
-  const reactivatePlateMutation = useReactivatePlate(driverId)
+  const plates = platesData?.items ?? []
 
   const form = useForm<PlateFormInput>({
     resolver: zodResolver(plateFormSchema),
@@ -73,64 +66,63 @@ export function PlateManager({ driverId }: Props) {
 
   return (
     <div className="space-y-4">
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(handleAddPlate)}
-          className="flex items-end gap-2"
-        >
-          <FormField
-            control={form.control}
-            name="plateNumber"
-            render={({ field }) => (
-              <FormItem className="flex-1">
-                <FormLabel>Plate number</FormLabel>
-                <FormControl>
-                  <Input autoComplete="off" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <Button type="submit" disabled={addPlateMutation.isPending}>
-            {addPlateMutation.isPending ? 'Adding…' : 'Add plate'}
-          </Button>
-        </form>
-      </Form>
+      {canEdit ? (
+        <RoleGate roles={['Operator', 'SystemAdmin']}>
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(handleAddPlate)}
+              className="flex flex-col gap-2 rounded-xl border bg-card p-4 sm:flex-row sm:items-end"
+            >
+              <FormField
+                control={form.control}
+                name="plateNumber"
+                render={({ field }) => (
+                  <FormItem className="flex-1">
+                    <FormLabel>Add a plate</FormLabel>
+                    <FormControl>
+                      <Input
+                        autoComplete="off"
+                        placeholder="ABC 123"
+                        spellCheck={false}
+                        className="font-mono tracking-widest uppercase"
+                        {...field}
+                        onChange={(event) =>
+                          field.onChange(event.target.value.toUpperCase())
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" disabled={addPlateMutation.isPending}>
+                <Plus />
+                {addPlateMutation.isPending ? 'Adding…' : 'Add plate'}
+              </Button>
+            </form>
+          </Form>
+        </RoleGate>
+      ) : null}
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : platesData && platesData.items.length > 0 ? (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Plate number</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {platesData.items.map((plate) => (
-              <PlateRow
-                key={plate.id}
-                plate={plate}
-                currentDriverId={driverId}
-                onReassign={(targetDriverId) =>
-                  reassignPlateMutation.mutate({
-                    plateId: plate.id,
-                    targetDriverId,
-                  })
-                }
-                isReassigning={reassignPlateMutation.isPending}
-                onDeactivate={() => deactivatePlateMutation.mutate(plate.id)}
-                isDeactivating={deactivatePlateMutation.isPending}
-                onReactivate={() => reactivatePlateMutation.mutate(plate.id)}
-                isReactivating={reactivatePlateMutation.isPending}
-              />
-            ))}
-          </TableBody>
-        </Table>
+        <ListSkeleton rows={2} />
+      ) : plates.length === 0 ? (
+        <EmptyState
+          icon={RectangleHorizontal}
+          title="No plates yet"
+          hint="Add at least one plate so the gate can recognise this driver."
+        />
       ) : (
-        <p className="text-sm text-muted-foreground">No plates yet.</p>
+        <ul className="divide-y rounded-xl border bg-card">
+          {plates.map((plate) => (
+            <PlateRow
+              key={plate.id}
+              plate={plate}
+              driverId={driverId}
+              canEdit={canEdit}
+            />
+          ))}
+        </ul>
       )}
     </div>
   )
@@ -138,103 +130,117 @@ export function PlateManager({ driverId }: Props) {
 
 type PlateRowProps = {
   plate: Plate
-  currentDriverId: string
-  onReassign: (targetDriverId: string) => void
-  isReassigning: boolean
-  onDeactivate: () => void
-  isDeactivating: boolean
-  onReactivate: () => void
-  isReactivating: boolean
+  driverId: string
+  canEdit: boolean
 }
 
-function PlateRow({
-  plate,
-  currentDriverId,
-  onReassign,
-  isReassigning,
-  onDeactivate,
-  isDeactivating,
-  onReactivate,
-  isReactivating,
-}: PlateRowProps) {
-  const [open, setOpen] = useState(false)
-  const [targetDriverId, setTargetDriverId] = useState<string>('')
-  const { data: driversData } = useDrivers({ perPage: 100 })
+function PlateRow({ plate, driverId, canEdit }: PlateRowProps) {
+  const [isReassignOpen, setIsReassignOpen] = useState(false)
+  const [target, setTarget] = useState<ComboboxOption | null>(null)
+  const [confirmDeactivate, setConfirmDeactivate] = useState(false)
+  const reassignMutation = useReassignPlate(driverId)
+  const deactivateMutation = useDeactivatePlate(driverId)
+  const reactivateMutation = useReactivatePlate(driverId)
+  const isActive = plate.status === PlateStatus.Active
 
-  const otherDrivers = (driversData?.items ?? []).filter(
-    (driver) => driver.id !== currentDriverId,
-  )
+  function closeReassign(open: boolean) {
+    setIsReassignOpen(open)
+    if (!open) setTarget(null)
+  }
 
-  function handleConfirm() {
-    if (!targetDriverId) return
-    onReassign(targetDriverId)
-    setOpen(false)
-    setTargetDriverId('')
+  function handleReassign() {
+    if (!target) return
+    reassignMutation.mutate(
+      { plateId: plate.id, targetDriverId: target.id },
+      { onSuccess: () => closeReassign(false) },
+    )
   }
 
   return (
-    <TableRow>
-      <TableCell className="font-medium">
-        {plate.normalizedPlateNumber}
-      </TableCell>
-      <TableCell>{plate.status}</TableCell>
-      <TableCell className="text-right space-x-2">
-        {plate.status === PlateStatus.Active ? (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onDeactivate}
-            disabled={isDeactivating}
-          >
-            {isDeactivating ? 'Deactivating…' : 'Deactivate'}
-          </Button>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onReactivate}
-            disabled={isReactivating}
-          >
-            {isReactivating ? 'Reactivating…' : 'Reactivate'}
-          </Button>
-        )}
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm">
+    <li className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center gap-3">
+        <PlateChip plate={plate.normalizedPlateNumber} muted={!isActive} />
+        <StatusBadge status={plate.status} />
+      </div>
+      {canEdit ? (
+        <RoleGate roles={['Operator', 'SystemAdmin']}>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsReassignOpen(true)}>
+              <ArrowRightLeft />
               Reassign
             </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                Reassign {plate.normalizedPlateNumber}
-              </DialogTitle>
-            </DialogHeader>
-
-            <Select value={targetDriverId} onValueChange={setTargetDriverId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a driver" />
-              </SelectTrigger>
-              <SelectContent>
-                {otherDrivers.map((driver) => (
-                  <SelectItem key={driver.id} value={driver.id}>
-                    {driver.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <DialogFooter>
+            {isActive ? (
               <Button
-                onClick={handleConfirm}
-                disabled={!targetDriverId || isReassigning}
+                variant="outline"
+                size="sm"
+                onClick={() => setConfirmDeactivate(true)}
               >
-                {isReassigning ? 'Reassigning…' : 'Confirm reassignment'}
+                <PowerOff />
+                Deactivate
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </TableCell>
-    </TableRow>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={reactivateMutation.isPending}
+                onClick={() => reactivateMutation.mutate(plate.id)}
+              >
+                <Power />
+                {reactivateMutation.isPending ? 'Reactivating…' : 'Reactivate'}
+              </Button>
+            )}
+          </div>
+        </RoleGate>
+      ) : null}
+
+      <Dialog open={isReassignOpen} onOpenChange={closeReassign}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reassign plate</DialogTitle>
+            <DialogDescription>
+              Move <span className="font-mono font-semibold">{plate.normalizedPlateNumber}</span>{' '}
+              to another driver. Future gate events will match them instead.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor={`reassign-${plate.id}`}>New owner</Label>
+            <DriverCombobox
+              id={`reassign-${plate.id}`}
+              value={target?.id ?? null}
+              selectedLabel={target?.label}
+              onChange={setTarget}
+              excludeIds={[driverId]}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => closeReassign(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleReassign}
+              disabled={!target || reassignMutation.isPending}
+            >
+              {reassignMutation.isPending ? 'Reassigning…' : 'Reassign plate'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={confirmDeactivate}
+        onOpenChange={setConfirmDeactivate}
+        title={`Deactivate ${plate.normalizedPlateNumber}?`}
+        description="The gate will treat this plate as unknown until it is reactivated."
+        confirmLabel="Deactivate"
+        pendingLabel="Deactivating…"
+        destructive
+        isPending={deactivateMutation.isPending}
+        onConfirm={() =>
+          deactivateMutation.mutate(plate.id, {
+            onSuccess: () => setConfirmDeactivate(false),
+          })
+        }
+      />
+    </li>
   )
 }

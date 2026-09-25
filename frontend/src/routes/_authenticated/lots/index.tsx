@@ -1,105 +1,167 @@
-import { useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { useCallback } from 'react'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { ParkingSquare, Plus } from 'lucide-react'
+import { z } from 'zod'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { DataTablePagination } from '@/components/DataTablePagination'
+import { EmptyState } from '@/components/EmptyState'
+import { PageHeader } from '@/components/PageHeader'
+import { SearchInput } from '@/components/SearchInput'
+import { CardSkeleton } from '@/components/Skeletons'
 import { RoleGate } from '@/features/auth/components/RoleGate'
-import { LotForm } from '@/features/lots/components/LotForm'
-import { LotTable } from '@/features/lots/components/LotTable'
-import { useCreateLot, useLots } from '@/features/lots/queries'
-import type { LotFormInput, LotListParams } from '@/features/lots/schemas'
+import { CreateLotDialog } from '@/features/lots/components/CreateLotDialog'
+import { LotCard } from '@/features/lots/components/LotCard'
+import { useLots } from '@/features/lots/queries'
 
-const statusFilterOptions: Array<{
-  value: NonNullable<LotListParams['status']>
-  label: string
-}> = [
-  { value: 'Active', label: 'Active' },
-  { value: 'Archived', label: 'Archived' },
-  { value: 'All', label: 'All' },
-]
+const PAGE_SIZE = 12
+
+const statusOptions = ['Active', 'Archived', 'All'] as const
+
+const lotsSearchSchema = z.object({
+  q: z.string().optional().catch(undefined),
+  status: z.enum(statusOptions).optional().catch(undefined),
+  page: z.number().int().min(1).optional().catch(undefined),
+  create: z.boolean().optional().catch(undefined),
+})
 
 export const Route = createFileRoute('/_authenticated/lots/')({
+  validateSearch: lotsSearchSchema,
+  staticData: { crumb: 'Parking lots' },
   component: LotsPage,
 })
 
 function LotsPage() {
-  const [status, setStatus] =
-    useState<NonNullable<LotListParams['status']>>('Active')
-  const { data, isLoading } = useLots({ status })
-  const [open, setOpen] = useState(false)
-  const createLotMutation = useCreateLot()
+  const { q = '', status = 'Active', page = 1, create = false } =
+    Route.useSearch()
+  const navigate = useNavigate({ from: Route.fullPath })
+  const { data, isLoading, isPlaceholderData } = useLots({
+    search: q,
+    status,
+    page,
+    perPage: PAGE_SIZE,
+  })
+  const lots = data?.items ?? []
 
-  function handleCreate(values: LotFormInput) {
-    createLotMutation.mutate(values, {
-      onSuccess: () => {
-        setOpen(false)
-        createLotMutation.reset()
-      },
+  const setSearch = useCallback(
+    (next: string) =>
+      navigate({
+        search: (prev) => ({ ...prev, q: next || undefined, page: undefined }),
+        replace: true,
+      }),
+    [navigate],
+  )
+
+  function setCreateOpen(open: boolean) {
+    navigate({
+      search: (prev) => ({ ...prev, create: open || undefined }),
+      replace: true,
     })
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <h1 className="text-xl font-semibold">Parking lots</h1>
-
-        <div className="flex items-center gap-4">
-          <Select
-            value={status}
-            onValueChange={(next) =>
-              setStatus(next as NonNullable<LotListParams['status']>)
-            }
-          >
-            <SelectTrigger className="w-36">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {statusFilterOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
+    <div className="space-y-6">
+      <PageHeader
+        title="Parking lots"
+        description="Every lot you operate, with its access rules and capacity."
+        actions={
           <RoleGate roles={['Operator', 'SystemAdmin']}>
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <Button>New lot</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Create parking lot</DialogTitle>
-                </DialogHeader>
-                <LotForm
-                  onSubmit={handleCreate}
-                  isSubmitting={createLotMutation.isPending}
-                  error={createLotMutation.error}
-                  submitLabel="Create lot"
-                />
-              </DialogContent>
-            </Dialog>
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus />
+              New lot
+            </Button>
           </RoleGate>
-        </div>
+        }
+      />
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <SearchInput
+          value={q}
+          onChange={setSearch}
+          placeholder="Search by name or address"
+        />
+        <Tabs
+          value={status}
+          onValueChange={(next) =>
+            navigate({
+              search: (prev) => ({
+                ...prev,
+                status: next === 'Active' ? undefined : (next as (typeof statusOptions)[number]),
+                page: undefined,
+              }),
+            })
+          }
+        >
+          <TabsList>
+            {statusOptions.map((option) => (
+              <TabsTrigger key={option} value={option}>
+                {option}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <CardSkeleton count={6} />
+      ) : lots.length === 0 ? (
+        q || status !== 'Active' ? (
+          <EmptyState
+            icon={ParkingSquare}
+            title="No lots match"
+            hint="Try a different search or status filter."
+            action={
+              <Button
+                variant="outline"
+                onClick={() => navigate({ search: {} })}
+              >
+                Clear filters
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={ParkingSquare}
+            title="No parking lots yet"
+            hint="A lot holds your spaces, access rules and live occupancy."
+            action={
+              <RoleGate roles={['Operator', 'SystemAdmin']}>
+                <Button onClick={() => setCreateOpen(true)}>
+                  <Plus />
+                  Create your first lot
+                </Button>
+              </RoleGate>
+            }
+          />
+        )
       ) : (
-        <LotTable lots={data?.items ?? []} />
+        <div
+          className={
+            isPlaceholderData
+              ? 'grid gap-4 opacity-60 transition-opacity sm:grid-cols-2 xl:grid-cols-3'
+              : 'grid gap-4 transition-opacity sm:grid-cols-2 xl:grid-cols-3'
+          }
+        >
+          {lots.map((lot) => (
+            <LotCard key={lot.id} lot={lot} />
+          ))}
+        </div>
       )}
+
+      {data && data.totalCount > 0 ? (
+        <DataTablePagination
+          page={page}
+          totalPages={data.totalPages}
+          totalCount={data.totalCount}
+          perPage={PAGE_SIZE}
+          itemLabel="lots"
+          onPageChange={(next) =>
+            navigate({ search: (prev) => ({ ...prev, page: next }) })
+          }
+        />
+      ) : null}
+
+      <CreateLotDialog open={create} onOpenChange={setCreateOpen} />
     </div>
   )
 }

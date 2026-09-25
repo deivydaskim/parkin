@@ -11,5 +11,6 @@ internal static class OccupancyMapping
     dto.IsOverCapacity,
     dto.ReservedSpaceCount,
     dto.ReservedOccupied,
-    dto.AsOf);
+    dto.AsOf,
+    dto.LotName);
 }

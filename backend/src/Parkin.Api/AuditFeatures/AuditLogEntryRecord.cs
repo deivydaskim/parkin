@@ -8,4 +8,5 @@ public record AuditLogEntryRecord(
   string EntityType,
   Guid EntityId,
   DateTimeOffset OccurredAt,
-  string? MetadataJson);
+  string? MetadataJson,
+  string? ActorName);

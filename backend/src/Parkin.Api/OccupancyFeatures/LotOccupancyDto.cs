@@ -11,4 +11,5 @@ public record LotOccupancyDto(
   bool IsOverCapacity,
   int ReservedSpaceCount,
   int ReservedOccupied,
-  DateTimeOffset AsOf);
+  DateTimeOffset AsOf,
+  string? LotName = null);

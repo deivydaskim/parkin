@@ -10,6 +10,9 @@ export const lotOccupancySchema = z.object({
   reservedSpaceCount: z.number().int(),
   reservedOccupied: z.number().int(),
   asOf: z.iso.datetime({ offset: true }),
+  lotName: z.string().nullable(),
 })
 
 export type LotOccupancy = z.infer<typeof lotOccupancySchema>
+
+export const lotOccupancyListSchema = z.array(lotOccupancySchema)

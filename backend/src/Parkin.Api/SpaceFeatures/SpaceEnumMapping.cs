@@ -9,5 +9,7 @@ internal static class SpaceEnumMapping
     dto.Type,
     dto.Status,
     dto.Zone,
-    SpacePlacementRecord.FromValue(dto.Placement));
+    SpacePlacementRecord.FromValue(dto.Placement),
+    dto.ReservedDriverId?.Value,
+    dto.ReservedDriverName);
 }

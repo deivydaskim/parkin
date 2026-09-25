@@ -1,4 +1,5 @@
 using Ardalis.GuardClauses;
+using Parkin.Api.AccessEventFeatures.List;
 using Parkin.Api.ApiKeyFeatures.List;
 using Parkin.Api.AuditFeatures.List;
 using Parkin.Api.DriverFeatures.List;
@@ -10,6 +11,7 @@ using Parkin.Api.Infrastructure.Data.Queries;
 using Parkin.Api.Infrastructure.Identity;
 using Parkin.Api.LotFeatures.List;
 using Parkin.Api.LotLayoutFeatures.Get;
+using Parkin.Api.OccupancyFeatures.ListLotOccupancy;
 using Parkin.Api.PlateFeatures.List;
 using Parkin.Api.SpaceFeatures;
 using Parkin.Api.SpaceFeatures.List;
@@ -63,6 +65,8 @@ public static class InfrastructureServiceExtensions
            .AddScoped<IListApiKeysQueryService, ListApiKeysQueryService>()
            .AddScoped<IListAuditQueryService, ListAuditQueryService>()
            .AddScoped<ILotLayoutQueryService, LotLayoutQueryService>()
+           .AddScoped<IActiveLotOccupancyQueryService, ActiveLotOccupancyQueryService>()
+           .AddScoped<IListAccessEventsQueryService, ListAccessEventsQueryService>()
            .AddScoped<IActiveReservationChecker, ActiveReservationChecker>()
            .AddScoped<ILotRowLocker, LotRowLocker>()
            .AddScoped<IUnitOfWork, EfUnitOfWork>();

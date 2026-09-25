@@ -14,6 +14,9 @@ public sealed class ListLotsRequest
 
   [BindFrom("status")]
   public LotStatusFilter? Status { get; init; }
+
+  [BindFrom("search")]
+  public string? Search { get; init; }
 }
 
 public record LotListResponse : PagedResult<LotRecord>
@@ -40,6 +43,7 @@ public class ListEndpoint(IMediator mediator) : Endpoint<ListLotsRequest, LotLis
       s.Params["page"] = "1-based page index (default 1)";
       s.Params["per_page"] = $"Page size 1–{Constants.MAX_PAGE_SIZE} (default {Constants.DEFAULT_PAGE_SIZE})";
       s.Params["status"] = "Active (default), Archived, or All";
+      s.Params["search"] = "Case-insensitive match on name or address";
 
       s.Responses[200] = "Paginated list of lots returned successfully";
       s.Responses[400] = "Invalid pagination parameters";
@@ -55,7 +59,7 @@ public class ListEndpoint(IMediator mediator) : Endpoint<ListLotsRequest, LotLis
 
   public override async Task HandleAsync(ListLotsRequest request, CancellationToken cancellationToken)
   {
-    var result = await _mediator.Send(new ListLotsQuery(request.Page, request.PerPage, request.Status), cancellationToken);
+    var result = await _mediator.Send(new ListLotsQuery(request.Page, request.PerPage, request.Status, request.Search), cancellationToken);
     if (!result.IsSuccess)
     {
       await Send.ErrorsAsync(statusCode: 400, cancellationToken);
@@ -103,6 +107,9 @@ public sealed class ListLotsValidator : Validator<ListLotsRequest>
       .InclusiveBetween(1, Constants.MAX_PAGE_SIZE)
       .WithMessage($"per_page must be between 1 and {Constants.MAX_PAGE_SIZE}");
 
+    RuleFor(x => x.Search)
+      .MaximumLength(200)
+      .WithMessage("search must not exceed 200 characters");
   }
 }
 

@@ -2,7 +2,8 @@ namespace Parkin.Api.LotFeatures.List;
 
 public record ListLotsQuery(int? Page = 1,
   int? PerPage = Constants.DEFAULT_PAGE_SIZE,
-  LotStatusFilter? Status = null)
+  LotStatusFilter? Status = null,
+  string? Search = null)
   : IQuery<Result<PagedResult<LotDto>>>;
 
 public class ListLotsHandler(IListLotsQueryService query) : IQueryHandler<ListLotsQuery, Result<PagedResult<LotDto>>>
@@ -12,7 +13,7 @@ public class ListLotsHandler(IListLotsQueryService query) : IQueryHandler<ListLo
   public async ValueTask<Result<PagedResult<LotDto>>> Handle(ListLotsQuery request,
                                                                CancellationToken cancellationToken)
   {
-    var result = await _query.ListAsync(request.Page ?? 1, request.PerPage ?? Constants.DEFAULT_PAGE_SIZE, request.Status);
+    var result = await _query.ListAsync(request.Page ?? 1, request.PerPage ?? Constants.DEFAULT_PAGE_SIZE, request.Status, request.Search);
 
     return Result.Success(result);
   }

@@ -1,5 +1,6 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Loader2, LogIn, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -10,54 +11,26 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { cn } from '@/lib/utils'
 import { useManualEvent } from '../queries'
 import {
-  Decision,
   Direction,
   manualEventFormSchema,
-  type AccessEventDecision,
-  type DenyReason,
+  type Direction as DirectionValue,
   type ManualEventFormInput,
 } from '../schemas'
+import { DecisionCard } from './DecisionCard'
 
 type Props = {
   lotId: string
+  size?: 'default' | 'large'
+  disabled?: boolean
 }
 
-const denyReasonLabels: Record<DenyReason, string> = {
-  NotAuthorized: 'not authorized for this lot',
-  LotFull: 'lot is full',
-  NoOpenSession: 'no open session for this plate',
-  LotArchived: 'lot is archived',
-  LotNotFound: 'lot not found',
-}
-
-function describeDecision(
-  decision: AccessEventDecision,
-  input: ManualEventFormInput,
-) {
-  const action = input.direction === Direction.Enter ? 'Entry' : 'Exit'
-
-  if (decision.decision === Decision.Deny) {
-    return `${action} denied for ${input.plate}: ${denyReasonLabels[decision.reason!]}.`
-  }
-
-  if (decision.reservedSpaceLabel) {
-    return `${action} allowed for ${input.plate} — reserved space ${decision.reservedSpaceLabel}.`
-  }
-
-  return `${action} allowed for ${input.plate}${decision.pool ? ` (${decision.pool.toLowerCase()} pool)` : ''}.`
-}
-
-export function ManualEntryForm({ lotId }: Props) {
+export function ManualEntryForm({ lotId, size = 'default', disabled }: Props) {
   const manualEventMutation = useManualEvent(lotId)
+  const large = size === 'large'
 
   const form = useForm<ManualEventFormInput>({
     resolver: zodResolver(manualEventFormSchema),
@@ -68,34 +41,50 @@ export function ManualEntryForm({ lotId }: Props) {
     manualEventMutation.mutate(values, {
       onSuccess: () => {
         form.reset({ plate: '', direction: values.direction })
+        form.setFocus('plate')
       },
     })
   }
 
   const result = manualEventMutation.data
   const submitted = manualEventMutation.variables
+  const isBusy = manualEventMutation.isPending || disabled
 
   return (
-    <section>
-      <h2 className="text-lg font-semibold">Manual entry / exit</h2>
-      <p className="mb-4 text-sm text-muted-foreground">
-        For plate-reader failures and walk-ups. Runs the same checks as the
-        gate.
-      </p>
-
+    <div className={cn('space-y-4', large && 'space-y-6')}>
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(handleSubmit)}
-          className="flex items-end gap-2"
+          className={cn(
+            'grid gap-4',
+            large
+              ? 'grid-cols-1'
+              : 'sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end',
+          )}
         >
           <FormField
             control={form.control}
             name="plate"
             render={({ field }) => (
-              <FormItem className="w-48">
-                <FormLabel>Plate</FormLabel>
+              <FormItem>
+                <FormLabel>Plate number</FormLabel>
                 <FormControl>
-                  <Input placeholder="ABC 123" autoComplete="off" {...field} />
+                  <Input
+                    placeholder="ABC 123"
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                    spellCheck={false}
+                    autoFocus={large}
+                    disabled={disabled}
+                    className={cn(
+                      'font-mono font-semibold tracking-widest uppercase',
+                      large && 'h-16 text-center text-3xl md:text-3xl',
+                    )}
+                    {...field}
+                    onChange={(event) =>
+                      field.onChange(event.target.value.toUpperCase())
+                    }
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -106,42 +95,69 @@ export function ManualEntryForm({ lotId }: Props) {
             control={form.control}
             name="direction"
             render={({ field }) => (
-              <FormItem className="w-32">
-                <FormLabel>Direction</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value={Direction.Enter}>Enter</SelectItem>
-                    <SelectItem value={Direction.Exit}>Exit</SelectItem>
-                  </SelectContent>
-                </Select>
+              <FormItem>
+                <FormLabel className={cn(!large && 'sm:sr-only')}>
+                  Direction
+                </FormLabel>
+                <FormControl>
+                  <ToggleGroup
+                    type="single"
+                    variant="outline"
+                    size={large ? 'lg' : 'default'}
+                    value={field.value}
+                    onValueChange={(next) => {
+                      if (next) field.onChange(next as DirectionValue)
+                    }}
+                    disabled={disabled}
+                    className={cn('w-full', large && '[&>*]:h-12')}
+                    aria-label="Direction"
+                  >
+                    <ToggleGroupItem
+                      value={Direction.Enter}
+                      className="flex-1 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                    >
+                      <LogIn />
+                      Enter
+                    </ToggleGroupItem>
+                    <ToggleGroupItem
+                      value={Direction.Exit}
+                      className="flex-1 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                    >
+                      <LogOut />
+                      Exit
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
 
-          <Button type="submit" disabled={manualEventMutation.isPending}>
-            {manualEventMutation.isPending ? 'Recording…' : 'Record'}
+          <Button
+            type="submit"
+            size="lg"
+            disabled={isBusy}
+            className={cn(large && 'h-14 text-base')}
+          >
+            {manualEventMutation.isPending ? (
+              <>
+                <Loader2 className="animate-spin" />
+                Recording…
+              </>
+            ) : (
+              'Record'
+            )}
           </Button>
         </form>
       </Form>
 
       {result && submitted ? (
-        <p
-          role="status"
-          className={
-            result.decision === Decision.Allow
-              ? 'mt-3 text-sm font-medium'
-              : 'mt-3 text-sm font-medium text-destructive'
-          }
-        >
-          {describeDecision(result, submitted)}
-        </p>
+        <DecisionCard
+          decision={result}
+          input={submitted}
+          size={large ? 'default' : 'compact'}
+        />
       ) : null}
-    </section>
+    </div>
   )
 }

@@ -1,4 +1,5 @@
 import {
+  keepPreviousData,
   queryOptions,
   useMutation,
   useQuery,
@@ -21,6 +22,7 @@ export function lotsQueryOptions(params?: LotListParams) {
   return queryOptions({
     queryKey: qk.lots.list(params),
     queryFn: () => fetchLots(params),
+    placeholderData: keepPreviousData,
   })
 }
 

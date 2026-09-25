@@ -1,6 +1,6 @@
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import { qk } from '@/lib/query-keys'
-import { fetchLotOccupancy } from './api'
+import { fetchAllLotOccupancy, fetchLotOccupancy } from './api'
 
 // Nothing pushes gate events to the SPA, so poll.
 const OCCUPANCY_REFETCH_INTERVAL_MS = 10_000
@@ -17,4 +17,17 @@ export function lotOccupancyQueryOptions(lotId: string) {
 
 export function useLotOccupancy(lotId: string) {
   return useQuery(lotOccupancyQueryOptions(lotId))
+}
+
+export function allLotOccupancyQueryOptions() {
+  return queryOptions({
+    queryKey: qk.occupancy.all(),
+    queryFn: fetchAllLotOccupancy,
+    refetchInterval: OCCUPANCY_REFETCH_INTERVAL_MS,
+    refetchOnWindowFocus: true,
+  })
+}
+
+export function useAllLotOccupancy() {
+  return useQuery(allLotOccupancyQueryOptions())
 }

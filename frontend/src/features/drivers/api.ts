@@ -22,6 +22,7 @@ export async function fetchDrivers(
       page: params?.page,
       per_page: params?.perPage,
       status: params?.status,
+      search: params?.search || undefined,
     },
   })
   return driverListResponseSchema.parse(data)

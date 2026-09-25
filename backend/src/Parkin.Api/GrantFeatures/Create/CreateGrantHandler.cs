@@ -43,6 +43,7 @@ public class CreateGrantHandler(
     var grant = AccessGrant.Create(request.DriverId, request.LotId, request.ValidFrom, request.ValidTo, request.ActorId);
     await grantRepository.AddAsync(grant, cancellationToken);
 
-    return new GrantDto(grant.Id, grant.DriverId, grant.ParkingLotId, grant.ValidFrom, grant.ValidTo, grant.Status);
+    return new GrantDto(grant.Id, grant.DriverId, grant.ParkingLotId, grant.ValidFrom, grant.ValidTo, grant.Status,
+      lot.Name);
   }
 }

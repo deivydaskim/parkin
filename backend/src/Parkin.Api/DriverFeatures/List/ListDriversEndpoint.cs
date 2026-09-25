@@ -14,6 +14,9 @@ public sealed class ListDriversRequest
 
   [BindFrom("status")]
   public DriverStatusFilter? Status { get; init; }
+
+  [BindFrom("search")]
+  public string? Search { get; init; }
 }
 
 public record DriverListResponse : PagedResult<DriverRecord>
@@ -40,6 +43,7 @@ public class ListDriversEndpoint(IMediator mediator) : Endpoint<ListDriversReque
       s.Params["page"] = "1-based page index (default 1)";
       s.Params["per_page"] = $"Page size 1–{Constants.MAX_PAGE_SIZE} (default {Constants.DEFAULT_PAGE_SIZE})";
       s.Params["status"] = "Active (default), Archived, or All";
+      s.Params["search"] = "Case-insensitive match on name, contact, or any plate number";
 
       s.Responses[200] = "Paginated list of drivers returned successfully";
       s.Responses[400] = "Invalid pagination parameters";
@@ -55,7 +59,7 @@ public class ListDriversEndpoint(IMediator mediator) : Endpoint<ListDriversReque
 
   public override async Task HandleAsync(ListDriversRequest request, CancellationToken cancellationToken)
   {
-    var result = await _mediator.Send(new ListDriversQuery(request.Page, request.PerPage, request.Status), cancellationToken);
+    var result = await _mediator.Send(new ListDriversQuery(request.Page, request.PerPage, request.Status, request.Search), cancellationToken);
     if (!result.IsSuccess)
     {
       await Send.ErrorsAsync(statusCode: 400, cancellationToken);
@@ -102,6 +106,10 @@ public sealed class ListDriversValidator : Validator<ListDriversRequest>
     RuleFor(x => x.PerPage)
       .InclusiveBetween(1, Constants.MAX_PAGE_SIZE)
       .WithMessage($"per_page must be between 1 and {Constants.MAX_PAGE_SIZE}");
+
+    RuleFor(x => x.Search)
+      .MaximumLength(200)
+      .WithMessage("search must not exceed 200 characters");
   }
 }
 

@@ -12,6 +12,7 @@ export const grantSchema = z.object({
   validFrom: z.iso.datetime({ offset: true }),
   validTo: z.iso.datetime({ offset: true }).nullable(),
   status: grantStatusSchema,
+  parkingLotName: z.string().nullable(),
 })
 
 export type Grant = z.infer<typeof grantSchema>

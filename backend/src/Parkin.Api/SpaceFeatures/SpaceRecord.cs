@@ -9,4 +9,6 @@ public record SpaceRecord(
   SpaceType Type,
   SpaceStatus Status,
   string? Zone,
-  SpacePlacementRecord? Placement);
+  SpacePlacementRecord? Placement,
+  Guid? ReservedDriverId,
+  string? ReservedDriverName);
