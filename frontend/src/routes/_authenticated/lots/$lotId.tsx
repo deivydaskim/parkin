@@ -24,6 +24,7 @@ import {
   useUpdateLot,
 } from '@/features/lots/queries'
 import { LotStatus, type LotFormInput } from '@/features/lots/schemas'
+import { ManualEntryForm } from '@/features/gate/components/ManualEntryForm'
 import { OccupancyStats } from '@/features/occupancy/components/OccupancyStats'
 import { SpaceForm } from '@/features/spaces/components/SpaceForm'
 import { SpaceTable } from '@/features/spaces/components/SpaceTable'
@@ -128,6 +129,14 @@ function LotDetailPage() {
       <div className="mt-8">
         <OccupancyStats lotId={lotId} />
       </div>
+
+      {lot.status === LotStatus.Active ? (
+        <RoleGate roles={['Operator', 'SystemAdmin']}>
+          <div className="mt-8">
+            <ManualEntryForm lotId={lotId} />
+          </div>
+        </RoleGate>
+      ) : null}
 
       <div className="mt-8">
         <div className="mb-4 flex items-center justify-between gap-4">
