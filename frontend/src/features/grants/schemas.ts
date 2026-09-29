@@ -13,17 +13,25 @@ export const grantSchema = z.object({
   validTo: z.iso.datetime({ offset: true }).nullable(),
   status: grantStatusSchema,
   parkingLotName: z.string().nullable(),
+  driverName: z.string().nullable(),
 })
 
 export type Grant = z.infer<typeof grantSchema>
 
 export const grantFormSchema = z.object({
-  lotId: z.uuid('Lot is required'),
+  targetId: z.uuid('Selection is required'),
   validFrom: z.string().optional(),
   validTo: z.string().optional(),
 })
 
 export type GrantFormInput = z.infer<typeof grantFormSchema>
+
+export type CreateGrantInput = {
+  driverId: string
+  lotId: string
+  validFrom?: string
+  validTo?: string
+}
 
 export const grantListParamsSchema = z.object({
   page: z.number().int().min(1).optional(),

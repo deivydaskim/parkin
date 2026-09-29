@@ -2,31 +2,39 @@ import { apiClient } from '@/lib/api-client'
 import {
   grantListResponseSchema,
   grantSchema,
+  type CreateGrantInput,
   type Grant,
-  type GrantFormInput,
   type GrantListParams,
   type GrantListResponse,
 } from './schemas'
+
+function pageParams(params?: GrantListParams) {
+  return { page: params?.page, per_page: params?.perPage }
+}
 
 export async function fetchGrantsByDriver(
   driverId: string,
   params?: GrantListParams,
 ): Promise<GrantListResponse> {
   const { data } = await apiClient.get(`/drivers/${driverId}/grants`, {
-    params: {
-      page: params?.page,
-      per_page: params?.perPage,
-    },
+    params: pageParams(params),
   })
   return grantListResponseSchema.parse(data)
 }
 
-export async function createGrant(
-  driverId: string,
-  input: GrantFormInput,
-): Promise<Grant> {
+export async function fetchGrantsByLot(
+  lotId: string,
+  params?: GrantListParams,
+): Promise<GrantListResponse> {
+  const { data } = await apiClient.get(`/lots/${lotId}/grants`, {
+    params: pageParams(params),
+  })
+  return grantListResponseSchema.parse(data)
+}
+
+export async function createGrant(input: CreateGrantInput): Promise<Grant> {
   const { data } = await apiClient.post('/grants', {
-    driverId,
+    driverId: input.driverId,
     lotId: input.lotId,
     validFrom: input.validFrom || undefined,
     validTo: input.validTo || undefined,

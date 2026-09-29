@@ -9,4 +9,5 @@ public record GrantRecord(
   DateTimeOffset ValidFrom,
   DateTimeOffset? ValidTo,
   GrantStatus Status,
-  string? ParkingLotName);
+  string? ParkingLotName,
+  string? DriverName);

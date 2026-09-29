@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { KeyRound, Plus } from 'lucide-react'
+import { Info, KeyRound, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -12,39 +12,46 @@ import { DataTablePagination } from '@/components/DataTablePagination'
 import { EmptyState } from '@/components/EmptyState'
 import { ListSkeleton } from '@/components/Skeletons'
 import { RoleGate } from '@/features/auth/components/RoleGate'
-import { GrantForm } from '@/features/grants/components/GrantForm'
-import { GrantList } from '@/features/grants/components/GrantList'
-import { useCreateGrant, useGrants, useRevokeGrant } from '@/features/grants/queries'
-import type { GrantFormInput } from '@/features/grants/schemas'
+import { AccessMode, LotStatus, type Lot } from '@/features/lots/schemas'
+import { useCreateGrant, useGrantsByLot, useRevokeGrant } from '../queries'
+import type { GrantFormInput } from '../schemas'
+import { GrantForm } from './GrantForm'
+import { GrantList } from './GrantList'
 
 const PAGE_SIZE = 20
 
 type Props = {
-  driverId: string
+  lot: Lot
   canEdit: boolean
 }
 
-export function DriverGrantsPanel({ driverId, canEdit }: Props) {
+export function LotGrantsPanel({ lot, canEdit }: Props) {
   const [page, setPage] = useState(1)
   const [isGrantOpen, setIsGrantOpen] = useState(false)
-  const { data: grantsData, isLoading } = useGrants(driverId, {
+  const { data: grantsData, isLoading } = useGrantsByLot(lot.id, {
     page,
     perPage: PAGE_SIZE,
   })
   const createGrantMutation = useCreateGrant()
   const revokeGrantMutation = useRevokeGrant()
   const grants = grantsData?.items ?? []
+  const isArchived = lot.status !== LotStatus.Active
 
   function handleCreate(values: GrantFormInput) {
     createGrantMutation.mutate(
-      { driverId, lotId: values.targetId, validFrom: values.validFrom, validTo: values.validTo },
+      {
+        driverId: values.targetId,
+        lotId: lot.id,
+        validFrom: values.validFrom,
+        validTo: values.validTo,
+      },
       { onSuccess: () => setIsGrantOpen(false) },
     )
   }
 
   const grantButton = canEdit ? (
     <RoleGate roles={['Operator', 'SystemAdmin']}>
-      <Button onClick={() => setIsGrantOpen(true)}>
+      <Button onClick={() => setIsGrantOpen(true)} disabled={isArchived}>
         <Plus />
         Grant access
       </Button>
@@ -55,24 +62,33 @@ export function DriverGrantsPanel({ driverId, canEdit }: Props) {
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
-          Grants decide which restricted lots this driver may enter. Open lots
-          admit everyone.
+          Grants decide which drivers may enter this lot while it is restricted.
         </p>
         {grants.length > 0 ? grantButton : null}
       </div>
+
+      {lot.accessMode === AccessMode.Open ? (
+        <p className="flex items-start gap-2 rounded-lg border border-info/30 bg-info/10 p-3 text-sm">
+          <Info className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
+          <span>
+            This lot is open, so grants have no effect until it is switched to
+            restricted.
+          </span>
+        </p>
+      ) : null}
 
       {isLoading ? (
         <ListSkeleton rows={2} />
       ) : grants.length === 0 ? (
         <EmptyState
           icon={KeyRound}
-          title="No lot access yet"
-          hint="This driver can only use open lots until you grant access to a restricted one."
+          title="No drivers granted access"
+          hint="When this lot is restricted, only drivers with a grant can enter."
           action={grantButton}
         />
       ) : (
         <GrantList
-          subject="lot"
+          subject="driver"
           grants={grants}
           canEdit={canEdit}
           isRevoking={revokeGrantMutation.isPending}
@@ -96,15 +112,14 @@ export function DriverGrantsPanel({ driverId, canEdit }: Props) {
       <Dialog open={isGrantOpen} onOpenChange={setIsGrantOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Grant lot access</DialogTitle>
+            <DialogTitle>Grant driver access</DialogTitle>
             <DialogDescription>
-              Let this driver enter a restricted lot, optionally for a limited
-              period.
+              Let a driver enter this lot, optionally for a limited period.
             </DialogDescription>
           </DialogHeader>
           {isGrantOpen ? (
             <GrantForm
-              pick="lot"
+              pick="driver"
               onSubmit={handleCreate}
               isSubmitting={createGrantMutation.isPending}
             />

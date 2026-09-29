@@ -13,51 +13,64 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
+import { DriverCombobox } from '@/features/drivers/components/DriverCombobox'
 import { LotCombobox } from '@/features/lots/components/LotCombobox'
 import { useLot } from '@/features/lots/queries'
 import { AccessMode } from '@/features/lots/schemas'
 import { grantFormSchema, type GrantFormInput } from '../schemas'
 
 type Props = {
+  pick: 'lot' | 'driver'
   onSubmit: (values: GrantFormInput) => void
   isSubmitting?: boolean
 }
 
-export function GrantForm({ onSubmit, isSubmitting = false }: Props) {
-  const [lotLabel, setLotLabel] = useState<string | null>(null)
+export function GrantForm({ pick, onSubmit, isSubmitting = false }: Props) {
+  const [targetLabel, setTargetLabel] = useState<string | null>(null)
   const form = useForm<GrantFormInput>({
     resolver: zodResolver(grantFormSchema),
-    defaultValues: { lotId: '', validFrom: '', validTo: '' },
+    defaultValues: { targetId: '', validFrom: '', validTo: '' },
   })
-  const lotId = useWatch({ control: form.control, name: 'lotId' })
-  const { data: selectedLot } = useLot(lotId)
+  const targetId = useWatch({ control: form.control, name: 'targetId' })
+  const { data: selectedLot } = useLot(pick === 'lot' ? targetId : '')
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
-          name="lotId"
+          name="targetId"
           render={({ field, fieldState }) => (
             <FormItem>
-              <FormLabel>Lot</FormLabel>
+              <FormLabel>{pick === 'lot' ? 'Lot' : 'Driver'}</FormLabel>
               <FormControl>
-                <LotCombobox
-                  value={field.value || null}
-                  selectedLabel={lotLabel}
-                  onChange={(option) => {
-                    setLotLabel(option?.label ?? null)
-                    field.onChange(option?.id ?? '')
-                  }}
-                  aria-invalid={fieldState.invalid}
-                />
+                {pick === 'lot' ? (
+                  <LotCombobox
+                    value={field.value || null}
+                    selectedLabel={targetLabel}
+                    onChange={(option) => {
+                      setTargetLabel(option?.label ?? null)
+                      field.onChange(option?.id ?? '')
+                    }}
+                    aria-invalid={fieldState.invalid}
+                  />
+                ) : (
+                  <DriverCombobox
+                    value={field.value || null}
+                    selectedLabel={targetLabel}
+                    onChange={(option) => {
+                      setTargetLabel(option?.label ?? null)
+                      field.onChange(option?.id ?? '')
+                    }}
+                  />
+                )}
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        {selectedLot?.accessMode === AccessMode.Open ? (
+        {pick === 'lot' && selectedLot?.accessMode === AccessMode.Open ? (
           <p className="flex items-start gap-2 rounded-lg border border-info/30 bg-info/10 p-3 text-sm">
             <Info className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
             <span>

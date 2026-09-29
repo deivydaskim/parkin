@@ -16,6 +16,7 @@ import { formatDate } from '@/lib/format'
 import { GrantStatus, type Grant } from '../schemas'
 
 type Props = {
+  subject: 'lot' | 'driver'
   grants: Grant[]
   onRevoke: (grantId: string, onDone: () => void) => void
   isRevoking?: boolean
@@ -28,15 +29,19 @@ function effectiveStatus(grant: Grant): BadgeStatus {
   return 'Active'
 }
 
-export function GrantList({ grants, onRevoke, isRevoking = false, canEdit }: Props) {
+export function GrantList({ subject, grants, onRevoke, isRevoking = false, canEdit }: Props) {
   const [revoking, setRevoking] = useState<Grant | null>(null)
+  const revokeTitle =
+    subject === 'lot'
+      ? `Revoke access to ${revoking?.parkingLotName ?? 'this lot'}?`
+      : `Revoke access for ${revoking?.driverName ?? 'this driver'}?`
 
   return (
     <div className="overflow-hidden rounded-xl border bg-card">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/40 hover:bg-muted/40">
-            <TableHead>Lot</TableHead>
+            <TableHead>{subject === 'lot' ? 'Lot' : 'Driver'}</TableHead>
             <TableHead>Valid</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">
@@ -50,13 +55,23 @@ export function GrantList({ grants, onRevoke, isRevoking = false, canEdit }: Pro
             return (
               <TableRow key={grant.id}>
                 <TableCell className="font-medium">
-                  <Link
-                    to="/lots/$lotId"
-                    params={{ lotId: grant.parkingLotId }}
-                    className="hover:underline"
-                  >
-                    {grant.parkingLotName ?? 'Unknown lot'}
-                  </Link>
+                  {subject === 'lot' ? (
+                    <Link
+                      to="/lots/$lotId"
+                      params={{ lotId: grant.parkingLotId }}
+                      className="hover:underline"
+                    >
+                      {grant.parkingLotName ?? 'Unknown lot'}
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/drivers/$driverId"
+                      params={{ driverId: grant.driverId }}
+                      className="hover:underline"
+                    >
+                      {grant.driverName ?? 'Unknown driver'}
+                    </Link>
+                  )}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground tabular-nums">
                   {formatDate(grant.validFrom)} –{' '}
@@ -90,7 +105,7 @@ export function GrantList({ grants, onRevoke, isRevoking = false, canEdit }: Pro
         onOpenChange={(open) => {
           if (!open) setRevoking(null)
         }}
-        title={`Revoke access to ${revoking?.parkingLotName ?? 'this lot'}?`}
+        title={revokeTitle}
         description="The driver will be denied at this lot's gate from now on, if the lot is restricted. This can't be undone — grant access again instead."
         confirmLabel="Revoke access"
         pendingLabel="Revoking…"

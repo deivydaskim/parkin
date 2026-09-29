@@ -54,6 +54,7 @@ export function useManualEvent(lotId: string) {
       queryClient.invalidateQueries({ queryKey: qk.occupancy.lot(lotId) })
       queryClient.invalidateQueries({ queryKey: qk.occupancy.all() })
       queryClient.invalidateQueries({ queryKey: qk.accessEvents.list(lotId) })
+      queryClient.invalidateQueries({ queryKey: qk.sessions.activeByLot(lotId) })
     },
     onError: (error) => {
       toast.error(parseApiError(error, 'Could not record the event.').message)

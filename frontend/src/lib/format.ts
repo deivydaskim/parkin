@@ -29,6 +29,10 @@ export function formatRelative(value: string | Date) {
   return formatDistanceToNowStrict(new Date(value), { addSuffix: true })
 }
 
+export function formatElapsed(value: string | Date) {
+  return formatDistanceToNowStrict(new Date(value))
+}
+
 export function greetingFor(date: Date) {
   const hour = date.getHours()
   if (hour < 12) return 'Good morning'

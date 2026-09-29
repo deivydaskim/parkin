@@ -11,6 +11,8 @@ import { PageHeader } from '@/components/PageHeader'
 import { StatusBadge } from '@/components/StatusBadge'
 import { RoleGate } from '@/features/auth/components/RoleGate'
 import { useHasRole } from '@/features/auth/permissions'
+import { LotGrantsPanel } from '@/features/grants/components/LotGrantsPanel'
+import { ActiveSessionsPanel } from '@/features/sessions/components/ActiveSessionsPanel'
 import { ManualEntryForm } from '@/features/gate/components/ManualEntryForm'
 import { RecentActivity } from '@/features/gate/components/RecentActivity'
 import { LotActions } from '@/features/lots/components/LotActions'
@@ -25,7 +27,7 @@ import {
   type SpaceFilters,
 } from '@/features/spaces/components/SpacesPanel'
 
-const tabs = ['overview', 'spaces', 'settings'] as const
+const tabs = ['overview', 'spaces', 'vehicles', 'access', 'settings'] as const
 
 const lotSearchSchema = z.object({
   tab: z.enum(tabs).optional().catch(undefined),
@@ -154,6 +156,8 @@ function LotDetailPage() {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="spaces">Spaces</TabsTrigger>
+          <TabsTrigger value="vehicles">Vehicles</TabsTrigger>
+          {canOperate ? <TabsTrigger value="access">Access</TabsTrigger> : null}
           {canOperate ? <TabsTrigger value="settings">Settings</TabsTrigger> : null}
         </TabsList>
 
@@ -202,6 +206,16 @@ function LotDetailPage() {
             canCreate={isActive}
           />
         </TabsContent>
+
+        <TabsContent value="vehicles" className="mt-4">
+          <ActiveSessionsPanel lotId={lotId} />
+        </TabsContent>
+
+        {canOperate ? (
+          <TabsContent value="access" className="mt-4">
+            <LotGrantsPanel lot={lot} canEdit={canOperate} />
+          </TabsContent>
+        ) : null}
 
         {canOperate ? (
           <TabsContent value="settings" className="mt-4">

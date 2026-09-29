@@ -26,8 +26,11 @@ export const qk = {
       ['plates', 'list', driverId, params ?? {}] as const,
   },
   grants: {
-    list: (driverId: string, params?: Record<string, unknown>) =>
-      ['grants', 'list', driverId, params ?? {}] as const,
+    byDriver: (driverId: string, params?: Record<string, unknown>) =>
+      ['grants', 'byDriver', driverId, params ?? {}] as const,
+    byLot: (lotId: string, params?: Record<string, unknown>) =>
+      ['grants', 'byLot', lotId, params ?? {}] as const,
+    all: () => ['grants'] as const,
   },
   apiKeys: {
     list: () => ['apiKeys', 'list'] as const,
@@ -45,6 +48,10 @@ export const qk = {
   occupancy: {
     lot: (lotId: string) => ['occupancy', 'lot', lotId] as const,
     all: () => ['occupancy', 'all'] as const,
+  },
+  sessions: {
+    activeByLot: (lotId: string, params?: Record<string, unknown>) =>
+      ['sessions', 'activeByLot', lotId, params ?? {}] as const,
   },
   accessEvents: {
     list: (lotId: string, params?: Record<string, unknown>) =>

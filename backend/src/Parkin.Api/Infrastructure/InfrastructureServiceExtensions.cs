@@ -4,6 +4,8 @@ using Parkin.Api.ApiKeyFeatures.List;
 using Parkin.Api.AuditFeatures.List;
 using Parkin.Api.DriverFeatures.List;
 using Parkin.Api.GrantFeatures.List;
+using Parkin.Api.GrantFeatures.ListByLot;
+using Parkin.Api.SessionFeatures.ListActiveByLot;
 using Parkin.Api.Domain.Interfaces;
 using Parkin.Api.Domain.Services;
 using Parkin.Api.Infrastructure.Data;
@@ -67,6 +69,8 @@ public static class InfrastructureServiceExtensions
            .AddScoped<ILotLayoutQueryService, LotLayoutQueryService>()
            .AddScoped<IActiveLotOccupancyQueryService, ActiveLotOccupancyQueryService>()
            .AddScoped<IListAccessEventsQueryService, ListAccessEventsQueryService>()
+           .AddScoped<IListActiveSessionsByLotQueryService, ListActiveSessionsByLotQueryService>()
+           .AddScoped<IListGrantsByLotQueryService, ListGrantsByLotQueryService>()
            .AddScoped<IActiveReservationChecker, ActiveReservationChecker>()
            .AddScoped<ILotRowLocker, LotRowLocker>()
            .AddScoped<IUnitOfWork, EfUnitOfWork>();
