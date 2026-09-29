@@ -6,7 +6,7 @@ using Parkin.Api.Domain.ParkingLotAggregate.Specifications;
 using Parkin.Api.Domain.ParkingSessionAggregate;
 using Parkin.Api.Domain.ParkingSessionAggregate.Specifications;
 using Parkin.Api.Domain.Services;
-using Parkin.Api.OccupancyFeatures.GetLotOccupancy;
+using Parkin.Api.Features.Occupancy.GetLotOccupancy;
 using Shouldly;
 using Xunit;
 
@@ -38,7 +38,7 @@ public class GetLotOccupancyHandlerTests
       .Returns(reserved);
   }
 
-  private async Task<Result<Parkin.Api.OccupancyFeatures.LotOccupancyDto>> HandleAsync(ParkingLot lot) =>
+  private async Task<Result<Parkin.Api.Features.Occupancy.LotOccupancyDto>> HandleAsync(ParkingLot lot) =>
     await CreateSut().Handle(new GetLotOccupancyQuery(lot.Id), CancellationToken.None);
 
   private static ParkingLot LotWithSpaces(int general, int reserved)

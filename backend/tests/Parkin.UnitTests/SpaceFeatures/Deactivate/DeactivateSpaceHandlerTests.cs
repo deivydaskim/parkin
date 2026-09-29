@@ -3,8 +3,8 @@ using Ardalis.SharedKernel;
 using NSubstitute;
 using Parkin.Api.Domain.ParkingLotAggregate;
 using Parkin.Api.Domain.ParkingLotAggregate.Specifications;
-using Parkin.Api.SpaceFeatures;
-using Parkin.Api.SpaceFeatures.Deactivate;
+using Parkin.Api.Features.Spaces;
+using Parkin.Api.Features.Spaces.Deactivate;
 using Shouldly;
 using Xunit;
 

@@ -2,9 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Parkin.Api.AuditFeatures.List;
-using Parkin.Api.LotFeatures;
-using Parkin.Api.LotFeatures.Create;
+using Parkin.Api.Features.Audit.List;
+using Parkin.Api.Features.Lots;
+using Parkin.Api.Features.Lots.Create;
 using Shouldly;
 using Xunit;
 

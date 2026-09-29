@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Parkin.Api.Domain.ParkingLotAggregate;
 using Parkin.Api.Domain.ParkingSessionAggregate;
 using Parkin.Api.Domain.Services;
-using Parkin.Api.OccupancyFeatures.ListLotOccupancy;
+using Parkin.Api.Features.Occupancy.ListLotOccupancy;
 
 namespace Parkin.Api.Infrastructure.Data.Queries;
 

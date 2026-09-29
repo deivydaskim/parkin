@@ -2,12 +2,12 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Parkin.Api.AccessEventFeatures;
-using Parkin.Api.ApiKeyFeatures.Create;
+using Parkin.Api.Features.AccessEvents;
+using Parkin.Api.Features.ApiKeys.Create;
 using Parkin.Api.Domain.AccessEventAggregate;
 using Parkin.Api.Domain.Services;
-using Parkin.Api.LotFeatures;
-using Parkin.Api.LotFeatures.Create;
+using Parkin.Api.Features.Lots;
+using Parkin.Api.Features.Lots.Create;
 using Shouldly;
 using Xunit;
 

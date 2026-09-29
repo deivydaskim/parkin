@@ -1,0 +1,15 @@
+namespace Parkin.Api.Features.Spaces;
+
+internal static class SpaceEnumMapping
+{
+  public static SpaceRecord ToRecord(SpaceDto dto) => new(
+    dto.Id.Value,
+    dto.LotId.Value,
+    dto.Label,
+    dto.Type,
+    dto.Status,
+    dto.Zone,
+    SpacePlacementRecord.FromValue(dto.Placement),
+    dto.ReservedDriverId?.Value,
+    dto.ReservedDriverName);
+}

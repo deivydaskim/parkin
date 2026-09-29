@@ -1,5 +1,5 @@
 using Parkin.Api.Infrastructure.Identity;
-using Parkin.Api.UserFeatures.Create;
+using Parkin.Api.Features.Users.Create;
 using Shouldly;
 using Xunit;
 

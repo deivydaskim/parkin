@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using Parkin.Api.AuditFeatures;
-using Parkin.Api.AuditFeatures.List;
+using Parkin.Api.Features.Audit;
+using Parkin.Api.Features.Audit.List;
 using Parkin.Api.Domain.ApiKeyAggregate;
 using Parkin.Api.Domain.AuditAggregate;
 

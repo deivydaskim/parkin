@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Parkin.Api.AccessEventFeatures.List;
+using Parkin.Api.Features.AccessEvents.List;
 using Parkin.Api.Domain.DriverAggregate;
 using Parkin.Api.Domain.ParkingLotAggregate;
 

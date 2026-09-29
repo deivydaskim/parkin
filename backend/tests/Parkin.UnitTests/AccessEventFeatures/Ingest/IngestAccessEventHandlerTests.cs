@@ -1,7 +1,7 @@
 using Ardalis.Result;
 using Ardalis.SharedKernel;
 using NSubstitute;
-using Parkin.Api.AccessEventFeatures.Ingest;
+using Parkin.Api.Features.AccessEvents.Ingest;
 using Parkin.Api.Domain.AccessEventAggregate;
 using Parkin.Api.Domain.AccessEventAggregate.Specifications;
 using Parkin.Api.Domain.AccessGrantAggregate;

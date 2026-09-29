@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Parkin.Api.Domain.DriverAggregate;
-using Parkin.Api.DriverFeatures;
-using Parkin.Api.DriverFeatures.List;
+using Parkin.Api.Features.Drivers;
+using Parkin.Api.Features.Drivers.List;
 
 namespace Parkin.Api.Infrastructure.Data.Queries;
 

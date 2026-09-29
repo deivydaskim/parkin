@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Parkin.Api.Domain.ParkingLotAggregate;
-using Parkin.Api.GrantFeatures;
-using Parkin.Api.GrantFeatures.ListByLot;
+using Parkin.Api.Features.Grants;
+using Parkin.Api.Features.Grants.ListByLot;
 
 namespace Parkin.Api.Infrastructure.Data.Queries;
 

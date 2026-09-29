@@ -3,8 +3,8 @@ using NSubstitute;
 using Parkin.Api.Domain.DriverAggregate;
 using Parkin.Api.Domain.ParkingLotAggregate;
 using Parkin.Api.Domain.ReservationAggregate;
-using Parkin.Api.LotLayoutFeatures;
-using Parkin.Api.LotLayoutFeatures.Get;
+using Parkin.Api.Features.LotLayouts;
+using Parkin.Api.Features.LotLayouts.Get;
 using Shouldly;
 using Xunit;
 

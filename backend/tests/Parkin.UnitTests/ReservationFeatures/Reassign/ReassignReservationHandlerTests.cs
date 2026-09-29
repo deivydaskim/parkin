@@ -7,7 +7,7 @@ using Parkin.Api.Domain.Interfaces;
 using Parkin.Api.Domain.ParkingLotAggregate;
 using Parkin.Api.Domain.ReservationAggregate;
 using Parkin.Api.Domain.ReservationAggregate.Specifications;
-using Parkin.Api.ReservationFeatures.Reassign;
+using Parkin.Api.Features.Reservations.Reassign;
 using Shouldly;
 using Xunit;
 

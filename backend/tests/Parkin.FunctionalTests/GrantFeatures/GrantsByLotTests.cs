@@ -4,11 +4,11 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Parkin.Api.Domain.AccessGrantAggregate;
 using Parkin.Api.Domain.ParkingLotAggregate;
-using Parkin.Api.DriverFeatures;
-using Parkin.Api.GrantFeatures;
-using Parkin.Api.GrantFeatures.List;
-using Parkin.Api.LotFeatures;
-using Parkin.Api.LotFeatures.Create;
+using Parkin.Api.Features.Drivers;
+using Parkin.Api.Features.Grants;
+using Parkin.Api.Features.Grants.List;
+using Parkin.Api.Features.Lots;
+using Parkin.Api.Features.Lots.Create;
 using Shouldly;
 using Xunit;
 

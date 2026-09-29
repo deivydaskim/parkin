@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using Parkin.Api.AccessEventFeatures;
-using Parkin.Api.AccessEventFeatures.Ingest;
+using Parkin.Api.Features.AccessEvents;
+using Parkin.Api.Features.AccessEvents.Ingest;
 using Parkin.Api.Domain.AccessEventAggregate;
 using Parkin.Api.Domain.AccessGrantAggregate;
 using Parkin.Api.Domain.AuditAggregate;

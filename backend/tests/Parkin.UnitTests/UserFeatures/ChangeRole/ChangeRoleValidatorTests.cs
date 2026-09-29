@@ -1,5 +1,5 @@
 using Parkin.Api.Infrastructure.Identity;
-using Parkin.Api.UserFeatures.ChangeRole;
+using Parkin.Api.Features.Users.ChangeRole;
 using Shouldly;
 using Xunit;
 

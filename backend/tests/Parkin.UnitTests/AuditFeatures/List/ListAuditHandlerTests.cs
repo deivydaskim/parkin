@@ -1,7 +1,7 @@
 using NSubstitute;
 using Parkin.Api;
-using Parkin.Api.AuditFeatures;
-using Parkin.Api.AuditFeatures.List;
+using Parkin.Api.Features.Audit;
+using Parkin.Api.Features.Audit.List;
 using Parkin.Api.Domain.AuditAggregate;
 using Shouldly;
 using Xunit;

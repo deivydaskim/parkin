@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using Parkin.Api.UserFeatures;
-using Parkin.Api.UserFeatures.List;
+using Parkin.Api.Features.Users;
+using Parkin.Api.Features.Users.List;
 
 namespace Parkin.Api.Infrastructure.Data.Queries;
 
