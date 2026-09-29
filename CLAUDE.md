@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - `backend/` — .NET 10 solution (`Parkin.slnx`). All current backend code lives here. Run backend commands from this directory.
 - `frontend/` — the operator console SPA (Vite + React 19 + TypeScript, TanStack Router/Query, Tailwind v4 + shadcn/ui, axios, Zod). The `_authenticated` layout is a collapsible sidebar shell (`components/layout/`) with breadcrumbs driven by each route's `staticData.crumb`. Screens: dashboard, gate console, lots (+ spaces, 3D layout), drivers (+ plates, grants), and SystemAdmin-only staff / API keys / audit log. Shared building blocks (`PageHeader`, `EmptyState`, `ConfirmDialog`, `StatusBadge`, `SearchInput`, `DataTablePagination`, `EntityCombobox`, …) live in `src/components/`; design tokens (incl. `success`/`warning`/`info`) in `src/styles/globals.css`. List filters live in the URL via `validateSearch`. Run frontend commands (`pnpm dev`, etc.) from this directory.
+- `gate/` — the gate simulator demo (Vite + React 19 + Tailwind v4, port 5174): a fake plate-reader gate that calls the real `POST /api/v1/access-events` through a Vite proxy that injects `X-Api-Key`. Run `pnpm gate:setup` (creates the API key, demo plates and `.env.local`; needs the API running) and `pnpm dev` from this directory.
 
 ### Project docs & specs
 
