@@ -1,9 +1,9 @@
-using System.Security.Claims;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.DriverAggregate;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Plates.Reassign;
 
@@ -15,8 +15,8 @@ public sealed class ReassignPlateRequest
   public Guid TargetDriverId { get; init; }
 }
 
-public class ReassignPlateEndpoint(IMediator mediator)
-  : Endpoint<ReassignPlateRequest, Results<Ok<PlateRecord>, ValidationProblem, NotFound, ProblemHttpResult>>
+public class ReassignPlateEndpoint(IMediator mediator, ICurrentUser currentUser)
+  : Endpoint<ReassignPlateRequest, Results<Ok<PlateResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
@@ -36,34 +36,20 @@ public class ReassignPlateEndpoint(IMediator mediator)
 
     Description(builder => builder
       .Accepts<ReassignPlateRequest>()
-      .Produces<PlateRecord>(200, "application/json")
+      .Produces<PlateResponse>(200, "application/json")
       .ProducesProblem(400)
       .ProducesProblem(404));
   }
 
-  public override async Task<Results<Ok<PlateRecord>, ValidationProblem, NotFound, ProblemHttpResult>>
+  public override async Task<Results<Ok<PlateResponse>, ValidationProblem, ProblemHttpResult>>
     ExecuteAsync(ReassignPlateRequest request, CancellationToken cancellationToken)
   {
-    var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-    var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
     var command = new ReassignPlateCommand(
-      PlateId.From(request.PlateId), DriverId.From(request.TargetDriverId), actorId);
+      PlateId.From(request.PlateId), DriverId.From(request.TargetDriverId), currentUser.Id);
 
     var result = await mediator.Send(command, cancellationToken);
 
-    return result.Status switch
-    {
-      ResultStatus.Ok => TypedResults.Ok(PlateMapping.ToRecord(result.Value)),
-      ResultStatus.NotFound => TypedResults.NotFound(),
-      ResultStatus.Invalid => TypedResults.ValidationProblem(
-        result.ValidationErrors
-          .GroupBy(e => e.Identifier ?? string.Empty)
-          .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray())),
-      _ => TypedResults.Problem(
-        title: "Reassign failed",
-        detail: string.Join("; ", result.Errors),
-        statusCode: StatusCodes.Status400BadRequest)
-    };
+    return result.ToOkResult(plate => plate);
   }
 }
 

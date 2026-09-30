@@ -1,11 +1,10 @@
-using System.Security.Claims;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.DriverAggregate;
 using Parkin.Api.Domain.ReservationAggregate;
-using Parkin.Api.Extensions;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Reservations.Reassign;
 
@@ -17,8 +16,8 @@ public sealed class ReassignReservationRequest
   public Guid DriverId { get; init; }
 }
 
-public class ReassignReservationEndpoint(IMediator mediator)
-  : Endpoint<ReassignReservationRequest, Results<Ok<ReservationRecord>, ValidationProblem, NotFound, ProblemHttpResult>>
+public class ReassignReservationEndpoint(IMediator mediator, ICurrentUser currentUser)
+  : Endpoint<ReassignReservationRequest, Results<Ok<ReservationResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
@@ -41,25 +40,23 @@ public class ReassignReservationEndpoint(IMediator mediator)
 
     Description(builder => builder
       .Accepts<ReassignReservationRequest>()
-      .Produces<ReservationRecord>(200, "application/json")
+      .Produces<ReservationResponse>(200, "application/json")
       .ProducesProblem(400)
       .ProducesProblem(404)
       .ProducesProblem(409));
   }
 
-  public override async Task<Results<Ok<ReservationRecord>, ValidationProblem, NotFound, ProblemHttpResult>>
+  public override async Task<Results<Ok<ReservationResponse>, ValidationProblem, ProblemHttpResult>>
     ExecuteAsync(ReassignReservationRequest request, CancellationToken cancellationToken)
   {
-    var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-    var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
     var command = new ReassignReservationCommand(
       ReservationId.From(request.ReservationId),
       DriverId.From(request.DriverId),
-      actorId);
+      currentUser.Id);
 
     var result = await mediator.Send(command, cancellationToken);
 
-    return result.ToOkOrConflictResult(ReservationMapping.ToRecord);
+    return result.ToOkResult(reservation => reservation);
   }
 }
 

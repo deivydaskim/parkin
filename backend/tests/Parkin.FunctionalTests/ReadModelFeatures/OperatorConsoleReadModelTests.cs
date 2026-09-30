@@ -10,7 +10,7 @@ using Parkin.Api.Domain.ParkingLotAggregate;
 using Parkin.Api.Domain.Services;
 using Parkin.Api.Features.Drivers;
 using Parkin.Api.Features.Drivers.List;
-using Parkin.Api.Features.Grants.List;
+using Parkin.Api.Features.Grants;
 using Parkin.Api.Features.Lots;
 using Parkin.Api.Features.Lots.List;
 using Parkin.Api.Features.Occupancy;
@@ -73,11 +73,11 @@ public class OperatorConsoleReadModelTests : IClassFixture<ParkinApiFactory>
     return space;
   }
 
-  private static async Task<DriverRecord> CreateDriverAsync(HttpClient client, string name, string? plate = null)
+  private static async Task<DriverResponse> CreateDriverAsync(HttpClient client, string name, string? plate = null)
   {
     var response = await client.PostAsJsonAsync("/drivers", new { Name = name });
     response.EnsureSuccessStatusCode();
-    var driver = await response.Content.ReadFromJsonAsync<DriverRecord>(JsonOptions);
+    var driver = await response.Content.ReadFromJsonAsync<DriverResponse>(JsonOptions);
     driver.ShouldNotBeNull();
 
     if (plate is not null)

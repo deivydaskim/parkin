@@ -2,7 +2,6 @@ namespace Parkin.Api.Domain.DriverAggregate;
 
 public class Plate : EntityBase<Plate, PlateId>
 {
-  // Private constructor for EF Core
   private Plate() { }
 
   private Plate(PlateId id, DriverId driverId, string normalizedPlateNumber)

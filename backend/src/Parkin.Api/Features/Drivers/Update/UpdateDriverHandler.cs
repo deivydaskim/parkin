@@ -7,22 +7,19 @@ public record UpdateDriverCommand(
   DriverId DriverId,
   string? Name,
   string? Contact,
-  Guid? ActorId) : ICommand<Result<DriverDto>>;
+  Guid? ActorId) : ICommand<Result<DriverResponse>>;
 
 public class UpdateDriverHandler(IRepository<Driver> repository)
-  : ICommandHandler<UpdateDriverCommand, Result<DriverDto>>
+  : ICommandHandler<UpdateDriverCommand, Result<DriverResponse>>
 {
-  public async ValueTask<Result<DriverDto>> Handle(UpdateDriverCommand request, CancellationToken cancellationToken)
+  public async ValueTask<Result<DriverResponse>> Handle(UpdateDriverCommand request, CancellationToken cancellationToken)
   {
     var driver = await repository.FirstOrDefaultAsync(new DriverByIdSpec(request.DriverId), cancellationToken);
-    if (driver == null) return Result.NotFound();
+    if (driver is null) return Result.NotFound();
 
-    var name = request.Name ?? driver.Name;
-    var contact = request.Contact ?? driver.Contact;
-    driver.UpdateDetails(name, contact, request.ActorId);
-
+    driver.UpdateDetails(request.Name ?? driver.Name, request.Contact ?? driver.Contact, request.ActorId);
     await repository.UpdateAsync(driver, cancellationToken);
 
-    return new DriverDto(driver.Id, driver.Name, driver.Contact, driver.Status, driver.Plates.Count);
+    return DriverResponse.From(driver);
   }
 }

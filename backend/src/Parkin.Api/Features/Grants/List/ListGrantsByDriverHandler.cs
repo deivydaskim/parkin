@@ -2,19 +2,13 @@ using Parkin.Api.Domain.DriverAggregate;
 
 namespace Parkin.Api.Features.Grants.List;
 
-public record ListGrantsByDriverQuery(DriverId DriverId, int? Page = 1, int? PerPage = Constants.DEFAULT_PAGE_SIZE)
-  : IQuery<Result<PagedResult<GrantDto>>>;
+public record ListGrantsByDriverQuery(DriverId DriverId, int Page, int PerPage)
+  : IQuery<Result<PagedResult<GrantResponse>>>;
 
 public class ListGrantsByDriverHandler(IListGrantsByDriverQueryService query)
-  : IQueryHandler<ListGrantsByDriverQuery, Result<PagedResult<GrantDto>>>
+  : IQueryHandler<ListGrantsByDriverQuery, Result<PagedResult<GrantResponse>>>
 {
-  private readonly IListGrantsByDriverQueryService _query = query;
-
-  public async ValueTask<Result<PagedResult<GrantDto>>> Handle(ListGrantsByDriverQuery request,
-                                                                 CancellationToken cancellationToken)
-  {
-    var result = await _query.ListAsync(request.DriverId, request.Page ?? 1, request.PerPage ?? Constants.DEFAULT_PAGE_SIZE);
-
-    return Result.Success(result);
-  }
+  public async ValueTask<Result<PagedResult<GrantResponse>>> Handle(ListGrantsByDriverQuery request,
+    CancellationToken cancellationToken)
+    => await query.ListAsync(request.DriverId, request.Page, request.PerPage, cancellationToken);
 }

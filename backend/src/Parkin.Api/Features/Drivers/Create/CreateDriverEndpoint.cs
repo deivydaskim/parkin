@@ -1,24 +1,25 @@
-using System.Security.Claims;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
-using Parkin.Api.Extensions;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Drivers.Create;
 
 public sealed class CreateDriverRequest
 {
+  public const string Route = "/drivers";
+
   public string Name { get; init; } = string.Empty;
   public string? Contact { get; init; }
 }
 
-public class CreateDriverEndpoint(IMediator mediator)
-  : Endpoint<CreateDriverRequest, Results<Created<DriverRecord>, ValidationProblem, ProblemHttpResult>>
+public class CreateDriverEndpoint(IMediator mediator, ICurrentUser currentUser)
+  : Endpoint<CreateDriverRequest, Results<Created<DriverResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
-    Post("/drivers");
+    Post(CreateDriverRequest.Route);
     Roles(AccessPolicies.OperatorOrAbove);
 
     Summary(s =>
@@ -33,22 +34,17 @@ public class CreateDriverEndpoint(IMediator mediator)
 
     Description(builder => builder
       .Accepts<CreateDriverRequest>()
-      .Produces<DriverRecord>(201, "application/json")
+      .Produces<DriverResponse>(201, "application/json")
       .ProducesProblem(400));
   }
 
-  public override async Task<Results<Created<DriverRecord>, ValidationProblem, ProblemHttpResult>>
+  public override async Task<Results<Created<DriverResponse>, ValidationProblem, ProblemHttpResult>>
     ExecuteAsync(CreateDriverRequest request, CancellationToken cancellationToken)
   {
-    var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-    var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
-    var command = new CreateDriverCommand(request.Name, request.Contact, actorId);
+    var result = await mediator.Send(
+      new CreateDriverCommand(request.Name, request.Contact, currentUser.Id), cancellationToken);
 
-    var result = await mediator.Send(command, cancellationToken);
-
-    return result.ToCreatedResult(
-      driver => $"/drivers/{driver.Id.Value}",
-      DriverMapping.ToRecord);
+    return result.ToCreatedResult(driver => $"/drivers/{driver.Id}", driver => driver);
   }
 }
 

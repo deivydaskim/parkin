@@ -1,10 +1,9 @@
-using System.Security.Claims;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.AccessGrantAggregate;
-using Parkin.Api.Extensions;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Grants.Revoke;
 
@@ -14,8 +13,8 @@ public sealed class RevokeGrantRequest
   public Guid GrantId { get; init; }
 }
 
-public class RevokeGrantEndpoint(IMediator mediator)
-  : Endpoint<RevokeGrantRequest, Results<Ok<GrantRecord>, NotFound, ProblemHttpResult>>
+public class RevokeGrantEndpoint(IMediator mediator, ICurrentUser currentUser)
+  : Endpoint<RevokeGrantRequest, Results<Ok<GrantResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
@@ -27,6 +26,7 @@ public class RevokeGrantEndpoint(IMediator mediator)
       s.Summary = "Revoke an access grant";
       s.Description = "Revokes a driver's access grant to a lot. Takes effect on the next access event.";
       s.Responses[200] = "Grant revoked successfully";
+      s.Responses[400] = "Grant is already revoked";
       s.Responses[404] = "Grant with specified ID not found";
     });
 
@@ -34,18 +34,18 @@ public class RevokeGrantEndpoint(IMediator mediator)
 
     Description(builder => builder
       .Accepts<RevokeGrantRequest>()
-      .Produces<GrantRecord>(200, "application/json")
+      .Produces<GrantResponse>(200, "application/json")
+      .ProducesProblem(400)
       .ProducesProblem(404));
   }
 
-  public override async Task<Results<Ok<GrantRecord>, NotFound, ProblemHttpResult>>
+  public override async Task<Results<Ok<GrantResponse>, ValidationProblem, ProblemHttpResult>>
     ExecuteAsync(RevokeGrantRequest request, CancellationToken cancellationToken)
   {
-    var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-    var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
-    var result = await mediator.Send(new RevokeGrantCommand(AccessGrantId.From(request.GrantId), actorId), cancellationToken);
+    var result = await mediator.Send(
+      new RevokeGrantCommand(AccessGrantId.From(request.GrantId), currentUser.Id), cancellationToken);
 
-    return result.ToUpdateResult(GrantMapping.ToRecord);
+    return result.ToOkResult(grant => grant);
   }
 }
 

@@ -1,10 +1,9 @@
-using System.Security.Claims;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.DriverAggregate;
-using Parkin.Api.Extensions;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Plates.Reactivate;
 
@@ -14,8 +13,8 @@ public sealed class ReactivatePlateRequest
   public Guid PlateId { get; init; }
 }
 
-public class ReactivatePlateEndpoint(IMediator mediator)
-  : Endpoint<ReactivatePlateRequest, Results<Ok<PlateRecord>, NotFound, ProblemHttpResult>>
+public class ReactivatePlateEndpoint(IMediator mediator, ICurrentUser currentUser)
+  : Endpoint<ReactivatePlateRequest, Results<Ok<PlateResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
@@ -25,29 +24,26 @@ public class ReactivatePlateEndpoint(IMediator mediator)
     Summary(s =>
     {
       s.Summary = "Reactivate a plate";
-      s.Description = "Reactivates a deactivated plate. Fails if another plate already holds the same normalized number — deactivate that one first.";
+      s.Description = "Reactivates a deactivated plate. Plate numbers stay unique while inactive, so no other plate can hold the same number.";
       s.Responses[200] = "Plate reactivated successfully";
       s.Responses[404] = "Plate with specified ID not found";
-      s.Responses[400] = "A plate with this number already exists";
     });
 
     Tags("Drivers");
 
     Description(builder => builder
       .Accepts<ReactivatePlateRequest>()
-      .Produces<PlateRecord>(200, "application/json")
-      .ProducesProblem(404)
-      .ProducesProblem(400));
+      .Produces<PlateResponse>(200, "application/json")
+      .ProducesProblem(404));
   }
 
-  public override async Task<Results<Ok<PlateRecord>, NotFound, ProblemHttpResult>>
+  public override async Task<Results<Ok<PlateResponse>, ValidationProblem, ProblemHttpResult>>
     ExecuteAsync(ReactivatePlateRequest request, CancellationToken cancellationToken)
   {
-    var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-    var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
-    var result = await mediator.Send(new ReactivatePlateCommand(PlateId.From(request.PlateId), actorId), cancellationToken);
+    var result = await mediator.Send(
+      new ReactivatePlateCommand(PlateId.From(request.PlateId), currentUser.Id), cancellationToken);
 
-    return result.ToUpdateResult(PlateMapping.ToRecord);
+    return result.ToOkResult(plate => plate);
   }
 }
 

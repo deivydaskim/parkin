@@ -1,9 +1,10 @@
-using System.Security.Claims;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
-using Parkin.Api.Extensions;
+using Parkin.Api.Domain.DriverAggregate;
+using Parkin.Api.Domain.ParkingLotAggregate;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Reservations.Create;
 
@@ -15,8 +16,8 @@ public sealed class CreateReservationRequest
   public Guid DriverId { get; init; }
 }
 
-public class CreateReservationEndpoint(IMediator mediator)
-  : Endpoint<CreateReservationRequest, Results<Created<ReservationRecord>, ValidationProblem, ProblemHttpResult>>
+public class CreateReservationEndpoint(IMediator mediator, ICurrentUser currentUser)
+  : Endpoint<CreateReservationRequest, Results<Created<ReservationResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
@@ -37,27 +38,23 @@ public class CreateReservationEndpoint(IMediator mediator)
 
     Description(builder => builder
       .Accepts<CreateReservationRequest>()
-      .Produces<ReservationRecord>(201, "application/json")
+      .Produces<ReservationResponse>(201, "application/json")
       .ProducesProblem(400)
       .ProducesProblem(404)
       .ProducesProblem(409));
   }
 
-  public override async Task<Results<Created<ReservationRecord>, ValidationProblem, ProblemHttpResult>>
+  public override async Task<Results<Created<ReservationResponse>, ValidationProblem, ProblemHttpResult>>
     ExecuteAsync(CreateReservationRequest request, CancellationToken cancellationToken)
   {
-    var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-    var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
     var command = new CreateReservationCommand(
-      Domain.ParkingLotAggregate.ParkingSpaceId.From(request.SpaceId),
-      Domain.DriverAggregate.DriverId.From(request.DriverId),
-      actorId);
+      ParkingSpaceId.From(request.SpaceId),
+      DriverId.From(request.DriverId),
+      currentUser.Id);
 
     var result = await mediator.Send(command, cancellationToken);
 
-    return result.ToCreatedOrConflictResult(
-      reservation => $"/reservations/{reservation.Id.Value}",
-      ReservationMapping.ToRecord);
+    return result.ToCreatedResult(reservation => $"/reservations/{reservation.Id}", reservation => reservation);
   }
 }
 

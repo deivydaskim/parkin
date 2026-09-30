@@ -1,9 +1,10 @@
-using System.Security.Claims;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
-using Parkin.Api.Extensions;
+using Parkin.Api.Domain.DriverAggregate;
+using Parkin.Api.Domain.ParkingLotAggregate;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Grants.Create;
 
@@ -17,8 +18,8 @@ public sealed class CreateGrantRequest
   public DateTimeOffset? ValidTo { get; init; }
 }
 
-public class CreateGrantEndpoint(IMediator mediator)
-  : Endpoint<CreateGrantRequest, Results<Created<GrantRecord>, ValidationProblem, ProblemHttpResult>>
+public class CreateGrantEndpoint(IMediator mediator, ICurrentUser currentUser)
+  : Endpoint<CreateGrantRequest, Results<Created<GrantResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
@@ -32,34 +33,32 @@ public class CreateGrantEndpoint(IMediator mediator)
       s.Responses[201] = "Grant created successfully";
       s.Responses[400] = "Invalid request data, lot is not active, or an active grant already exists for this driver and lot";
       s.Responses[404] = "Driver or lot with specified ID not found";
+      s.Responses[409] = "An active grant for this driver and lot was created concurrently by another request";
     });
 
     Tags("Grants");
 
     Description(builder => builder
       .Accepts<CreateGrantRequest>()
-      .Produces<GrantRecord>(201, "application/json")
+      .Produces<GrantResponse>(201, "application/json")
       .ProducesProblem(400)
-      .ProducesProblem(404));
+      .ProducesProblem(404)
+      .ProducesProblem(409));
   }
 
-  public override async Task<Results<Created<GrantRecord>, ValidationProblem, ProblemHttpResult>>
+  public override async Task<Results<Created<GrantResponse>, ValidationProblem, ProblemHttpResult>>
     ExecuteAsync(CreateGrantRequest request, CancellationToken cancellationToken)
   {
-    var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-    var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
     var command = new CreateGrantCommand(
-      Domain.DriverAggregate.DriverId.From(request.DriverId),
-      Domain.ParkingLotAggregate.ParkingLotId.From(request.LotId),
+      DriverId.From(request.DriverId),
+      ParkingLotId.From(request.LotId),
       request.ValidFrom,
       request.ValidTo,
-      actorId);
+      currentUser.Id);
 
     var result = await mediator.Send(command, cancellationToken);
 
-    return result.ToCreatedResult(
-      grant => $"/grants/{grant.Id.Value}",
-      GrantMapping.ToRecord);
+    return result.ToCreatedResult(grant => $"/grants/{grant.Id}", grant => grant);
   }
 }
 

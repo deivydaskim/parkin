@@ -3,30 +3,25 @@ using Parkin.Api.Domain.DriverAggregate.Specifications;
 
 namespace Parkin.Api.Features.Plates.Reassign;
 
-public record ReassignPlateCommand(PlateId PlateId, DriverId TargetDriverId, Guid? ActorId) : ICommand<Result<PlateDto>>;
+public record ReassignPlateCommand(PlateId PlateId, DriverId TargetDriverId, Guid? ActorId)
+  : ICommand<Result<PlateResponse>>;
 
 public class ReassignPlateHandler(IRepository<Driver> repository)
-  : ICommandHandler<ReassignPlateCommand, Result<PlateDto>>
+  : ICommandHandler<ReassignPlateCommand, Result<PlateResponse>>
 {
-  public async ValueTask<Result<PlateDto>> Handle(ReassignPlateCommand request, CancellationToken cancellationToken)
+  public async ValueTask<Result<PlateResponse>> Handle(ReassignPlateCommand request, CancellationToken cancellationToken)
   {
     var sourceDriver = await repository.FirstOrDefaultAsync(new DriverByPlateIdSpec(request.PlateId), cancellationToken);
-    if (sourceDriver == null) return Result.NotFound();
+    if (sourceDriver is null) return Result.NotFound();
 
-    if (sourceDriver.Id == request.TargetDriverId)
-    {
-      return Result.Invalid(new ValidationError("TargetDriverId", "Plate already belongs to this driver"));
-    }
+    var targetDriver = sourceDriver.Id == request.TargetDriverId
+      ? sourceDriver
+      : await repository.FirstOrDefaultAsync(new DriverByIdSpec(request.TargetDriverId), cancellationToken);
+    if (targetDriver is null) return Result.NotFound();
 
-    var targetDriver = await repository.FirstOrDefaultAsync(new DriverByIdSpec(request.TargetDriverId), cancellationToken);
-    if (targetDriver == null) return Result.NotFound();
+    var result = sourceDriver.TransferPlate(request.PlateId, targetDriver, request.ActorId);
+    if (result.IsSuccess) await repository.SaveChangesAsync(cancellationToken);
 
-    var fromDriverId = sourceDriver.Id;
-    var plate = sourceDriver.RemovePlateForReassignment(request.PlateId);
-    targetDriver.ReceivePlate(plate, fromDriverId, request.ActorId);
-
-    await repository.SaveChangesAsync(cancellationToken);
-
-    return new PlateDto(plate.Id, plate.DriverId, plate.NormalizedPlateNumber, plate.Status);
+    return result.Map(PlateResponse.From);
   }
 }

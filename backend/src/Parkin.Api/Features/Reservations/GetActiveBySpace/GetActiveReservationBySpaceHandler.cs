@@ -4,17 +4,17 @@ using Parkin.Api.Domain.ReservationAggregate.Specifications;
 
 namespace Parkin.Api.Features.Reservations.GetActiveBySpace;
 
-public record GetActiveReservationBySpaceQuery(ParkingSpaceId SpaceId) : IQuery<Result<ReservationDto?>>;
+public record GetActiveReservationBySpaceQuery(ParkingSpaceId SpaceId) : IQuery<ReservationResponse?>;
 
 public class GetActiveReservationBySpaceHandler(IReadRepository<Reservation> repository)
-  : IQueryHandler<GetActiveReservationBySpaceQuery, Result<ReservationDto?>>
+  : IQueryHandler<GetActiveReservationBySpaceQuery, ReservationResponse?>
 {
-  public async ValueTask<Result<ReservationDto?>> Handle(GetActiveReservationBySpaceQuery request, CancellationToken cancellationToken)
+  public async ValueTask<ReservationResponse?> Handle(GetActiveReservationBySpaceQuery request,
+    CancellationToken cancellationToken)
   {
-    var reservation = await repository.FirstOrDefaultAsync(new ActiveReservationBySpaceSpec(request.SpaceId), cancellationToken);
-    if (reservation == null) return Result.Success<ReservationDto?>(null);
+    var reservation = await repository.FirstOrDefaultAsync(
+      new ActiveReservationBySpaceSpec(request.SpaceId), cancellationToken);
 
-    return Result.Success<ReservationDto?>(
-      new ReservationDto(reservation.Id, reservation.SpaceId, reservation.DriverId, reservation.LotId, reservation.Status));
+    return reservation is null ? null : ReservationResponse.From(reservation);
   }
 }
