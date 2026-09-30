@@ -1,10 +1,12 @@
 using FastEndpoints;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Occupancy.ListLotOccupancy;
 
 public class ListLotOccupancyEndpoint(IMediator mediator)
-  : EndpointWithoutRequest<IReadOnlyList<LotOccupancyRecord>>
+  : EndpointWithoutRequest<Results<Ok<IReadOnlyList<LotOccupancyResponse>>, ValidationProblem, ProblemHttpResult>>
 {
   public const string Route = "/occupancy";
 
@@ -24,14 +26,14 @@ public class ListLotOccupancyEndpoint(IMediator mediator)
     Tags("Occupancy");
 
     Description(builder => builder
-      .Produces<IReadOnlyList<LotOccupancyRecord>>(200, "application/json"));
+      .Produces<IReadOnlyList<LotOccupancyResponse>>(200, "application/json"));
   }
 
-  public override async Task HandleAsync(CancellationToken cancellationToken)
+  public override async Task<Results<Ok<IReadOnlyList<LotOccupancyResponse>>, ValidationProblem, ProblemHttpResult>>
+    ExecuteAsync(CancellationToken cancellationToken)
   {
     var result = await mediator.Send(new ListLotOccupancyQuery(), cancellationToken);
 
-    var records = result.Value.Select(OccupancyMapping.ToRecord).ToList();
-    await Send.OkAsync(records, cancellationToken);
+    return result.ToOkResult(occupancies => occupancies);
   }
 }

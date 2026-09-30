@@ -2,13 +2,6 @@ using Parkin.Api.Domain.ParkingLotAggregate;
 
 namespace Parkin.Api.Domain.Services;
 
-// Materialized, I/O-free snapshot of everything EntryDecisionService needs to decide an
-// ENTER attempt for one plate at one lot, at one instant. The future T5.2 handler resolves
-// plate -> driver/grant/reservation/active-GENERAL-count from the DB and builds this via Create.
-//
-// HasActiveGrant / HasActiveReservation are already filtered to "currently active": an expired
-// or revoked grant, and a cancelled reservation, both collapse to false here - the boolean makes
-// no distinction between "never existed" and "no longer active", by design (see T5.1 notes).
 public sealed record EntryDecisionContext
 {
   public bool IsPlateKnown { get; private init; }

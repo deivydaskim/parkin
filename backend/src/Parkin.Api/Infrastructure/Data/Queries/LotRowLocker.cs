@@ -6,7 +6,7 @@ namespace Parkin.Api.Infrastructure.Data.Queries;
 
 public class LotRowLocker(AppDbContext dbContext) : ILotRowLocker
 {
-  // Only meaningful inside a transaction - the lock is held until commit/rollback.
+  // The lock is held until the ambient transaction commits or rolls back; outside one it is released immediately.
   public Task LockAsync(ParkingLotId lotId, CancellationToken cancellationToken)
     => dbContext.Database.ExecuteSqlAsync(
       $"SELECT 1 FROM \"ParkingLots\" WHERE \"Id\" = {lotId.Value} FOR UPDATE", cancellationToken);

@@ -122,11 +122,11 @@ public class LotOccupancyTests : IClassFixture<ParkinApiFactory>
     response.StatusCode.ShouldBe(HttpStatusCode.OK);
   }
 
-  private static async Task<LotOccupancyRecord> GetOccupancyAsync(HttpClient client, Guid lotId)
+  private static async Task<LotOccupancyResponse> GetOccupancyAsync(HttpClient client, Guid lotId)
   {
     var response = await client.GetAsync(OccupancyRoute(lotId));
     response.StatusCode.ShouldBe(HttpStatusCode.OK);
-    var occupancy = await response.Content.ReadFromJsonAsync<LotOccupancyRecord>(JsonOptions);
+    var occupancy = await response.Content.ReadFromJsonAsync<LotOccupancyResponse>(JsonOptions);
     occupancy.ShouldNotBeNull();
     return occupancy;
   }

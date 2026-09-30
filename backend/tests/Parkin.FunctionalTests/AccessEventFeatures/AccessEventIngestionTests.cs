@@ -158,7 +158,7 @@ public class AccessEventIngestionTests : IClassFixture<ParkinApiFactory>
       EnterBody(Guid.NewGuid(), "GHOSTLOT 1")));
 
     response.StatusCode.ShouldBe(HttpStatusCode.OK);
-    var decision = await response.Content.ReadFromJsonAsync<AccessEventDecisionRecord>(JsonOptions);
+    var decision = await response.Content.ReadFromJsonAsync<AccessEventDecisionResponse>(JsonOptions);
     decision.ShouldNotBeNull();
     decision.Decision.ShouldBe(Decision.Deny);
     decision.Reason.ShouldBe(DenyReason.LotNotFound);
@@ -181,7 +181,7 @@ public class AccessEventIngestionTests : IClassFixture<ParkinApiFactory>
     var enterResponse = await gate.SendAsync(GateRequest(apiKey, enterKey, EnterBody(lotId, plate)));
 
     enterResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-    var entered = await enterResponse.Content.ReadFromJsonAsync<AccessEventDecisionRecord>(JsonOptions);
+    var entered = await enterResponse.Content.ReadFromJsonAsync<AccessEventDecisionResponse>(JsonOptions);
     entered.ShouldNotBeNull();
     entered.Decision.ShouldBe(Decision.Allow);
     entered.Pool.ShouldBe(SessionPool.General);
@@ -189,7 +189,7 @@ public class AccessEventIngestionTests : IClassFixture<ParkinApiFactory>
 
     var replayResponse = await gate.SendAsync(GateRequest(apiKey, enterKey, EnterBody(lotId, plate)));
     replayResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-    var replayed = await replayResponse.Content.ReadFromJsonAsync<AccessEventDecisionRecord>(JsonOptions);
+    var replayed = await replayResponse.Content.ReadFromJsonAsync<AccessEventDecisionResponse>(JsonOptions);
     replayed.ShouldNotBeNull();
     replayed.EventId.ShouldBe(entered.EventId);
     replayed.SessionId.ShouldBe(entered.SessionId);
@@ -197,10 +197,56 @@ public class AccessEventIngestionTests : IClassFixture<ParkinApiFactory>
     var exitResponse = await gate.SendAsync(
       GateRequest(apiKey, $"exit-{Guid.NewGuid():N}", ExitBody(lotId, plate)));
     exitResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-    var exited = await exitResponse.Content.ReadFromJsonAsync<AccessEventDecisionRecord>(JsonOptions);
+    var exited = await exitResponse.Content.ReadFromJsonAsync<AccessEventDecisionResponse>(JsonOptions);
     exited.ShouldNotBeNull();
     exited.Decision.ShouldBe(Decision.Allow);
     exited.SessionId.ShouldBe(entered.SessionId);
+  }
+
+  [Fact]
+  public async Task Post_SameIdempotencyKeyFromTwoApiKeys_IsRecordedIndependently()
+  {
+    using var admin = _factory.CreateClient();
+    await LoginAsAdminAsync(admin);
+    var northKey = await CreateApiKeyAsync(admin);
+    var southKey = await CreateApiKeyAsync(admin);
+    var lotId = await CreateLotAsync(admin);
+    await CreateGeneralSpaceAsync(admin, lotId, "G1");
+    await CreateGeneralSpaceAsync(admin, lotId, "G2");
+    var sharedKey = $"1-{Guid.NewGuid():N}";
+
+    using var gate = _factory.CreateClient();
+    var northResponse = await gate.SendAsync(GateRequest(northKey, sharedKey, EnterBody(lotId, "NORTH01")));
+    var southResponse = await gate.SendAsync(GateRequest(southKey, sharedKey, EnterBody(lotId, "SOUTH01")));
+
+    northResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+    southResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+    var north = await northResponse.Content.ReadFromJsonAsync<AccessEventDecisionResponse>(JsonOptions);
+    var south = await southResponse.Content.ReadFromJsonAsync<AccessEventDecisionResponse>(JsonOptions);
+    north.ShouldNotBeNull();
+    south.ShouldNotBeNull();
+    north.Decision.ShouldBe(Decision.Allow);
+    south.Decision.ShouldBe(Decision.Allow);
+    south.EventId.ShouldNotBe(north.EventId);
+    south.SessionId.ShouldNotBe(north.SessionId);
+  }
+
+  [Fact]
+  public async Task Post_ReusedIdempotencyKeyForADifferentPlate_Returns409()
+  {
+    using var admin = _factory.CreateClient();
+    await LoginAsAdminAsync(admin);
+    var apiKey = await CreateApiKeyAsync(admin);
+    var lotId = await CreateLotAsync(admin);
+    await CreateGeneralSpaceAsync(admin, lotId, "G1");
+    var key = $"reused-{Guid.NewGuid():N}";
+
+    using var gate = _factory.CreateClient();
+    var first = await gate.SendAsync(GateRequest(apiKey, key, EnterBody(lotId, "FIRST01")));
+    var reused = await gate.SendAsync(GateRequest(apiKey, key, EnterBody(lotId, "OTHER01")));
+
+    first.StatusCode.ShouldBe(HttpStatusCode.OK);
+    reused.StatusCode.ShouldBe(HttpStatusCode.Conflict);
   }
 
   [Fact]
@@ -216,7 +262,7 @@ public class AccessEventIngestionTests : IClassFixture<ParkinApiFactory>
       ExitBody(lotId, "GHOSTEXIT")));
 
     response.StatusCode.ShouldBe(HttpStatusCode.OK);
-    var decision = await response.Content.ReadFromJsonAsync<AccessEventDecisionRecord>(JsonOptions);
+    var decision = await response.Content.ReadFromJsonAsync<AccessEventDecisionResponse>(JsonOptions);
     decision.ShouldNotBeNull();
     decision.Decision.ShouldBe(Decision.Deny);
     decision.Reason.ShouldBe(DenyReason.NoOpenSession);

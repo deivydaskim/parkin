@@ -1,4 +1,5 @@
 using Ardalis.GuardClauses;
+using Parkin.Api.Features.AccessEvents.Ingest;
 using Parkin.Api.Features.AccessEvents.List;
 using Parkin.Api.Features.ApiKeys.List;
 using Parkin.Api.Features.Audit.List;
@@ -7,13 +8,12 @@ using Parkin.Api.Features.Grants.List;
 using Parkin.Api.Features.Grants.ListByLot;
 using Parkin.Api.Features.Sessions.ListActiveByLot;
 using Parkin.Api.Domain.Interfaces;
-using Parkin.Api.Domain.Services;
 using Parkin.Api.Infrastructure.Data;
 using Parkin.Api.Infrastructure.Data.Queries;
 using Parkin.Api.Infrastructure.Identity;
 using Parkin.Api.Features.Lots.List;
 using Parkin.Api.Features.LotLayouts.Get;
-using Parkin.Api.Features.Occupancy.ListLotOccupancy;
+using Parkin.Api.Features.Occupancy;
 using Parkin.Api.Features.Plates.List;
 using Parkin.Api.Features.Spaces;
 using Parkin.Api.Features.Spaces.List;
@@ -66,16 +66,15 @@ public static class InfrastructureServiceExtensions
            .AddScoped<IListApiKeysQueryService, ListApiKeysQueryService>()
            .AddScoped<IListAuditQueryService, ListAuditQueryService>()
            .AddScoped<ILotLayoutQueryService, LotLayoutQueryService>()
-           .AddScoped<IActiveLotOccupancyQueryService, ActiveLotOccupancyQueryService>()
+           .AddScoped<ILotOccupancyQueryService, LotOccupancyQueryService>()
            .AddScoped<IListAccessEventsQueryService, ListAccessEventsQueryService>()
+           .AddScoped<IAccessEventReplayQueryService, AccessEventReplayQueryService>()
+           .AddScoped<IGateLotReader, GateLotReader>()
            .AddScoped<IListActiveSessionsByLotQueryService, ListActiveSessionsByLotQueryService>()
            .AddScoped<IListGrantsByLotQueryService, ListGrantsByLotQueryService>()
            .AddScoped<IActiveReservationChecker, ActiveReservationChecker>()
            .AddScoped<ILotRowLocker, LotRowLocker>()
            .AddScoped<IUnitOfWork, EfUnitOfWork>();
-
-    services.AddSingleton<IEntryDecisionService, EntryDecisionService>()
-            .AddSingleton<IOccupancyCalculator, OccupancyCalculator>();
 
     return services;
   }

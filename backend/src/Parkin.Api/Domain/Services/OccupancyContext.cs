@@ -1,9 +1,5 @@
 namespace Parkin.Api.Domain.Services;
 
-// Materialized snapshot for OccupancyCalculator: capacity of the GENERAL pool (count of active
-// GENERAL spaces) and the current active session counts, split by pool. Reserved sessions never
-// factor into the general capacity math - they occupy their own dedicated spaces, not the shared
-// general pool (the "reserved bypass" behavior).
 public sealed record OccupancyContext
 {
   public int GeneralCapacity { get; private init; }
