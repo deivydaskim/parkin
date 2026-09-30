@@ -4,11 +4,10 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Parkin.Api.Domain.AccessGrantAggregate;
 using Parkin.Api.Domain.ParkingLotAggregate;
-using Parkin.Api.DriverFeatures;
-using Parkin.Api.GrantFeatures;
-using Parkin.Api.GrantFeatures.List;
-using Parkin.Api.LotFeatures;
-using Parkin.Api.LotFeatures.Create;
+using Parkin.Api.Features.Drivers;
+using Parkin.Api.Features.Grants;
+using Parkin.Api.Features.Lots;
+using Parkin.Api.Features.Lots.Create;
 using Shouldly;
 using Xunit;
 
@@ -41,25 +40,25 @@ public class GrantsByLotTests : IClassFixture<ParkinApiFactory>
       AccessMode = AccessMode.Restricted,
     });
     response.EnsureSuccessStatusCode();
-    var lot = await response.Content.ReadFromJsonAsync<LotRecord>(JsonOptions);
+    var lot = await response.Content.ReadFromJsonAsync<LotResponse>(JsonOptions);
     lot.ShouldNotBeNull();
     return lot.Id;
   }
 
-  private static async Task<DriverRecord> CreateDriverAsync(HttpClient client)
+  private static async Task<DriverResponse> CreateDriverAsync(HttpClient client)
   {
     var response = await client.PostAsJsonAsync("/drivers", new { Name = $"Driver {Guid.NewGuid():N}" });
     response.EnsureSuccessStatusCode();
-    var driver = await response.Content.ReadFromJsonAsync<DriverRecord>(JsonOptions);
+    var driver = await response.Content.ReadFromJsonAsync<DriverResponse>(JsonOptions);
     driver.ShouldNotBeNull();
     return driver;
   }
 
-  private static async Task<GrantRecord> CreateGrantAsync(HttpClient client, Guid driverId, Guid lotId)
+  private static async Task<GrantResponse> CreateGrantAsync(HttpClient client, Guid driverId, Guid lotId)
   {
     var response = await client.PostAsJsonAsync("/grants", new { DriverId = driverId, LotId = lotId });
     response.StatusCode.ShouldBe(HttpStatusCode.Created);
-    var grant = await response.Content.ReadFromJsonAsync<GrantRecord>(JsonOptions);
+    var grant = await response.Content.ReadFromJsonAsync<GrantResponse>(JsonOptions);
     grant.ShouldNotBeNull();
     return grant;
   }

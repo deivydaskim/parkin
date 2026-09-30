@@ -6,7 +6,9 @@ namespace Parkin.Api.Domain.ReservationAggregate;
 
 public class Reservation : EntityBase<Reservation, ReservationId>, IAggregateRoot
 {
-  // Private constructor for EF Core
+  public const string ActiveSpaceIndex = "ux_reservation_active_space";
+  public const string ActiveDriverLotIndex = "ux_reservation_active_driver_lot";
+
   private Reservation() { }
 
   private Reservation(ReservationId id, ParkingSpaceId spaceId, DriverId driverId, ParkingLotId lotId)
@@ -18,24 +20,10 @@ public class Reservation : EntityBase<Reservation, ReservationId>, IAggregateRoo
     Status = ReservationStatus.Active;
   }
 
-  // Factory method for creating new reservations (before persistence)
   public static Reservation Create(ParkingSpaceId spaceId, DriverId driverId, ParkingLotId lotId, Guid? actorId)
   {
-    var reservation = new Reservation(ReservationId.From(Guid.NewGuid()), spaceId, driverId, lotId);
+    var reservation = new Reservation(ReservationId.From(Guid.CreateVersion7()), spaceId, driverId, lotId);
     reservation.RegisterDomainEvent(new ReservationCreatedEvent(reservation.Id, spaceId, driverId, lotId, actorId));
-    return reservation;
-  }
-
-  // Factory method for the replacement reservation created by a reassign — same space,
-  // new driver, linked back to the reservation it replaces. Registers a single
-  // ReservationReassignedEvent instead of ReservationCreatedEvent so the audit trail
-  // reads as one reassign action rather than an unrelated cancel + create.
-  public static Reservation CreateForReassignment(ParkingSpaceId spaceId, DriverId driverId, ParkingLotId lotId,
-    ReservationId previousReservationId, DriverId previousDriverId, Guid? actorId)
-  {
-    var reservation = new Reservation(ReservationId.From(Guid.NewGuid()), spaceId, driverId, lotId);
-    reservation.RegisterDomainEvent(new ReservationReassignedEvent(
-      reservation.Id, previousReservationId, spaceId, lotId, previousDriverId, driverId, actorId));
     return reservation;
   }
 
@@ -44,9 +32,37 @@ public class Reservation : EntityBase<Reservation, ReservationId>, IAggregateRoo
   public ParkingLotId LotId { get; private set; }
   public ReservationStatus Status { get; private set; }
 
-  public void Cancel(Guid? actorId)
+  public Result Cancel(Guid? actorId)
   {
+    var activeCheck = EnsureActive();
+    if (!activeCheck.IsSuccess) return activeCheck;
+
     Status = ReservationStatus.Cancelled;
     RegisterDomainEvent(new ReservationCancelledEvent(Id, actorId));
+    return Result.Success();
   }
+
+  public Result<Reservation> ReassignTo(DriverId newDriverId, Guid? actorId)
+  {
+    var activeCheck = EnsureActive();
+    if (!activeCheck.IsSuccess) return activeCheck;
+
+    if (newDriverId == DriverId)
+    {
+      return Result.Invalid(new ValidationError("NewDriverId", "Reservation already belongs to this driver"));
+    }
+
+    Status = ReservationStatus.Cancelled;
+    RegisterDomainEvent(new ReservationCancelledEvent(Id, actorId));
+
+    var replacement = new Reservation(ReservationId.From(Guid.CreateVersion7()), SpaceId, newDriverId, LotId);
+    replacement.RegisterDomainEvent(new ReservationReassignedEvent(
+      replacement.Id, Id, SpaceId, LotId, DriverId, newDriverId, actorId));
+    return replacement;
+  }
+
+  private Result EnsureActive()
+    => Status == ReservationStatus.Active
+      ? Result.Success()
+      : Result.Invalid(new ValidationError("ReservationId", "Reservation is not active"));
 }

@@ -2,20 +2,20 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Parkin.Api.AccessEventFeatures;
-using Parkin.Api.AccessEventFeatures.List;
-using Parkin.Api.AuditFeatures.List;
+using Parkin.Api.Features.AccessEvents;
+using Parkin.Api.Features.AccessEvents.List;
+using Parkin.Api.Features.Audit.List;
 using Parkin.Api.Domain.AccessEventAggregate;
 using Parkin.Api.Domain.ParkingLotAggregate;
 using Parkin.Api.Domain.Services;
-using Parkin.Api.DriverFeatures;
-using Parkin.Api.DriverFeatures.List;
-using Parkin.Api.GrantFeatures.List;
-using Parkin.Api.LotFeatures;
-using Parkin.Api.LotFeatures.List;
-using Parkin.Api.OccupancyFeatures;
-using Parkin.Api.SpaceFeatures;
-using Parkin.Api.SpaceFeatures.List;
+using Parkin.Api.Features.Drivers;
+using Parkin.Api.Features.Drivers.List;
+using Parkin.Api.Features.Grants;
+using Parkin.Api.Features.Lots;
+using Parkin.Api.Features.Lots.List;
+using Parkin.Api.Features.Occupancy;
+using Parkin.Api.Features.Spaces;
+using Parkin.Api.Features.Spaces.List;
 using Shouldly;
 using Xunit;
 
@@ -54,30 +54,30 @@ public class OperatorConsoleReadModelTests : IClassFixture<ParkinApiFactory>
     return body;
   }
 
-  private static async Task<LotRecord> CreateLotAsync(HttpClient client, string name, string? address = null)
+  private static async Task<LotResponse> CreateLotAsync(HttpClient client, string name, string? address = null)
   {
     var response = await client.PostAsJsonAsync("/lots",
       new { Name = name, Address = address, Timezone = "Europe/Vilnius", AccessMode = "Open", FullBehavior = "Block" });
     response.EnsureSuccessStatusCode();
-    var lot = await response.Content.ReadFromJsonAsync<LotRecord>(JsonOptions);
+    var lot = await response.Content.ReadFromJsonAsync<LotResponse>(JsonOptions);
     lot.ShouldNotBeNull();
     return lot;
   }
 
-  private static async Task<SpaceRecord> CreateSpaceAsync(HttpClient client, Guid lotId, string label, SpaceType type)
+  private static async Task<SpaceResponse> CreateSpaceAsync(HttpClient client, Guid lotId, string label, SpaceType type)
   {
     var response = await client.PostAsJsonAsync($"/lots/{lotId}/spaces", new { Label = label, Type = type.ToString() });
     response.EnsureSuccessStatusCode();
-    var space = await response.Content.ReadFromJsonAsync<SpaceRecord>(JsonOptions);
+    var space = await response.Content.ReadFromJsonAsync<SpaceResponse>(JsonOptions);
     space.ShouldNotBeNull();
     return space;
   }
 
-  private static async Task<DriverRecord> CreateDriverAsync(HttpClient client, string name, string? plate = null)
+  private static async Task<DriverResponse> CreateDriverAsync(HttpClient client, string name, string? plate = null)
   {
     var response = await client.PostAsJsonAsync("/drivers", new { Name = name });
     response.EnsureSuccessStatusCode();
-    var driver = await response.Content.ReadFromJsonAsync<DriverRecord>(JsonOptions);
+    var driver = await response.Content.ReadFromJsonAsync<DriverResponse>(JsonOptions);
     driver.ShouldNotBeNull();
 
     if (plate is not null)
@@ -89,7 +89,7 @@ public class OperatorConsoleReadModelTests : IClassFixture<ParkinApiFactory>
     return driver;
   }
 
-  private static async Task<AccessEventDecisionRecord> RecordManualAsync(HttpClient client, Guid lotId, string plate,
+  private static async Task<AccessEventDecisionResponse> RecordManualAsync(HttpClient client, Guid lotId, string plate,
     Direction direction)
   {
     var request = new HttpRequestMessage(HttpMethod.Post, $"/lots/{lotId}/manual-events")
@@ -97,7 +97,7 @@ public class OperatorConsoleReadModelTests : IClassFixture<ParkinApiFactory>
       Content = JsonContent.Create(new { Plate = plate, Direction = direction.ToString() }),
     };
     request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("N"));
-    return await ReadAsync<AccessEventDecisionRecord>(await client.SendAsync(request));
+    return await ReadAsync<AccessEventDecisionResponse>(await client.SendAsync(request));
   }
 
   [Fact]
@@ -206,7 +206,7 @@ public class OperatorConsoleReadModelTests : IClassFixture<ParkinApiFactory>
     var archived = await CreateLotAsync(client, $"Archived {Unique()}");
     (await client.PostAsync($"/lots/{archived.Id}/archive", null)).EnsureSuccessStatusCode();
 
-    var occupancies = await ReadAsync<List<LotOccupancyRecord>>(await client.GetAsync("/occupancy"));
+    var occupancies = await ReadAsync<List<LotOccupancyResponse>>(await client.GetAsync("/occupancy"));
 
     var row = occupancies.Single(o => o.LotId == lot.Id);
     row.LotName.ShouldBe(lot.Name);

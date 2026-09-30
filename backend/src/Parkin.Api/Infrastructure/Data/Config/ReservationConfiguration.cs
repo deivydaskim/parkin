@@ -31,12 +31,12 @@ public class ReservationConfiguration : IEntityTypeConfiguration<Reservation>
       .IsRequired();
 
     builder.HasIndex(entity => entity.SpaceId)
-      .HasDatabaseName("ux_reservation_active_space")
+      .HasDatabaseName(Reservation.ActiveSpaceIndex)
       .IsUnique()
       .HasFilter("\"Status\" = 'Active'");
 
     builder.HasIndex(entity => new { entity.DriverId, entity.LotId })
-      .HasDatabaseName("ux_reservation_active_driver_lot")
+      .HasDatabaseName(Reservation.ActiveDriverLotIndex)
       .IsUnique()
       .HasFilter("\"Status\" = 'Active'");
   }

@@ -11,14 +11,13 @@ internal class VogenGuidIdValueGenerator<TContext, TEntityBase, TId> : ValueGene
 {
   public override TId Next(EntityEntry entry)
   {
-    // Use reflection to call the static From method on the value object
     var fromMethod = typeof(TId).GetMethod("From", new[] { typeof(Guid) });
     if (fromMethod == null)
     {
       throw new InvalidOperationException($"Type {typeof(TId).Name} does not have a From(Guid) method");
     }
 
-    return (TId)fromMethod.Invoke(null, new object[] { Guid.NewGuid() })!;
+    return (TId)fromMethod.Invoke(null, new object[] { Guid.CreateVersion7() })!;
   }
 
   public override bool GeneratesTemporaryValues => false;

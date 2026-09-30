@@ -8,17 +8,20 @@ namespace Parkin.Api.Domain.AccessEventAggregate;
 
 public class AccessEvent : EntityBase<AccessEvent, AccessEventId>, IAggregateRoot
 {
-  // Private constructor for EF Core
+  public const string IdempotencyIndexName = "ux_access_event_idempotency";
+  public const int IdempotencyKeyMaxLength = 200;
+
   private AccessEvent() { }
 
   private AccessEvent(AccessEventId id, ParkingLotId lotId, string rawPlate, string normalizedPlate,
     PlateId? matchedPlateId, DriverId? matchedDriverId, Direction direction, EventSource source,
-    Decision decision, DenyReason? denyReason, DateTimeOffset occurredAt, string idempotencyKey,
-    Guid? actingStaffId, AccessEventId? overrideOf)
+    Decision decision, DenyReason? denyReason, DateTimeOffset occurredAt, DateTimeOffset receivedAt,
+    string idempotencyKey, AccessEventActor actor, AccessEventId? overrideOf)
   {
     Guard.Against.NullOrWhiteSpace(rawPlate, nameof(rawPlate));
     Guard.Against.NullOrWhiteSpace(normalizedPlate, nameof(normalizedPlate));
     Guard.Against.NullOrWhiteSpace(idempotencyKey, nameof(idempotencyKey));
+    Guard.Against.Null(actor, nameof(actor));
 
     Id = id;
     LotId = lotId;
@@ -31,16 +34,17 @@ public class AccessEvent : EntityBase<AccessEvent, AccessEventId>, IAggregateRoo
     Decision = decision;
     DenyReason = denyReason;
     OccurredAt = occurredAt;
-    ReceivedAt = DateTimeOffset.UtcNow;
+    ReceivedAt = receivedAt;
     IdempotencyKey = idempotencyKey;
-    ActingStaffId = actingStaffId;
+    ActorId = actor.Id;
+    ActingStaffId = actor.StaffId;
     OverrideOf = overrideOf;
   }
 
   public static AccessEvent Record(ParkingLotId lotId, string rawPlate, string normalizedPlate,
     PlateId? matchedPlateId, DriverId? matchedDriverId, Direction direction, EventSource source,
-    Decision decision, DenyReason? denyReason, DateTimeOffset occurredAt, string idempotencyKey,
-    Guid? actorId, Guid? actingStaffId = null, AccessEventId? overrideOf = null)
+    Decision decision, DenyReason? denyReason, DateTimeOffset occurredAt, DateTimeOffset receivedAt,
+    string idempotencyKey, AccessEventActor actor, AccessEventId? overrideOf = null)
   {
     if (decision == Decision.Allow && denyReason.HasValue)
     {
@@ -52,10 +56,10 @@ public class AccessEvent : EntityBase<AccessEvent, AccessEventId>, IAggregateRoo
       throw new ArgumentException("A DENY decision must carry a reason.", nameof(denyReason));
     }
 
-    var accessEvent = new AccessEvent(AccessEventId.From(Guid.NewGuid()), lotId, rawPlate, normalizedPlate,
-      matchedPlateId, matchedDriverId, direction, source, decision, denyReason, occurredAt, idempotencyKey,
-      actingStaffId, overrideOf);
-    accessEvent.RegisterDomainEvent(new AccessEventRecordedEvent(accessEvent, actorId));
+    var accessEvent = new AccessEvent(AccessEventId.From(Guid.CreateVersion7()), lotId, rawPlate, normalizedPlate,
+      matchedPlateId, matchedDriverId, direction, source, decision, denyReason, occurredAt, receivedAt,
+      idempotencyKey, actor, overrideOf);
+    accessEvent.RegisterDomainEvent(new AccessEventRecordedEvent(accessEvent));
     return accessEvent;
   }
 
@@ -71,11 +75,10 @@ public class AccessEvent : EntityBase<AccessEvent, AccessEventId>, IAggregateRoo
   public DateTimeOffset OccurredAt { get; private set; }
   public DateTimeOffset ReceivedAt { get; private set; }
   public string IdempotencyKey { get; private set; } = string.Empty;
+  public Guid ActorId { get; private set; }
   public Guid? ActingStaffId { get; private set; }
   public ParkingSessionId? SessionId { get; private set; }
   public AccessEventId? OverrideOf { get; private set; }
 
-  // The session and its entry event reference each other, so one link is filled in after both
-  // objects exist. Ids are generated in memory, so this only ever touches an unpersisted event.
   public void AttachSession(ParkingSessionId sessionId) => SessionId = sessionId;
 }

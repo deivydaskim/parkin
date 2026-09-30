@@ -8,7 +8,6 @@ namespace Parkin.Api.Domain.ParkingSessionAggregate;
 
 public class ParkingSession : EntityBase<ParkingSession, ParkingSessionId>, IAggregateRoot
 {
-  // Private constructor for EF Core
   private ParkingSession() { }
 
   private ParkingSession(ParkingSessionId id, ParkingLotId lotId, DriverId? driverId, string plate,
@@ -40,13 +39,12 @@ public class ParkingSession : EntityBase<ParkingSession, ParkingSessionId>, IAgg
       throw new ArgumentException("A GENERAL session occupies the shared pool, not a specific space.", nameof(spaceId));
     }
 
-    return new ParkingSession(ParkingSessionId.From(Guid.NewGuid()), lotId, driverId, plate, spaceId, pool,
+    return new ParkingSession(ParkingSessionId.From(Guid.CreateVersion7()), lotId, driverId, plate, spaceId, pool,
       entryEventId, entryTime);
   }
 
   public ParkingLotId LotId { get; private set; }
   public DriverId? DriverId { get; private set; }
-  // Normalized - this is the key an EXIT matches on; the raw string stays on the AccessEvent.
   public string Plate { get; private set; } = string.Empty;
   public ParkingSpaceId? SpaceId { get; private set; }
   public SessionPool Pool { get; private set; }

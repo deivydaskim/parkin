@@ -2,9 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Parkin.Api.AuditFeatures.List;
-using Parkin.Api.LotFeatures;
-using Parkin.Api.LotFeatures.Create;
+using Parkin.Api.Features.Audit.List;
+using Parkin.Api.Features.Lots;
+using Parkin.Api.Features.Lots.Create;
 using Shouldly;
 using Xunit;
 
@@ -61,7 +61,7 @@ public class AuditQueryTests : IClassFixture<ParkinApiFactory>
       Timezone = "America/New_York",
     });
     createResponse.EnsureSuccessStatusCode();
-    var lot = await createResponse.Content.ReadFromJsonAsync<LotRecord>(JsonOptions);
+    var lot = await createResponse.Content.ReadFromJsonAsync<LotResponse>(JsonOptions);
     lot.ShouldNotBeNull();
 
     var auditResponse = await client.GetAsync($"/audit?entity=ParkingLot&per_page=100");
@@ -84,7 +84,7 @@ public class AuditQueryTests : IClassFixture<ParkinApiFactory>
       Timezone = "America/New_York",
     });
     createResponse.EnsureSuccessStatusCode();
-    var lot = await createResponse.Content.ReadFromJsonAsync<LotRecord>(JsonOptions);
+    var lot = await createResponse.Content.ReadFromJsonAsync<LotResponse>(JsonOptions);
     lot.ShouldNotBeNull();
 
     var future = DateTimeOffset.UtcNow.AddDays(1).ToString("O");

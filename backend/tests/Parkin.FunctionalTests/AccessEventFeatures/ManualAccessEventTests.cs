@@ -2,16 +2,16 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Parkin.Api.AccessEventFeatures;
-using Parkin.Api.ApiKeyFeatures.Create;
-using Parkin.Api.AuditFeatures.List;
-using Parkin.Api.AuthFeatures;
+using Parkin.Api.Features.AccessEvents;
+using Parkin.Api.Features.ApiKeys.Create;
+using Parkin.Api.Features.Audit.List;
+using Parkin.Api.Features.Auth;
 using Parkin.Api.Domain.AccessEventAggregate;
 using Parkin.Api.Domain.ParkingLotAggregate;
 using Parkin.Api.Domain.Services;
-using Parkin.Api.LotFeatures;
-using Parkin.Api.LotFeatures.Create;
-using Parkin.Api.OccupancyFeatures;
+using Parkin.Api.Features.Lots;
+using Parkin.Api.Features.Lots.Create;
+using Parkin.Api.Features.Occupancy;
 using Shouldly;
 using Xunit;
 
@@ -50,7 +50,7 @@ public class ManualAccessEventTests : IClassFixture<ParkinApiFactory>
       AccessMode = accessMode,
     });
     response.EnsureSuccessStatusCode();
-    var lot = await response.Content.ReadFromJsonAsync<LotRecord>(JsonOptions);
+    var lot = await response.Content.ReadFromJsonAsync<LotResponse>(JsonOptions);
     lot.ShouldNotBeNull();
 
     var spaceResponse = await client.PostAsJsonAsync($"/lots/{lot.Id}/spaces",
@@ -71,19 +71,19 @@ public class ManualAccessEventTests : IClassFixture<ParkinApiFactory>
     return request;
   }
 
-  private static async Task<AccessEventDecisionRecord> SendManualAsync(HttpClient client, Guid lotId, string plate,
+  private static async Task<AccessEventDecisionResponse> SendManualAsync(HttpClient client, Guid lotId, string plate,
     Direction direction, string? idempotencyKey = null)
   {
     var response = await client.SendAsync(ManualRequest(lotId, plate, direction, idempotencyKey));
     response.StatusCode.ShouldBe(HttpStatusCode.OK);
-    var decision = await response.Content.ReadFromJsonAsync<AccessEventDecisionRecord>(JsonOptions);
+    var decision = await response.Content.ReadFromJsonAsync<AccessEventDecisionResponse>(JsonOptions);
     decision.ShouldNotBeNull();
     return decision;
   }
 
   private static async Task<int> GeneralUsedAsync(HttpClient client, Guid lotId)
   {
-    var occupancy = await client.GetFromJsonAsync<LotOccupancyRecord>($"/lots/{lotId}/occupancy", JsonOptions);
+    var occupancy = await client.GetFromJsonAsync<LotOccupancyResponse>($"/lots/{lotId}/occupancy", JsonOptions);
     occupancy.ShouldNotBeNull();
     return occupancy.GeneralUsed;
   }
@@ -124,9 +124,35 @@ public class ManualAccessEventTests : IClassFixture<ParkinApiFactory>
     using var client = _factory.CreateClient();
     await LoginAsOperatorAsync(client);
 
-    var response = await client.SendAsync(ManualRequest(Guid.NewGuid(), NewPlate(), Direction.Enter));
+    var me = await client.GetFromJsonAsync<CurrentUserResponse>("/auth/me", JsonOptions);
+    me.ShouldNotBeNull();
+    var unknownLotId = Guid.NewGuid();
+
+    var response = await client.SendAsync(ManualRequest(unknownLotId, NewPlate(), Direction.Enter));
 
     response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+
+    using var admin = _factory.CreateClient();
+    await LoginAsAdminAsync(admin);
+    var audit = await admin.GetFromJsonAsync<AuditListResponse>(
+      $"/audit?entity=ParkingLot&actor={me.Id}&per_page=100", JsonOptions);
+    audit.ShouldNotBeNull();
+    audit.Items.ShouldNotContain(e => e.EntityId == unknownLotId);
+  }
+
+  [Fact]
+  public async Task Post_ReusedIdempotencyKeyForADifferentPlate_Returns409()
+  {
+    using var client = _factory.CreateClient();
+    await LoginAsOperatorAsync(client);
+    var lotId = await CreateLotAsync(client);
+    var key = Guid.NewGuid().ToString();
+
+    await SendManualAsync(client, lotId, NewPlate(), Direction.Enter, key);
+    var response = await client.SendAsync(ManualRequest(lotId, NewPlate(), Direction.Enter, key));
+
+    response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+    (await GeneralUsedAsync(client, lotId)).ShouldBe(1);
   }
 
   [Fact]

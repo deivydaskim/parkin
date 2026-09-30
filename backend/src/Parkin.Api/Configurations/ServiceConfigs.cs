@@ -1,35 +1,22 @@
-using Parkin.Api.Domain.Interfaces;
+using Parkin.Api.Features.AccessEvents.Ingest;
 using Parkin.Api.Infrastructure;
-using Parkin.Api.Infrastructure.Email;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Configurations;
 
 public static class ServiceConfigs
 {
-  public static IServiceCollection AddServiceConfigs(this IServiceCollection services, Microsoft.Extensions.Logging.ILogger logger, WebApplicationBuilder builder)
+  public static IServiceCollection AddServiceConfigs(this IServiceCollection services, ConfigurationManager configuration)
   {
-    services.AddInfrastructureServices(builder.Configuration, logger)
-            .AddMediatorSourceGen(logger);
-
-    if (builder.Environment.IsDevelopment())
-    {
-      // Use a local test email server
-      // See: https://ardalis.com/configuring-a-local-test-email-server/
-      services.AddScoped<IEmailSender, MimeKitEmailSender>();
-
-      // Otherwise use this:
-      //builder.Services.AddScoped<IEmailSender, FakeEmailSender>();
-
-    }
-    else
-    {
-      services.AddScoped<IEmailSender, MimeKitEmailSender>();
-    }
-
-    logger.LogInformation("{Project} services registered", "Mediator and Email Sender");
+    services.AddSingleton(TimeProvider.System)
+            .AddHttpContextAccessor()
+            .AddScoped<ICurrentUser, HttpContextCurrentUser>()
+            .AddProblemDetails()
+            .AddExceptionHandler<UniqueConstraintViolationExceptionHandler>()
+            .AddInfrastructureServices(configuration)
+            .AddIngestAccessEventServices()
+            .AddMediatorSourceGen();
 
     return services;
   }
-
-
 }

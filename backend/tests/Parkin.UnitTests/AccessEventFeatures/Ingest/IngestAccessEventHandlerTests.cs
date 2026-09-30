@@ -1,9 +1,7 @@
 using Ardalis.Result;
 using Ardalis.SharedKernel;
 using NSubstitute;
-using Parkin.Api.AccessEventFeatures.Ingest;
 using Parkin.Api.Domain.AccessEventAggregate;
-using Parkin.Api.Domain.AccessEventAggregate.Specifications;
 using Parkin.Api.Domain.AccessGrantAggregate;
 using Parkin.Api.Domain.AccessGrantAggregate.Specifications;
 using Parkin.Api.Domain.AuditAggregate;
@@ -11,12 +9,13 @@ using Parkin.Api.Domain.DriverAggregate;
 using Parkin.Api.Domain.DriverAggregate.Specifications;
 using Parkin.Api.Domain.Interfaces;
 using Parkin.Api.Domain.ParkingLotAggregate;
-using Parkin.Api.Domain.ParkingLotAggregate.Specifications;
 using Parkin.Api.Domain.ParkingSessionAggregate;
 using Parkin.Api.Domain.ParkingSessionAggregate.Specifications;
 using Parkin.Api.Domain.ReservationAggregate;
 using Parkin.Api.Domain.ReservationAggregate.Specifications;
 using Parkin.Api.Domain.Services;
+using Parkin.Api.Features.AccessEvents;
+using Parkin.Api.Features.AccessEvents.Ingest;
 using Shouldly;
 using Xunit;
 
@@ -24,29 +23,33 @@ namespace Parkin.UnitTests.AccessEventFeatures.Ingest;
 
 public class IngestAccessEventHandlerTests
 {
+  private static readonly DateTimeOffset Now = new(2026, 8, 25, 9, 0, 0, TimeSpan.Zero);
+  private static readonly DateTimeOffset ReceivedAt = Now.AddSeconds(2);
+
+  private readonly IAccessEventReplayQueryService _replayQuery = Substitute.For<IAccessEventReplayQueryService>();
+  private readonly IGateLotReader _gateLotReader = Substitute.For<IGateLotReader>();
   private readonly IRepository<AccessEvent> _accessEventRepository = Substitute.For<IRepository<AccessEvent>>();
   private readonly IRepository<ParkingSession> _sessionRepository = Substitute.For<IRepository<ParkingSession>>();
   private readonly IRepository<AuditLogEntry> _auditRepository = Substitute.For<IRepository<AuditLogEntry>>();
-  private readonly IReadRepository<ParkingLot> _lotRepository = Substitute.For<IReadRepository<ParkingLot>>();
   private readonly IReadRepository<Driver> _driverRepository = Substitute.For<IReadRepository<Driver>>();
   private readonly IReadRepository<AccessGrant> _grantRepository = Substitute.For<IReadRepository<AccessGrant>>();
   private readonly IReadRepository<Reservation> _reservationRepository = Substitute.For<IReadRepository<Reservation>>();
-  private readonly ILotRowLocker _lotRowLocker = Substitute.For<ILotRowLocker>();
   private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+  private readonly TimeProvider _timeProvider = Substitute.For<TimeProvider>();
 
-  private static readonly DateTimeOffset Now = new(2026, 8, 25, 9, 0, 0, TimeSpan.Zero);
+  private readonly AccessEventActor _gate = AccessEventActor.ApiKey(Guid.NewGuid());
+  private readonly ParkingLotId _lotId = ParkingLotId.From(Guid.NewGuid());
 
   public IngestAccessEventHandlerTests()
   {
-    // Run the action inline - the lock and the idempotency index are proven against a real Postgres
-    // in Parkin.IntegrationTests, not here.
     _unitOfWork
       .ExecuteInTransactionAsync(Arg.Any<Func<CancellationToken, Task>>(), Arg.Any<CancellationToken>())
       .Returns(callInfo => ((Func<CancellationToken, Task>)callInfo[0])(CancellationToken.None));
 
-    _accessEventRepository
-      .FirstOrDefaultAsync(Arg.Any<AccessEventByIdempotencyKeySpec>(), Arg.Any<CancellationToken>())
-      .Returns((AccessEvent?)null);
+    _timeProvider.GetUtcNow().Returns(ReceivedAt);
+
+    _replayQuery.FindAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+      .Returns((RecordedAccessEvent?)null);
     _driverRepository
       .FirstOrDefaultAsync(Arg.Any<PlateByNormalizedValueSpec>(), Arg.Any<CancellationToken>())
       .Returns((Driver?)null);
@@ -59,32 +62,29 @@ public class IngestAccessEventHandlerTests
     _sessionRepository
       .FirstOrDefaultAsync(Arg.Any<MostRecentActiveSessionByPlateSpec>(), Arg.Any<CancellationToken>())
       .Returns((ParkingSession?)null);
-    _sessionRepository
-      .CountAsync(Arg.Any<ActiveSessionCountByLotPoolSpec>(), Arg.Any<CancellationToken>())
-      .Returns(0);
   }
 
   private IngestAccessEventHandler CreateSut() => new(
-    _accessEventRepository, _sessionRepository, _auditRepository, _lotRepository, _driverRepository,
-    _grantRepository, _reservationRepository, new EntryDecisionService(), new OccupancyCalculator(),
-    _lotRowLocker, _unitOfWork);
+    new AccessEventIdempotency(_replayQuery),
+    _unitOfWork,
+    _gateLotReader,
+    new EntryContextBuilder(_driverRepository, _grantRepository, _reservationRepository, _gateLotReader),
+    _accessEventRepository,
+    _sessionRepository,
+    _auditRepository,
+    _timeProvider);
 
-  private static IngestAccessEventCommand Command(ParkingLotId lotId, string plate = "AAA 111",
-    Direction direction = Direction.Enter, string idempotencyKey = "key-1") =>
-    new(lotId, plate, direction, EventSource.Lpr, Now, idempotencyKey, ActorId: Guid.NewGuid());
+  private IngestAccessEventCommand Command(string plate = "AAA 111", Direction direction = Direction.Enter,
+    AccessEventActor? actor = null, EventSource source = EventSource.Lpr) =>
+    new(_lotId, plate, direction, source, Now, "key-1", actor ?? _gate);
 
-  private ParkingLot GivenLot(AccessMode accessMode = AccessMode.Open,
-    FullBehavior fullBehavior = FullBehavior.Block, int generalSpaces = 5)
-  {
-    var lot = ParkingLot.Create("Main", "Europe/Vilnius", accessMode: accessMode, fullBehavior: fullBehavior);
-    for (var i = 0; i < generalSpaces; i++)
-    {
-      lot.AddSpace($"G{i}", SpaceType.General, actorId: null);
-    }
+  private void GivenLot(AccessMode accessMode = AccessMode.Open, FullBehavior fullBehavior = FullBehavior.Block,
+    int generalCapacity = 5, int activeGeneralSessions = 0, LotStatus status = LotStatus.Active) =>
+    _gateLotReader.LockAndLoadAsync(_lotId, Arg.Any<CancellationToken>())
+      .Returns(new GateLot(_lotId, status, accessMode, fullBehavior, generalCapacity, activeGeneralSessions, 0));
 
-    _lotRepository.FirstOrDefaultAsync(Arg.Any<ParkingLotByIdSpec>(), Arg.Any<CancellationToken>()).Returns(lot);
-    return lot;
-  }
+  private void GivenNoLot() =>
+    _gateLotReader.LockAndLoadAsync(_lotId, Arg.Any<CancellationToken>()).Returns((GateLot?)null);
 
   private Driver GivenKnownDriver(string plate = "AAA 111")
   {
@@ -96,56 +96,91 @@ public class IngestAccessEventHandlerTests
   }
 
   [Fact]
-  public async Task Handle_ReplayedIdempotencyKey_ReturnsOriginalAndWritesNothing()
+  public async Task Handle_ReplayOfTheSameEvent_ReturnsOriginalAndWritesNothing()
   {
-    var lot = GivenLot();
-    var original = AccessEvent.Record(lot.Id, "AAA 111", "AAA111", null, null, Direction.Enter,
-      EventSource.Lpr, Decision.Deny, DenyReason.LotFull, Now, "key-1", actorId: null);
-    _accessEventRepository
-      .FirstOrDefaultAsync(Arg.Any<AccessEventByIdempotencyKeySpec>(), Arg.Any<CancellationToken>())
-      .Returns(original);
+    var original = new AccessEventDecisionResponse(Guid.NewGuid(), Decision.Deny, DenyReason.LotFull, null, null,
+      null, Now.AddMinutes(-1));
+    _replayQuery.FindAsync(_gate.Id, "key-1", Arg.Any<CancellationToken>())
+      .Returns(new RecordedAccessEvent(_lotId, "AAA111", Direction.Enter, original));
 
-    var result = await CreateSut().Handle(Command(lot.Id), CancellationToken.None);
+    var result = await CreateSut().Handle(Command(), CancellationToken.None);
 
     result.Status.ShouldBe(ResultStatus.Ok);
-    result.Value.EventId.ShouldBe(original.Id);
-    result.Value.Decision.ShouldBe(Decision.Deny);
-    result.Value.Reason.ShouldBe(DenyReason.LotFull);
-
+    result.Value.ShouldBe(original);
     await _accessEventRepository.DidNotReceive().AddAsync(Arg.Any<AccessEvent>(), Arg.Any<CancellationToken>());
-    await _sessionRepository.DidNotReceive().AddAsync(Arg.Any<ParkingSession>(), Arg.Any<CancellationToken>());
     await _unitOfWork.DidNotReceive().ExecuteInTransactionAsync(
       Arg.Any<Func<CancellationToken, Task>>(), Arg.Any<CancellationToken>());
   }
 
   [Fact]
-  public async Task Handle_UnknownLot_DeniesWithoutPersistingAnEvent()
+  public async Task Handle_KeyReusedForADifferentPlate_ReturnsConflictAndWritesNothing()
   {
-    _lotRepository.FirstOrDefaultAsync(Arg.Any<ParkingLotByIdSpec>(), Arg.Any<CancellationToken>())
-      .Returns((ParkingLot?)null);
+    var original = new AccessEventDecisionResponse(Guid.NewGuid(), Decision.Allow, null, SessionPool.General, null,
+      Guid.NewGuid(), Now);
+    _replayQuery.FindAsync(_gate.Id, "key-1", Arg.Any<CancellationToken>())
+      .Returns(new RecordedAccessEvent(_lotId, "OTHER1", Direction.Enter, original));
 
-    var result = await CreateSut().Handle(Command(ParkingLotId.From(Guid.NewGuid())), CancellationToken.None);
+    var result = await CreateSut().Handle(Command(), CancellationToken.None);
+
+    result.Status.ShouldBe(ResultStatus.Conflict);
+    await _unitOfWork.DidNotReceive().ExecuteInTransactionAsync(
+      Arg.Any<Func<CancellationToken, Task>>(), Arg.Any<CancellationToken>());
+  }
+
+  [Fact]
+  public async Task Handle_LooksUpReplaysWithinTheCallersScope()
+  {
+    GivenLot();
+
+    await CreateSut().Handle(Command(), CancellationToken.None);
+
+    await _replayQuery.Received().FindAsync(_gate.Id, "key-1", Arg.Any<CancellationToken>());
+  }
+
+  [Fact]
+  public async Task Handle_UnknownLotFromTheGate_DeniesAndAuditsWithoutPersistingAnEvent()
+  {
+    GivenNoLot();
+
+    AuditLogEntry? audited = null;
+    await _auditRepository.AddAsync(Arg.Do<AuditLogEntry>(e => audited = e), Arg.Any<CancellationToken>());
+
+    var result = await CreateSut().Handle(Command(), CancellationToken.None);
 
     result.Value.Decision.ShouldBe(Decision.Deny);
     result.Value.Reason.ShouldBe(DenyReason.LotNotFound);
     result.Value.EventId.ShouldBeNull();
-
     await _accessEventRepository.DidNotReceive().AddAsync(Arg.Any<AccessEvent>(), Arg.Any<CancellationToken>());
-    await _auditRepository.Received(1).AddAsync(Arg.Any<AuditLogEntry>(), Arg.Any<CancellationToken>());
+
+    audited.ShouldNotBeNull();
+    audited.ActorType.ShouldBe(AuditActorType.Api);
+    audited.ActorId.ShouldBe(_gate.Id);
+    audited.OccurredAt.ShouldBe(ReceivedAt);
+  }
+
+  [Fact]
+  public async Task Handle_UnknownLotFromStaff_ReturnsNotFoundAndAuditsNothing()
+  {
+    GivenNoLot();
+
+    var result = await CreateSut().Handle(
+      Command(actor: AccessEventActor.Staff(Guid.NewGuid()), source: EventSource.Manual), CancellationToken.None);
+
+    result.Status.ShouldBe(ResultStatus.NotFound);
+    await _auditRepository.DidNotReceive().AddAsync(Arg.Any<AuditLogEntry>(), Arg.Any<CancellationToken>());
+    await _accessEventRepository.DidNotReceive().AddAsync(Arg.Any<AccessEvent>(), Arg.Any<CancellationToken>());
   }
 
   [Fact]
   public async Task Handle_ArchivedLot_DeniesAndPersistsTheEvent()
   {
-    var lot = GivenLot();
-    lot.Archive(actorId: null);
+    GivenLot(status: LotStatus.Archived);
 
-    var result = await CreateSut().Handle(Command(lot.Id), CancellationToken.None);
+    var result = await CreateSut().Handle(Command(), CancellationToken.None);
 
     result.Value.Decision.ShouldBe(Decision.Deny);
     result.Value.Reason.ShouldBe(DenyReason.LotArchived);
     result.Value.EventId.ShouldNotBeNull();
-
     await _accessEventRepository.Received(1).AddAsync(Arg.Any<AccessEvent>(), Arg.Any<CancellationToken>());
     await _sessionRepository.DidNotReceive().AddAsync(Arg.Any<ParkingSession>(), Arg.Any<CancellationToken>());
   }
@@ -153,12 +188,12 @@ public class IngestAccessEventHandlerTests
   [Fact]
   public async Task Handle_EnterAllowedOnOpenLot_OpensGeneralSessionWithNoSpace()
   {
-    var lot = GivenLot();
+    GivenLot();
 
     ParkingSession? opened = null;
     await _sessionRepository.AddAsync(Arg.Do<ParkingSession>(s => opened = s), Arg.Any<CancellationToken>());
 
-    var result = await CreateSut().Handle(Command(lot.Id), CancellationToken.None);
+    var result = await CreateSut().Handle(Command(), CancellationToken.None);
 
     result.Value.Decision.ShouldBe(Decision.Allow);
     result.Value.Pool.ShouldBe(SessionPool.General);
@@ -172,58 +207,85 @@ public class IngestAccessEventHandlerTests
     opened.Plate.ShouldBe("AAA111");
     opened.Status.ShouldBe(SessionStatus.Active);
     opened.EntryTime.ShouldBe(Now);
+  }
 
-    await _lotRowLocker.Received(1).LockAsync(lot.Id, Arg.Any<CancellationToken>());
+  [Fact]
+  public async Task Handle_RecordedEvent_CarriesScopeAndReceivedAtFromTheTimeProvider()
+  {
+    GivenLot();
+
+    AccessEvent? recorded = null;
+    await _accessEventRepository.AddAsync(Arg.Do<AccessEvent>(e => recorded = e), Arg.Any<CancellationToken>());
+
+    await CreateSut().Handle(Command(), CancellationToken.None);
+
+    recorded.ShouldNotBeNull();
+    recorded.ActorId.ShouldBe(_gate.Id);
+    recorded.ActingStaffId.ShouldBeNull();
+    recorded.IdempotencyKey.ShouldBe("key-1");
+    recorded.OccurredAt.ShouldBe(Now);
+    recorded.ReceivedAt.ShouldBe(ReceivedAt);
   }
 
   [Fact]
   public async Task Handle_ReservedHolderAtFullLot_AllowsWithSpaceLabelAndReservedSession()
   {
-    var lot = GivenLot(generalSpaces: 1);
-    var reservedSpace = lot.AddSpace("R1", SpaceType.Reserved, actorId: null);
+    GivenLot(generalCapacity: 1, activeGeneralSessions: 5);
     var driver = GivenKnownDriver();
-
-    _sessionRepository.CountAsync(Arg.Any<ActiveSessionCountByLotPoolSpec>(), Arg.Any<CancellationToken>())
-      .Returns(5); // general pool well past capacity
+    var spaceId = ParkingSpaceId.From(Guid.NewGuid());
     _reservationRepository.FirstOrDefaultAsync(Arg.Any<ActiveReservationByDriverLotSpec>(), Arg.Any<CancellationToken>())
-      .Returns(Reservation.Create(reservedSpace.Id, driver.Id, lot.Id, actorId: null));
+      .Returns(Reservation.Create(spaceId, driver.Id, _lotId, actorId: null));
+    _gateLotReader.FindActiveSpaceLabelAsync(_lotId, spaceId, Arg.Any<CancellationToken>()).Returns("R1");
 
     ParkingSession? opened = null;
     await _sessionRepository.AddAsync(Arg.Do<ParkingSession>(s => opened = s), Arg.Any<CancellationToken>());
 
-    var result = await CreateSut().Handle(Command(lot.Id), CancellationToken.None);
+    var result = await CreateSut().Handle(Command(), CancellationToken.None);
 
     result.Value.Decision.ShouldBe(Decision.Allow);
     result.Value.Pool.ShouldBe(SessionPool.Reserved);
     result.Value.ReservedSpaceLabel.ShouldBe("R1");
 
     opened.ShouldNotBeNull();
-    opened.SpaceId.ShouldBe(reservedSpace.Id);
+    opened.SpaceId.ShouldBe(spaceId);
     opened.DriverId.ShouldBe(driver.Id);
+  }
+
+  [Fact]
+  public async Task Handle_ReservationOnAnInactiveSpace_IsTreatedAsNoReservation()
+  {
+    GivenLot(generalCapacity: 1, activeGeneralSessions: 1);
+    var driver = GivenKnownDriver();
+    var spaceId = ParkingSpaceId.From(Guid.NewGuid());
+    _reservationRepository.FirstOrDefaultAsync(Arg.Any<ActiveReservationByDriverLotSpec>(), Arg.Any<CancellationToken>())
+      .Returns(Reservation.Create(spaceId, driver.Id, _lotId, actorId: null));
+    _gateLotReader.FindActiveSpaceLabelAsync(_lotId, spaceId, Arg.Any<CancellationToken>()).Returns((string?)null);
+
+    var result = await CreateSut().Handle(Command(), CancellationToken.None);
+
+    result.Value.Decision.ShouldBe(Decision.Deny);
+    result.Value.Reason.ShouldBe(DenyReason.LotFull);
   }
 
   [Fact]
   public async Task Handle_EnterDeniedByFullBlockingLot_OpensNoSession()
   {
-    var lot = GivenLot(generalSpaces: 1);
-    _sessionRepository.CountAsync(Arg.Any<ActiveSessionCountByLotPoolSpec>(), Arg.Any<CancellationToken>())
-      .Returns(1);
+    GivenLot(generalCapacity: 1, activeGeneralSessions: 1);
 
-    var result = await CreateSut().Handle(Command(lot.Id), CancellationToken.None);
+    var result = await CreateSut().Handle(Command(), CancellationToken.None);
 
     result.Value.Decision.ShouldBe(Decision.Deny);
     result.Value.Reason.ShouldBe(DenyReason.LotFull);
     result.Value.SessionId.ShouldBeNull();
-
     await _sessionRepository.DidNotReceive().AddAsync(Arg.Any<ParkingSession>(), Arg.Any<CancellationToken>());
   }
 
   [Fact]
   public async Task Handle_EnterUnknownPlateOnRestrictedLot_DeniesNotAuthorized()
   {
-    var lot = GivenLot(accessMode: AccessMode.Restricted);
+    GivenLot(accessMode: AccessMode.Restricted);
 
-    var result = await CreateSut().Handle(Command(lot.Id), CancellationToken.None);
+    var result = await CreateSut().Handle(Command(), CancellationToken.None);
 
     result.Value.Decision.ShouldBe(Decision.Deny);
     result.Value.Reason.ShouldBe(DenyReason.NotAuthorized);
@@ -232,13 +294,13 @@ public class IngestAccessEventHandlerTests
   [Fact]
   public async Task Handle_EnterWithGrantExpiredBeforeTheEvent_DeniesOnRestrictedLot()
   {
-    var lot = GivenLot(accessMode: AccessMode.Restricted);
+    GivenLot(accessMode: AccessMode.Restricted);
     var driver = GivenKnownDriver();
-    var expired = AccessGrant.Create(driver.Id, lot.Id, Now.AddDays(-10), Now.AddDays(-1), actorId: null);
+    var expired = AccessGrant.Create(driver.Id, _lotId, Now.AddDays(-10), Now.AddDays(-1), Now, actorId: null).Value;
     _grantRepository.ListAsync(Arg.Any<ActiveGrantForDriverLotSpec>(), Arg.Any<CancellationToken>())
       .Returns([expired]);
 
-    var result = await CreateSut().Handle(Command(lot.Id), CancellationToken.None);
+    var result = await CreateSut().Handle(Command(), CancellationToken.None);
 
     result.Value.Decision.ShouldBe(Decision.Deny);
     result.Value.Reason.ShouldBe(DenyReason.NotAuthorized);
@@ -247,13 +309,13 @@ public class IngestAccessEventHandlerTests
   [Fact]
   public async Task Handle_EnterWithGrantValidAtTheEvent_AllowsOnRestrictedLot()
   {
-    var lot = GivenLot(accessMode: AccessMode.Restricted);
+    GivenLot(accessMode: AccessMode.Restricted);
     var driver = GivenKnownDriver();
-    var grant = AccessGrant.Create(driver.Id, lot.Id, Now.AddDays(-1), Now.AddDays(1), actorId: null);
+    var grant = AccessGrant.Create(driver.Id, _lotId, Now.AddDays(-1), Now.AddDays(1), Now, actorId: null).Value;
     _grantRepository.ListAsync(Arg.Any<ActiveGrantForDriverLotSpec>(), Arg.Any<CancellationToken>())
       .Returns([grant]);
 
-    var result = await CreateSut().Handle(Command(lot.Id), CancellationToken.None);
+    var result = await CreateSut().Handle(Command(), CancellationToken.None);
 
     result.Value.Decision.ShouldBe(Decision.Allow);
     result.Value.Pool.ShouldBe(SessionPool.General);
@@ -262,16 +324,16 @@ public class IngestAccessEventHandlerTests
   [Fact]
   public async Task Handle_EnterWithDeactivatedPlateOnRestrictedLot_TreatsPlateAsUnknown()
   {
-    var lot = GivenLot(accessMode: AccessMode.Restricted);
+    GivenLot(accessMode: AccessMode.Restricted);
     var driver = Driver.Create("Jane Driver", null, actorId: null);
     var plate = driver.AddPlate("AAA 111", actorId: null);
     driver.DeactivatePlate(plate.Id, actorId: null);
     _driverRepository.FirstOrDefaultAsync(Arg.Any<PlateByNormalizedValueSpec>(), Arg.Any<CancellationToken>())
       .Returns(driver);
     _grantRepository.ListAsync(Arg.Any<ActiveGrantForDriverLotSpec>(), Arg.Any<CancellationToken>())
-      .Returns([AccessGrant.Create(driver.Id, lot.Id, Now.AddDays(-1), null, actorId: null)]);
+      .Returns([AccessGrant.Create(driver.Id, _lotId, Now.AddDays(-1), null, Now, actorId: null).Value]);
 
-    var result = await CreateSut().Handle(Command(lot.Id), CancellationToken.None);
+    var result = await CreateSut().Handle(Command(), CancellationToken.None);
 
     result.Value.Decision.ShouldBe(Decision.Deny);
     result.Value.Reason.ShouldBe(DenyReason.NotAuthorized);
@@ -280,21 +342,19 @@ public class IngestAccessEventHandlerTests
   [Fact]
   public async Task Handle_Exit_ClosesTheMatchedSession()
   {
-    var lot = GivenLot();
-    var session = ParkingSession.OpenForEntry(lot.Id, null, "AAA111", null, SessionPool.General,
+    GivenLot();
+    var session = ParkingSession.OpenForEntry(_lotId, null, "AAA111", null, SessionPool.General,
       AccessEventId.From(Guid.NewGuid()), Now.AddHours(-2));
     _sessionRepository.FirstOrDefaultAsync(Arg.Any<MostRecentActiveSessionByPlateSpec>(), Arg.Any<CancellationToken>())
       .Returns(session);
 
-    var result = await CreateSut().Handle(
-      Command(lot.Id, direction: Direction.Exit), CancellationToken.None);
+    var result = await CreateSut().Handle(Command(direction: Direction.Exit), CancellationToken.None);
 
     result.Value.Decision.ShouldBe(Decision.Allow);
-    result.Value.SessionId.ShouldBe(session.Id);
-
+    result.Value.SessionId.ShouldBe(session.Id.Value);
     session.Status.ShouldBe(SessionStatus.Closed);
     session.ExitTime.ShouldBe(Now);
-    session.ExitEventId.ShouldBe(result.Value.EventId);
+    session.ExitEventId!.Value.Value.ShouldBe(result.Value.EventId!.Value);
 
     await _sessionRepository.Received(1).UpdateAsync(session, Arg.Any<CancellationToken>());
     await _sessionRepository.DidNotReceive().AddAsync(Arg.Any<ParkingSession>(), Arg.Any<CancellationToken>());
@@ -303,15 +363,13 @@ public class IngestAccessEventHandlerTests
   [Fact]
   public async Task Handle_ExitWithNoOpenSession_RecordsAnomalyAndTouchesNoSession()
   {
-    var lot = GivenLot();
+    GivenLot();
 
-    var result = await CreateSut().Handle(
-      Command(lot.Id, direction: Direction.Exit), CancellationToken.None);
+    var result = await CreateSut().Handle(Command(direction: Direction.Exit), CancellationToken.None);
 
     result.Value.Decision.ShouldBe(Decision.Deny);
     result.Value.Reason.ShouldBe(DenyReason.NoOpenSession);
     result.Value.SessionId.ShouldBeNull();
-
     await _accessEventRepository.Received(1).AddAsync(Arg.Any<AccessEvent>(), Arg.Any<CancellationToken>());
     await _sessionRepository.DidNotReceive().UpdateAsync(Arg.Any<ParkingSession>(), Arg.Any<CancellationToken>());
     await _sessionRepository.DidNotReceive().AddAsync(Arg.Any<ParkingSession>(), Arg.Any<CancellationToken>());
@@ -320,12 +378,12 @@ public class IngestAccessEventHandlerTests
   [Fact]
   public async Task Handle_PlateIsNormalizedBeforeMatching()
   {
-    var lot = GivenLot();
+    GivenLot();
 
     ParkingSession? opened = null;
     await _sessionRepository.AddAsync(Arg.Do<ParkingSession>(s => opened = s), Arg.Any<CancellationToken>());
 
-    await CreateSut().Handle(Command(lot.Id, plate: " aaa 111 "), CancellationToken.None);
+    await CreateSut().Handle(Command(plate: " aaa 111 "), CancellationToken.None);
 
     opened.ShouldNotBeNull();
     opened.Plate.ShouldBe("AAA111");
@@ -334,53 +392,19 @@ public class IngestAccessEventHandlerTests
   [Fact]
   public async Task Handle_ManualEnter_TagsTheEventWithSourceAndActingStaff()
   {
-    var lot = GivenLot();
-    var staffId = Guid.NewGuid();
+    GivenLot();
+    var staff = AccessEventActor.Staff(Guid.NewGuid());
 
     AccessEvent? recorded = null;
     await _accessEventRepository.AddAsync(Arg.Do<AccessEvent>(e => recorded = e), Arg.Any<CancellationToken>());
 
-    var command = new IngestAccessEventCommand(lot.Id, "AAA 111", Direction.Enter, EventSource.Manual, Now,
-      "manual:key-1", staffId, staffId);
-    var result = await CreateSut().Handle(command, CancellationToken.None);
+    var result = await CreateSut().Handle(Command(actor: staff, source: EventSource.Manual), CancellationToken.None);
 
     result.Value.Decision.ShouldBe(Decision.Allow);
     recorded.ShouldNotBeNull();
     recorded.Source.ShouldBe(EventSource.Manual);
-    recorded.ActingStaffId.ShouldBe(staffId);
+    recorded.ActingStaffId.ShouldBe(staff.Id);
+    recorded.ActorId.ShouldBe(staff.Id);
     await _sessionRepository.Received(1).AddAsync(Arg.Any<ParkingSession>(), Arg.Any<CancellationToken>());
-  }
-
-  [Fact]
-  public async Task Handle_GateEnter_LeavesActingStaffEmpty()
-  {
-    var lot = GivenLot();
-
-    AccessEvent? recorded = null;
-    await _accessEventRepository.AddAsync(Arg.Do<AccessEvent>(e => recorded = e), Arg.Any<CancellationToken>());
-
-    await CreateSut().Handle(Command(lot.Id), CancellationToken.None);
-
-    recorded.ShouldNotBeNull();
-    recorded.ActingStaffId.ShouldBeNull();
-  }
-
-  [Fact]
-  public async Task Handle_ManualEventOnUnknownLot_AuditsTheStaffMember()
-  {
-    _lotRepository.FirstOrDefaultAsync(Arg.Any<ParkingLotByIdSpec>(), Arg.Any<CancellationToken>())
-      .Returns((ParkingLot?)null);
-    var staffId = Guid.NewGuid();
-
-    AuditLogEntry? audited = null;
-    await _auditRepository.AddAsync(Arg.Do<AuditLogEntry>(e => audited = e), Arg.Any<CancellationToken>());
-
-    var command = new IngestAccessEventCommand(ParkingLotId.From(Guid.NewGuid()), "AAA 111", Direction.Enter,
-      EventSource.Manual, Now, "manual:key-1", staffId, staffId);
-    await CreateSut().Handle(command, CancellationToken.None);
-
-    audited.ShouldNotBeNull();
-    audited.ActorType.ShouldBe(AuditActorType.Staff);
-    audited.ActorId.ShouldBe(staffId);
   }
 }

@@ -1,23 +1,24 @@
 using Ardalis.GuardClauses;
-using Parkin.Api.AccessEventFeatures.List;
-using Parkin.Api.ApiKeyFeatures.List;
-using Parkin.Api.AuditFeatures.List;
-using Parkin.Api.DriverFeatures.List;
-using Parkin.Api.GrantFeatures.List;
-using Parkin.Api.GrantFeatures.ListByLot;
-using Parkin.Api.SessionFeatures.ListActiveByLot;
+using Parkin.Api.Features.AccessEvents.Ingest;
+using Parkin.Api.Features.AccessEvents.List;
+using Parkin.Api.Features.ApiKeys.List;
+using Parkin.Api.Features.Audit.List;
+using Parkin.Api.Features.Drivers.List;
+using Parkin.Api.Features.Grants.List;
+using Parkin.Api.Features.Grants.ListByLot;
+using Parkin.Api.Features.Sessions.ListActiveByLot;
 using Parkin.Api.Domain.Interfaces;
-using Parkin.Api.Domain.Services;
+using Parkin.Api.Domain.StaffUsers;
 using Parkin.Api.Infrastructure.Data;
 using Parkin.Api.Infrastructure.Data.Queries;
 using Parkin.Api.Infrastructure.Identity;
-using Parkin.Api.LotFeatures.List;
-using Parkin.Api.LotLayoutFeatures.Get;
-using Parkin.Api.OccupancyFeatures.ListLotOccupancy;
-using Parkin.Api.PlateFeatures.List;
-using Parkin.Api.SpaceFeatures;
-using Parkin.Api.SpaceFeatures.List;
-using Parkin.Api.UserFeatures.List;
+using Parkin.Api.Features.Lots.List;
+using Parkin.Api.Features.LotLayouts.Get;
+using Parkin.Api.Features.Occupancy;
+using Parkin.Api.Features.Plates.List;
+using Parkin.Api.Features.Spaces;
+using Parkin.Api.Features.Spaces.List;
+using Parkin.Api.Features.Users.List;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,22 +27,21 @@ public static class InfrastructureServiceExtensions
 {
   public static IServiceCollection AddInfrastructureServices(
     this IServiceCollection services,
-    ConfigurationManager config,
-    ILogger logger)
+    IConfiguration config)
   {
-    // Always use PostgreSQL from Aspire
     string? connectionString = config.GetConnectionString("AppDb");
     Guard.Against.Null(connectionString, "AppDb connection string is required. Make sure the application is running with Aspire.");
 
+    services.AddScoped<AuditingInterceptor>();
     services.AddScoped<EventDispatchInterceptor>();
     services.AddScoped<IDomainEventDispatcher, MediatorDomainEventDispatcher>();
 
     services.AddDbContext<AppDbContext>((provider, options) =>
     {
-      var eventDispatchInterceptor = provider.GetRequiredService<EventDispatchInterceptor>();
-      
       options.UseNpgsql(connectionString);
-      options.AddInterceptors(eventDispatchInterceptor);
+      options.AddInterceptors(
+        provider.GetRequiredService<AuditingInterceptor>(),
+        provider.GetRequiredService<EventDispatchInterceptor>());
     });
 
     services.AddIdentityCore<ApplicationUser>(options =>
@@ -67,18 +67,17 @@ public static class InfrastructureServiceExtensions
            .AddScoped<IListApiKeysQueryService, ListApiKeysQueryService>()
            .AddScoped<IListAuditQueryService, ListAuditQueryService>()
            .AddScoped<ILotLayoutQueryService, LotLayoutQueryService>()
-           .AddScoped<IActiveLotOccupancyQueryService, ActiveLotOccupancyQueryService>()
+           .AddScoped<ILotOccupancyQueryService, LotOccupancyQueryService>()
            .AddScoped<IListAccessEventsQueryService, ListAccessEventsQueryService>()
+           .AddScoped<IAccessEventReplayQueryService, AccessEventReplayQueryService>()
+           .AddScoped<IGateLotReader, GateLotReader>()
            .AddScoped<IListActiveSessionsByLotQueryService, ListActiveSessionsByLotQueryService>()
            .AddScoped<IListGrantsByLotQueryService, ListGrantsByLotQueryService>()
            .AddScoped<IActiveReservationChecker, ActiveReservationChecker>()
            .AddScoped<ILotRowLocker, LotRowLocker>()
-           .AddScoped<IUnitOfWork, EfUnitOfWork>();
-
-    services.AddSingleton<IEntryDecisionService, EntryDecisionService>()
-            .AddSingleton<IOccupancyCalculator, OccupancyCalculator>();
-
-    logger.LogInformation("{Project} services registered", "Infrastructure");
+           .AddScoped<IUnitOfWork, EfUnitOfWork>()
+           .AddScoped<IStaffUserService, StaffUserService>()
+           .AddScoped<IStaffAuthService, StaffAuthService>();
 
     return services;
   }

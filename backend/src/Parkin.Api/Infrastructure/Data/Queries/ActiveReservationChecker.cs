@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Parkin.Api.Domain.ParkingLotAggregate;
 using Parkin.Api.Domain.ReservationAggregate;
-using Parkin.Api.SpaceFeatures;
+using Parkin.Api.Features.Spaces;
 
 namespace Parkin.Api.Infrastructure.Data.Queries;
 

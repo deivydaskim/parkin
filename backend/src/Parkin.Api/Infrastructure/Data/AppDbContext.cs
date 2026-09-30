@@ -2,17 +2,20 @@ using System.Reflection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Parkin.Api.Domain.AccessEventAggregate;
 using Parkin.Api.Domain.AccessGrantAggregate;
 using Parkin.Api.Domain.ApiKeyAggregate;
 using Parkin.Api.Domain.AuditAggregate;
 using Parkin.Api.Domain.DriverAggregate;
+using Parkin.Api.Domain.Exceptions;
 using Parkin.Api.Domain.ParkingLotAggregate;
 using Parkin.Api.Domain.ParkingSessionAggregate;
 using Parkin.Api.Domain.ReservationAggregate;
 using Parkin.Api.Infrastructure.Identity;
 
 namespace Parkin.Api.Infrastructure.Data;
+
 public class AppDbContext(DbContextOptions<AppDbContext> options) :
   IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options)
 {
@@ -33,6 +36,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) :
     modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
   }
 
-  public override int SaveChanges() =>
-        SaveChangesAsync().GetAwaiter().GetResult();
+  public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess,
+    CancellationToken cancellationToken = default)
+  {
+    try
+    {
+      return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+    catch (DbUpdateException ex) when (ex.InnerException is PostgresException
+      { SqlState: PostgresErrorCodes.UniqueViolation } postgresException)
+    {
+      throw new UniqueConstraintViolationException(postgresException.ConstraintName, ex);
+    }
+  }
 }

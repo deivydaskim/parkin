@@ -1,35 +1,26 @@
-﻿using FastEndpoints;
+using FastEndpoints;
 using FastEndpoints.Swagger;
 using Parkin.Api.Configurations;
-using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddServiceDefaults()    // This sets up OpenTelemetry logging
-       .AddLoggerConfigs();     // This adds Serilog for console formatting
+builder.AddServiceDefaults()
+       .AddLoggerConfigs();
 
-using var loggerFactory = LoggerFactory.Create(config => config.AddConsole());
-var startupLogger = loggerFactory.CreateLogger<Program>();
-
-startupLogger.LogInformation("Starting web host");
-
-builder.Services.AddOptionConfigs(builder.Configuration, startupLogger, builder);
-builder.Services.AddServiceConfigs(startupLogger, builder);
-builder.Services.AddAuthConfigs(builder.Configuration, builder.Environment);
+builder.Services.AddOptionConfigs(builder.Configuration)
+                .AddServiceConfigs(builder.Configuration)
+                .AddAuthConfigs(builder.Configuration, builder.Environment);
 
 builder.Services.AddFastEndpoints()
-                .SwaggerDocument(o =>
-                {
-                  o.ShortSchemaNames = true;
-                });
+                .SwaggerDocument(o => o.ShortSchemaNames = true);
 
 var app = builder.Build();
 
-await app.UseAppMiddlewareAndSeedDatabase();
+app.UseAppMiddleware();
+await app.MigrateAndSeedDatabaseAsync();
 
-app.MapDefaultEndpoints(); // Aspire health checks and metrics
+app.MapDefaultEndpoints();
 
 app.Run();
 
-// Make the implicit Program.cs class public, so integration tests can reference the correct assembly for host building
 public partial class Program { }

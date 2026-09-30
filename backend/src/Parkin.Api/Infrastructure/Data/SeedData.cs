@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Parkin.Api.Domain.DriverAggregate;
 using Parkin.Api.Domain.ParkingLotAggregate;
 using Parkin.Api.Domain.ReservationAggregate;
+using Parkin.Api.Domain.StaffUsers;
 using Parkin.Api.Infrastructure.Identity;
 using Microsoft.Extensions.Logging;
 
@@ -84,7 +85,7 @@ public static class SeedData
     SeedOperatorOptions? operatorOpts,
     ILogger logger)
   {
-    foreach (var roleName in Roles.All)
+    foreach (var roleName in StaffRoles.All)
     {
       if (!await roleManager.RoleExistsAsync(roleName))
       {
@@ -126,14 +127,14 @@ public static class SeedData
       return;
     }
 
-    var addToRoleResult = await userManager.AddToRoleAsync(user, Roles.SystemAdmin);
+    var addToRoleResult = await userManager.AddToRoleAsync(user, StaffRoles.SystemAdmin);
     if (!addToRoleResult.Succeeded)
     {
-      logger.LogError("Failed to add admin {Email} to {Role}: {Errors}", admin.Email, Roles.SystemAdmin, DescribeErrors(addToRoleResult));
+      logger.LogError("Failed to add admin {Email} to {Role}: {Errors}", admin.Email, StaffRoles.SystemAdmin, DescribeErrors(addToRoleResult));
       return;
     }
 
-    logger.LogInformation("Seeded admin user {Email} in role {Role}.", admin.Email, Roles.SystemAdmin);
+    logger.LogInformation("Seeded admin user {Email} in role {Role}.", admin.Email, StaffRoles.SystemAdmin);
 
     if (operatorOpts is null || string.IsNullOrWhiteSpace(operatorOpts.Email) || string.IsNullOrWhiteSpace(operatorOpts.Password))
     {
@@ -162,14 +163,14 @@ public static class SeedData
       return;
     }
 
-    var operatorAddToRoleResult = await userManager.AddToRoleAsync(operatorUser, Roles.Operator);
+    var operatorAddToRoleResult = await userManager.AddToRoleAsync(operatorUser, StaffRoles.Operator);
     if (!operatorAddToRoleResult.Succeeded)
     {
-      logger.LogError("Failed to add operator {Email} to {Role}: {Errors}", operatorOpts.Email, Roles.Operator, DescribeErrors(operatorAddToRoleResult));
+      logger.LogError("Failed to add operator {Email} to {Role}: {Errors}", operatorOpts.Email, StaffRoles.Operator, DescribeErrors(operatorAddToRoleResult));
       return;
     }
 
-    logger.LogInformation("Seeded operator user {Email} in role {Role}.", operatorOpts.Email, Roles.Operator);
+    logger.LogInformation("Seeded operator user {Email} in role {Role}.", operatorOpts.Email, StaffRoles.Operator);
   }
 
   static string DescribeErrors(IdentityResult result) =>

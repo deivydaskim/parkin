@@ -1,45 +1,12 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <NsDepCopConfig>
     <Allowed From="*" To="*" />
 
-    <Disallowed From="Parkin.Api.Domain.*"
-				To="Parkin.Api.Infrastructure.*" />
-    
-    <Disallowed From="Parkin.Api.LotFeatures.*"
-				To="Parkin.Api.Infrastructure.*" />
+    <Disallowed From="Parkin.Api.Features.*" To="Parkin.Api.Infrastructure.*" />
 
-    <Disallowed From="Parkin.Api.SpaceFeatures.*"
-				To="Parkin.Api.Infrastructure.*" />
-
-    <Disallowed From="Parkin.Api.Domain.AuditAggregate.*"
-				To="Parkin.Api.Infrastructure.*" />
-
-    <Disallowed From="Parkin.Api.DriverFeatures.*"
-				To="Parkin.Api.Infrastructure.*" />
-
-    <Disallowed From="Parkin.Api.PlateFeatures.*"
-				To="Parkin.Api.Infrastructure.*" />
-
-    <Disallowed From="Parkin.Api.GrantFeatures.*"
-				To="Parkin.Api.Infrastructure.*" />
-
-    <Disallowed From="Parkin.Api.ApiKeyFeatures.*"
-				To="Parkin.Api.Infrastructure.*" />
-
-    <Disallowed From="Parkin.Api.ReservationFeatures.*"
-				To="Parkin.Api.Infrastructure.*" />
-
-    <Disallowed From="Parkin.Api.AccessEventFeatures.*"
-				To="Parkin.Api.Infrastructure.*" />
-
-    <Disallowed From="Parkin.Api.AuditFeatures.*"
-				To="Parkin.Api.Infrastructure.*" />
-
-    <Disallowed From="Parkin.Api.OccupancyFeatures.*"
-				To="Parkin.Api.Infrastructure.*" />
-
-    <Disallowed From="Parkin.Api.LotLayoutFeatures.*"
-				To="Parkin.Api.Infrastructure.*" />
+    <Disallowed From="Parkin.Api.Domain.*" To="Parkin.Api.Infrastructure.*" />
+    <Disallowed From="Parkin.Api.Domain.*" To="Parkin.Api.Features.*" />
+    <Disallowed From="Parkin.Api.Domain.*" To="Parkin.Api.Web.*" />
 
     <AnalyzerConfig>
         <IssueKind Name="IllegalDependency" Severity="Error" />

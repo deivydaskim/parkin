@@ -1,4 +1,4 @@
-using Parkin.Api.UserFeatures;
+using Parkin.Api.Domain.StaffUsers;
 using Shouldly;
 using Xunit;
 

@@ -1,32 +1,20 @@
 using Microsoft.EntityFrameworkCore;
 using Parkin.Api.Domain.DriverAggregate;
-using Parkin.Api.GrantFeatures;
-using Parkin.Api.GrantFeatures.List;
+using Parkin.Api.Features.Grants;
+using Parkin.Api.Features.Grants.List;
 
 namespace Parkin.Api.Infrastructure.Data.Queries;
 
 public class ListGrantsByDriverQueryService(AppDbContext db) : IListGrantsByDriverQueryService
 {
-  private readonly AppDbContext _db = db;
-
-  public async Task<PagedResult<GrantDto>> ListAsync(DriverId driverId, int page, int perPage)
-  {
-    var query = _db.AccessGrants.Where(g => g.DriverId == driverId);
-
-    var items = await query
-      .OrderByDescending(g => g.CreatedAt)
-      .Skip((page - 1) * perPage)
-      .Take(perPage)
-      .Select(g => new GrantDto(g.Id, g.DriverId, g.ParkingLotId, g.ValidFrom, g.ValidTo, g.Status,
-        _db.ParkingLots.Where(l => l.Id == g.ParkingLotId).Select(l => l.Name).FirstOrDefault(),
-        _db.Drivers.Where(d => d.Id == g.DriverId).Select(d => d.Name).FirstOrDefault()))
-      .AsNoTracking()
-      .ToListAsync();
-
-    int totalCount = await query.CountAsync();
-    int totalPages = (int)Math.Ceiling(totalCount / (double)perPage);
-    var result = new PagedResult<GrantDto>(items, page, perPage, totalCount, totalPages);
-
-    return result;
-  }
+  public Task<PagedResult<GrantResponse>> ListAsync(DriverId driverId, int page, int perPage,
+    CancellationToken cancellationToken)
+    => db.AccessGrants.AsNoTracking()
+      .Where(grant => grant.DriverId == driverId)
+      .OrderByDescending(grant => grant.CreatedAt)
+      .Select(grant => new GrantResponse(
+        grant.Id.Value, grant.DriverId.Value, grant.ParkingLotId.Value, grant.ValidFrom, grant.ValidTo, grant.Status,
+        db.ParkingLots.Where(lot => lot.Id == grant.ParkingLotId).Select(lot => lot.Name).FirstOrDefault(),
+        db.Drivers.Where(driver => driver.Id == grant.DriverId).Select(driver => driver.Name).FirstOrDefault()))
+      .ToPagedResultAsync(page, perPage, cancellationToken);
 }

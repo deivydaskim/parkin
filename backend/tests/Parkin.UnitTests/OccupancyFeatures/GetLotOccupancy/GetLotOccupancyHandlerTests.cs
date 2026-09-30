@@ -1,61 +1,39 @@
 using Ardalis.Result;
-using Ardalis.SharedKernel;
 using NSubstitute;
 using Parkin.Api.Domain.ParkingLotAggregate;
-using Parkin.Api.Domain.ParkingLotAggregate.Specifications;
-using Parkin.Api.Domain.ParkingSessionAggregate;
-using Parkin.Api.Domain.ParkingSessionAggregate.Specifications;
-using Parkin.Api.Domain.Services;
-using Parkin.Api.OccupancyFeatures.GetLotOccupancy;
+using Parkin.Api.Features.Occupancy;
+using Parkin.Api.Features.Occupancy.GetLotOccupancy;
 using Shouldly;
 using Xunit;
 
 namespace Parkin.UnitTests.OccupancyFeatures.GetLotOccupancy;
 
-// The arithmetic itself is covered exhaustively by OccupancyCalculatorTests; these cover the
-// projection - that the handler feeds the calculator the right inputs and maps its output faithfully.
 public class GetLotOccupancyHandlerTests
 {
-  private readonly IReadRepository<ParkingLot> _lotRepository = Substitute.For<IReadRepository<ParkingLot>>();
-  private readonly IReadRepository<ParkingSession> _sessionRepository = Substitute.For<IReadRepository<ParkingSession>>();
+  private static readonly DateTimeOffset Now = new(2026, 8, 25, 9, 0, 0, TimeSpan.Zero);
 
-  private GetLotOccupancyHandler CreateSut() =>
-    new(_lotRepository, _sessionRepository, new OccupancyCalculator());
+  private readonly ILotOccupancyQueryService _query = Substitute.For<ILotOccupancyQueryService>();
+  private readonly TimeProvider _timeProvider = Substitute.For<TimeProvider>();
+  private readonly ParkingLotId _lotId = ParkingLotId.From(Guid.NewGuid());
 
-  private void GivenLot(ParkingLot? lot) =>
-    _lotRepository.FirstOrDefaultAsync(Arg.Any<ParkingLotByIdSpec>(), Arg.Any<CancellationToken>())
-      .Returns(lot);
+  public GetLotOccupancyHandlerTests() => _timeProvider.GetUtcNow().Returns(Now);
 
-  private void GivenSessionCounts(int general, int reserved)
-  {
-    _sessionRepository.CountAsync(
-        Arg.Is<ActiveSessionCountByLotPoolSpec>(spec => spec.Pool == SessionPool.General),
-        Arg.Any<CancellationToken>())
-      .Returns(general);
-    _sessionRepository.CountAsync(
-        Arg.Is<ActiveSessionCountByLotPoolSpec>(spec => spec.Pool == SessionPool.Reserved),
-        Arg.Any<CancellationToken>())
-      .Returns(reserved);
-  }
+  private GetLotOccupancyHandler CreateSut() => new(_query, _timeProvider);
 
-  private async Task<Result<Parkin.Api.OccupancyFeatures.LotOccupancyDto>> HandleAsync(ParkingLot lot) =>
-    await CreateSut().Handle(new GetLotOccupancyQuery(lot.Id), CancellationToken.None);
+  private void GivenLot(int generalCapacity, int generalSessions, int reservedSessions = 0, int reservedSpaces = 0) =>
+    _query.FindAsync(_lotId, Arg.Any<CancellationToken>())
+      .Returns(new LotOccupancyInputs(_lotId, "Test Lot", generalCapacity, reservedSpaces, generalSessions,
+        reservedSessions));
 
-  private static ParkingLot LotWithSpaces(int general, int reserved)
-  {
-    var lot = ParkingLot.Create("Test Lot", "Europe/Vilnius");
-    for (var i = 0; i < general; i++) lot.AddSpace($"G{i}", SpaceType.General, actorId: null);
-    for (var i = 0; i < reserved; i++) lot.AddSpace($"R{i}", SpaceType.Reserved, actorId: null);
-    return lot;
-  }
+  private async Task<Result<LotOccupancyResponse>> HandleAsync() =>
+    await CreateSut().Handle(new GetLotOccupancyQuery(_lotId), CancellationToken.None);
 
   [Fact]
   public async Task Handle_UnknownLot_ReturnsNotFound()
   {
-    GivenLot(null);
+    _query.FindAsync(_lotId, Arg.Any<CancellationToken>()).Returns((LotOccupancyInputs?)null);
 
-    var result = await CreateSut().Handle(
-      new GetLotOccupancyQuery(ParkingLotId.From(Guid.NewGuid())), CancellationToken.None);
+    var result = await HandleAsync();
 
     result.Status.ShouldBe(ResultStatus.NotFound);
   }
@@ -63,14 +41,13 @@ public class GetLotOccupancyHandlerTests
   [Fact]
   public async Task Handle_EmptyLot_ReportsFullCapacityFree()
   {
-    var lot = LotWithSpaces(general: 3, reserved: 0);
-    GivenLot(lot);
-    GivenSessionCounts(general: 0, reserved: 0);
+    GivenLot(generalCapacity: 3, generalSessions: 0);
 
-    var result = await HandleAsync(lot);
+    var result = await HandleAsync();
 
     result.Status.ShouldBe(ResultStatus.Ok);
-    result.Value.LotId.ShouldBe(lot.Id);
+    result.Value.LotId.ShouldBe(_lotId.Value);
+    result.Value.LotName.ShouldBe("Test Lot");
     result.Value.GeneralCapacity.ShouldBe(3);
     result.Value.GeneralUsed.ShouldBe(0);
     result.Value.GeneralFree.ShouldBe(3);
@@ -81,11 +58,9 @@ public class GetLotOccupancyHandlerTests
   [Fact]
   public async Task Handle_PartiallyOccupied_DerivesUsedAndFree()
   {
-    var lot = LotWithSpaces(general: 5, reserved: 0);
-    GivenLot(lot);
-    GivenSessionCounts(general: 2, reserved: 0);
+    GivenLot(generalCapacity: 5, generalSessions: 2);
 
-    var result = await HandleAsync(lot);
+    var result = await HandleAsync();
 
     result.Value.GeneralCapacity.ShouldBe(5);
     result.Value.GeneralUsed.ShouldBe(2);
@@ -95,11 +70,9 @@ public class GetLotOccupancyHandlerTests
   [Fact]
   public async Task Handle_ExactlyFull_FlagsFullButNotOverCapacity()
   {
-    var lot = LotWithSpaces(general: 2, reserved: 0);
-    GivenLot(lot);
-    GivenSessionCounts(general: 2, reserved: 0);
+    GivenLot(generalCapacity: 2, generalSessions: 2);
 
-    var result = await HandleAsync(lot);
+    var result = await HandleAsync();
 
     result.Value.GeneralFree.ShouldBe(0);
     result.Value.IsGeneralPoolFull.ShouldBeTrue();
@@ -109,11 +82,9 @@ public class GetLotOccupancyHandlerTests
   [Fact]
   public async Task Handle_MoreSessionsThanCapacity_FloorsFreeAtZeroAndFlagsOverCapacity()
   {
-    var lot = LotWithSpaces(general: 2, reserved: 0);
-    GivenLot(lot);
-    GivenSessionCounts(general: 5, reserved: 0);
+    GivenLot(generalCapacity: 2, generalSessions: 5);
 
-    var result = await HandleAsync(lot);
+    var result = await HandleAsync();
 
     result.Value.GeneralUsed.ShouldBe(5);
     result.Value.GeneralFree.ShouldBe(0);
@@ -121,42 +92,13 @@ public class GetLotOccupancyHandlerTests
   }
 
   [Fact]
-  public async Task Handle_DeactivatedGeneralSpace_DropsCapacity()
-  {
-    var lot = LotWithSpaces(general: 3, reserved: 0);
-    lot.DeactivateSpace(lot.Spaces.First().Id, actorId: null);
-    GivenLot(lot);
-    GivenSessionCounts(general: 0, reserved: 0);
-
-    var result = await HandleAsync(lot);
-
-    result.Value.GeneralCapacity.ShouldBe(2);
-    result.Value.GeneralFree.ShouldBe(2);
-  }
-
-  [Fact]
-  public async Task Handle_ReservedSpaceCount_CountsOnlyActiveReservedSpaces()
-  {
-    var lot = LotWithSpaces(general: 4, reserved: 3);
-    lot.DeactivateSpace(lot.Spaces.First(space => space.Type == SpaceType.Reserved).Id, actorId: null);
-    GivenLot(lot);
-    GivenSessionCounts(general: 0, reserved: 0);
-
-    var result = await HandleAsync(lot);
-
-    result.Value.ReservedSpaceCount.ShouldBe(2);
-    result.Value.GeneralCapacity.ShouldBe(4);
-  }
-
-  [Fact]
   public async Task Handle_ReservedSessions_DoNotConsumeTheGeneralPool()
   {
-    var lot = LotWithSpaces(general: 2, reserved: 2);
-    GivenLot(lot);
-    GivenSessionCounts(general: 1, reserved: 2);
+    GivenLot(generalCapacity: 2, generalSessions: 1, reservedSessions: 2, reservedSpaces: 2);
 
-    var result = await HandleAsync(lot);
+    var result = await HandleAsync();
 
+    result.Value.ReservedSpaceCount.ShouldBe(2);
     result.Value.ReservedOccupied.ShouldBe(2);
     result.Value.GeneralUsed.ShouldBe(1);
     result.Value.GeneralFree.ShouldBe(1);
@@ -164,16 +106,12 @@ public class GetLotOccupancyHandlerTests
   }
 
   [Fact]
-  public async Task Handle_StampsAsOf()
+  public async Task Handle_StampsAsOfFromTheTimeProvider()
   {
-    var lot = LotWithSpaces(general: 1, reserved: 0);
-    GivenLot(lot);
-    GivenSessionCounts(general: 0, reserved: 0);
-    var before = DateTimeOffset.UtcNow;
+    GivenLot(generalCapacity: 1, generalSessions: 0);
 
-    var result = await HandleAsync(lot);
+    var result = await HandleAsync();
 
-    result.Value.AsOf.ShouldBeGreaterThanOrEqualTo(before);
-    result.Value.AsOf.ShouldBeLessThanOrEqualTo(DateTimeOffset.UtcNow);
+    result.Value.AsOf.ShouldBe(Now);
   }
 }

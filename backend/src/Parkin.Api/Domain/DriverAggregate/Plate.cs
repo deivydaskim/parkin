@@ -2,7 +2,6 @@ namespace Parkin.Api.Domain.DriverAggregate;
 
 public class Plate : EntityBase<Plate, PlateId>
 {
-  // Private constructor for EF Core
   private Plate() { }
 
   private Plate(PlateId id, DriverId driverId, string normalizedPlateNumber)
@@ -14,7 +13,7 @@ public class Plate : EntityBase<Plate, PlateId>
   }
 
   internal static Plate Create(DriverId driverId, string normalizedPlateNumber)
-    => new(PlateId.From(Guid.NewGuid()), driverId, normalizedPlateNumber);
+    => new(PlateId.From(Guid.CreateVersion7()), driverId, normalizedPlateNumber);
 
   public DriverId DriverId { get; private set; }
   public string NormalizedPlateNumber { get; private set; } = string.Empty;

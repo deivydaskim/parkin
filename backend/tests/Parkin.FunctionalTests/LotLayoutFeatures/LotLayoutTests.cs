@@ -2,13 +2,13 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Parkin.Api.AuditFeatures;
+using Parkin.Api.Features.Audit;
 using Parkin.Api.Domain.ParkingLotAggregate;
-using Parkin.Api.DriverFeatures;
-using Parkin.Api.LotFeatures;
-using Parkin.Api.LotLayoutFeatures;
-using Parkin.Api.ReservationFeatures;
-using Parkin.Api.SpaceFeatures;
+using Parkin.Api.Features.Drivers;
+using Parkin.Api.Features.Lots;
+using Parkin.Api.Features.LotLayouts;
+using Parkin.Api.Features.Reservations;
+using Parkin.Api.Features.Spaces;
 using Shouldly;
 using Xunit;
 
@@ -36,7 +36,7 @@ public class LotLayoutTests : IClassFixture<ParkinApiFactory>
     return client;
   }
 
-  private static async Task<LotRecord> CreateLotAsync(HttpClient client, object? layout = null)
+  private static async Task<LotResponse> CreateLotAsync(HttpClient client, object? layout = null)
   {
     var response = await client.PostAsJsonAsync("/lots", new
     {
@@ -45,27 +45,27 @@ public class LotLayoutTests : IClassFixture<ParkinApiFactory>
       Layout = layout,
     });
     response.EnsureSuccessStatusCode();
-    var lot = await response.Content.ReadFromJsonAsync<LotRecord>(JsonOptions);
+    var lot = await response.Content.ReadFromJsonAsync<LotResponse>(JsonOptions);
     lot.ShouldNotBeNull();
     return lot;
   }
 
-  private static async Task<SpaceRecord> CreateSpaceAsync(HttpClient client, Guid lotId, string label,
+  private static async Task<SpaceResponse> CreateSpaceAsync(HttpClient client, Guid lotId, string label,
     SpaceType type = SpaceType.General, object? placement = null, string? zone = null)
   {
     var response = await client.PostAsJsonAsync($"/lots/{lotId}/spaces",
       new { Label = label, Type = type.ToString(), Placement = placement, Zone = zone });
     response.EnsureSuccessStatusCode();
-    var space = await response.Content.ReadFromJsonAsync<SpaceRecord>(JsonOptions);
+    var space = await response.Content.ReadFromJsonAsync<SpaceResponse>(JsonOptions);
     space.ShouldNotBeNull();
     return space;
   }
 
-  private static async Task<LotLayoutViewRecord> GetLayoutAsync(HttpClient client, Guid lotId)
+  private static async Task<LotLayoutViewResponse> GetLayoutAsync(HttpClient client, Guid lotId)
   {
     var response = await client.GetAsync(LayoutRoute(lotId));
     response.StatusCode.ShouldBe(HttpStatusCode.OK);
-    var view = await response.Content.ReadFromJsonAsync<LotLayoutViewRecord>(JsonOptions);
+    var view = await response.Content.ReadFromJsonAsync<LotLayoutViewResponse>(JsonOptions);
     view.ShouldNotBeNull();
     return view;
   }
@@ -74,7 +74,7 @@ public class LotLayoutTests : IClassFixture<ParkinApiFactory>
   {
     var response = await client.PostAsJsonAsync("/drivers", new { Name = name });
     response.EnsureSuccessStatusCode();
-    var driver = await response.Content.ReadFromJsonAsync<DriverRecord>(JsonOptions);
+    var driver = await response.Content.ReadFromJsonAsync<DriverResponse>(JsonOptions);
     driver.ShouldNotBeNull();
     return driver.Id;
   }
@@ -118,9 +118,9 @@ public class LotLayoutTests : IClassFixture<ParkinApiFactory>
     var space = await CreateSpaceAsync(admin, lot.Id, "A1",
       placement: new { X = 12.5, Y = 6, RotationDegrees = 90, Level = 1 }, zone: " North ");
 
-    lot.Layout.ShouldBe(new LotLayoutRecord(40m, 30m, 2));
+    lot.Layout.ShouldBe(new LotLayoutResponse(40m, 30m, 2));
     space.Zone.ShouldBe("North");
-    space.Placement.ShouldBe(new SpacePlacementRecord(12.5m, 6m, 90m, 1, 2.5m, 5m));
+    space.Placement.ShouldBe(new SpacePlacementResponse(12.5m, 6m, 90m, 1, 2.5m, 5m));
   }
 
   [Fact]
@@ -146,17 +146,17 @@ public class LotLayoutTests : IClassFixture<ParkinApiFactory>
     var place = await admin.PatchAsJsonAsync($"/spaces/{space.Id}",
       new { Placement = new { X = 3, Y = 4, RotationDegrees = 45, Width = 2.6, Length = 5.2 }, Zone = "East" });
     place.StatusCode.ShouldBe(HttpStatusCode.OK);
-    var placed = await place.Content.ReadFromJsonAsync<SpaceRecord>(JsonOptions);
-    placed!.Placement.ShouldBe(new SpacePlacementRecord(3m, 4m, 45m, 0, 2.6m, 5.2m));
+    var placed = await place.Content.ReadFromJsonAsync<SpaceResponse>(JsonOptions);
+    placed!.Placement.ShouldBe(new SpacePlacementResponse(3m, 4m, 45m, 0, 2.6m, 5.2m));
     placed.Zone.ShouldBe("East");
 
     var rename = await admin.PatchAsJsonAsync($"/spaces/{space.Id}", new { Label = "A1-renamed" });
-    var renamed = await rename.Content.ReadFromJsonAsync<SpaceRecord>(JsonOptions);
+    var renamed = await rename.Content.ReadFromJsonAsync<SpaceResponse>(JsonOptions);
     renamed!.Placement.ShouldNotBeNull();
     renamed.Zone.ShouldBe("East");
 
     var clear = await admin.PatchAsJsonAsync($"/spaces/{space.Id}", new { ClearPlacement = true, Zone = "" });
-    var cleared = await clear.Content.ReadFromJsonAsync<SpaceRecord>(JsonOptions);
+    var cleared = await clear.Content.ReadFromJsonAsync<SpaceResponse>(JsonOptions);
     cleared!.Placement.ShouldBeNull();
     cleared.Zone.ShouldBeNull();
   }
@@ -182,11 +182,11 @@ public class LotLayoutTests : IClassFixture<ParkinApiFactory>
 
     var set = await admin.PatchAsJsonAsync($"/lots/{lot.Id}",
       new { Layout = new { WidthMeters = 55.5, LengthMeters = 20, LevelCount = 3 } });
-    var withLayout = await set.Content.ReadFromJsonAsync<LotRecord>(JsonOptions);
-    withLayout!.Layout.ShouldBe(new LotLayoutRecord(55.5m, 20m, 3));
+    var withLayout = await set.Content.ReadFromJsonAsync<LotResponse>(JsonOptions);
+    withLayout!.Layout.ShouldBe(new LotLayoutResponse(55.5m, 20m, 3));
 
     var clear = await admin.PatchAsJsonAsync($"/lots/{lot.Id}", new { ClearLayout = true });
-    var withoutLayout = await clear.Content.ReadFromJsonAsync<LotRecord>(JsonOptions);
+    var withoutLayout = await clear.Content.ReadFromJsonAsync<LotResponse>(JsonOptions);
     withoutLayout!.Layout.ShouldBeNull();
   }
 
@@ -223,13 +223,13 @@ public class LotLayoutTests : IClassFixture<ParkinApiFactory>
     });
 
     response.StatusCode.ShouldBe(HttpStatusCode.OK);
-    var view = await response.Content.ReadFromJsonAsync<LotLayoutViewRecord>(JsonOptions);
+    var view = await response.Content.ReadFromJsonAsync<LotLayoutViewResponse>(JsonOptions);
     view.ShouldNotBeNull();
-    view.Lot.Layout.ShouldBe(new LotLayoutRecord(30m, 20m, 2));
-    view.Spaces.Single(s => s.Id == first.Id).Placement.ShouldBe(new SpacePlacementRecord(5m, 3.5m, 0m, 1, 2.5m, 5m));
+    view.Lot.Layout.ShouldBe(new LotLayoutResponse(30m, 20m, 2));
+    view.Spaces.Single(s => s.Id == first.Id).Placement.ShouldBe(new SpacePlacementResponse(5m, 3.5m, 0m, 1, 2.5m, 5m));
     view.Spaces.Single(s => s.Id == first.Id).Zone.ShouldBe("Upper");
     view.Spaces.Single(s => s.Id == second.Id).Placement.ShouldBeNull();
-    view.Spaces.Single(s => s.Id == untouched.Id).Placement.ShouldBe(new SpacePlacementRecord(9m, 9m, 0m, 0, 2.5m, 5m));
+    view.Spaces.Single(s => s.Id == untouched.Id).Placement.ShouldBe(new SpacePlacementResponse(9m, 9m, 0m, 0, 2.5m, 5m));
 
     var audit = await admin.GetAsync($"/audit?entity=ParkingLot&per_page=100");
     audit.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -305,7 +305,7 @@ public class LotLayoutTests : IClassFixture<ParkinApiFactory>
     var driverId = await CreateDriverAsync(admin, driverName);
     var reserve = await admin.PostAsJsonAsync("/reservations", new { SpaceId = reserved.Id, DriverId = driverId });
     reserve.EnsureSuccessStatusCode();
-    var reservation = await reserve.Content.ReadFromJsonAsync<ReservationRecord>(JsonOptions);
+    var reservation = await reserve.Content.ReadFromJsonAsync<ReservationResponse>(JsonOptions);
 
     var view = await GetLayoutAsync(admin, lot.Id);
 

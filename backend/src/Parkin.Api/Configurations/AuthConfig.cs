@@ -13,8 +13,7 @@ public static class AuthConfig
     IConfiguration configuration,
     IWebHostEnvironment environment)
   {
-    // Identity.Application cookie is the default scheme so FastEndpoints authorization uses it.
-    // The ApiKey scheme is additive — no endpoint opts into it yet (see T5.2).
+    // The Identity cookie is the default scheme; the gate ingest endpoint opts into ApiKey explicitly.
     var authenticationBuilder = services.AddAuthentication(IdentityConstants.ApplicationScheme);
     authenticationBuilder.AddIdentityCookies();
     authenticationBuilder.AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
@@ -57,7 +56,7 @@ public static class AuthConfig
     services.AddAuthorization();
 
     // Default revalidation interval is 30 minutes — too slow for "disable ends sessions
-    // immediately" (A4 AC). A rotated security stamp (see UserFeatures/Disable) is only
+    // immediately" (A4 AC). A rotated security stamp (see StaffUserService.DisableAsync) is only
     // checked on the next revalidation, so this interval bounds how stale a live cookie can be.
     services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.FromSeconds(30));
 

@@ -2,13 +2,13 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Parkin.Api.ApiKeyFeatures.Create;
+using Parkin.Api.Features.ApiKeys.Create;
 using Parkin.Api.Domain.ParkingLotAggregate;
-using Parkin.Api.DriverFeatures;
-using Parkin.Api.LotFeatures;
-using Parkin.Api.LotFeatures.Create;
-using Parkin.Api.OccupancyFeatures;
-using Parkin.Api.SpaceFeatures;
+using Parkin.Api.Features.Drivers;
+using Parkin.Api.Features.Lots;
+using Parkin.Api.Features.Lots.Create;
+using Parkin.Api.Features.Occupancy;
+using Parkin.Api.Features.Spaces;
 using Shouldly;
 using Xunit;
 
@@ -61,7 +61,7 @@ public class LotOccupancyTests : IClassFixture<ParkinApiFactory>
       FullBehavior = fullBehavior,
     });
     response.EnsureSuccessStatusCode();
-    var lot = await response.Content.ReadFromJsonAsync<LotRecord>(JsonOptions);
+    var lot = await response.Content.ReadFromJsonAsync<LotResponse>(JsonOptions);
     lot.ShouldNotBeNull();
     return lot.Id;
   }
@@ -71,7 +71,7 @@ public class LotOccupancyTests : IClassFixture<ParkinApiFactory>
     var response = await adminClient.PostAsJsonAsync($"/lots/{lotId}/spaces",
       new { Label = label, Type = type.ToString() });
     response.EnsureSuccessStatusCode();
-    var space = await response.Content.ReadFromJsonAsync<SpaceRecord>(JsonOptions);
+    var space = await response.Content.ReadFromJsonAsync<SpaceResponse>(JsonOptions);
     space.ShouldNotBeNull();
     return space.Id;
   }
@@ -81,7 +81,7 @@ public class LotOccupancyTests : IClassFixture<ParkinApiFactory>
     var driverResponse = await adminClient.PostAsJsonAsync("/drivers",
       new { Name = $"Driver {Guid.NewGuid():N}" });
     driverResponse.EnsureSuccessStatusCode();
-    var driver = await driverResponse.Content.ReadFromJsonAsync<DriverRecord>(JsonOptions);
+    var driver = await driverResponse.Content.ReadFromJsonAsync<DriverResponse>(JsonOptions);
     driver.ShouldNotBeNull();
 
     var plateResponse = await adminClient.PostAsJsonAsync($"/drivers/{driver.Id}/plates",
@@ -122,11 +122,11 @@ public class LotOccupancyTests : IClassFixture<ParkinApiFactory>
     response.StatusCode.ShouldBe(HttpStatusCode.OK);
   }
 
-  private static async Task<LotOccupancyRecord> GetOccupancyAsync(HttpClient client, Guid lotId)
+  private static async Task<LotOccupancyResponse> GetOccupancyAsync(HttpClient client, Guid lotId)
   {
     var response = await client.GetAsync(OccupancyRoute(lotId));
     response.StatusCode.ShouldBe(HttpStatusCode.OK);
-    var occupancy = await response.Content.ReadFromJsonAsync<LotOccupancyRecord>(JsonOptions);
+    var occupancy = await response.Content.ReadFromJsonAsync<LotOccupancyResponse>(JsonOptions);
     occupancy.ShouldNotBeNull();
     return occupancy;
   }

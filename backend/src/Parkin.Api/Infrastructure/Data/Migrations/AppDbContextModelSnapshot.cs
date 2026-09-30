@@ -160,6 +160,9 @@ namespace Parkin.Api.Infrastructure.Data.Migrations
                     b.Property<Guid?>("ActingStaffId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Decision")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -217,7 +220,7 @@ namespace Parkin.Api.Infrastructure.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("IdempotencyKey")
+                    b.HasIndex("ActorId", "IdempotencyKey")
                         .IsUnique()
                         .HasDatabaseName("ux_access_event_idempotency");
 

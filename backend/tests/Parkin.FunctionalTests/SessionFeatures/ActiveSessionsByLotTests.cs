@@ -4,10 +4,10 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Parkin.Api.Domain.AccessEventAggregate;
 using Parkin.Api.Domain.ParkingLotAggregate;
-using Parkin.Api.DriverFeatures;
-using Parkin.Api.LotFeatures;
-using Parkin.Api.LotFeatures.Create;
-using Parkin.Api.SessionFeatures.ListActiveByLot;
+using Parkin.Api.Features.Drivers;
+using Parkin.Api.Features.Lots;
+using Parkin.Api.Features.Lots.Create;
+using Parkin.Api.Features.Sessions.ListActiveByLot;
 using Shouldly;
 using Xunit;
 
@@ -42,7 +42,7 @@ public class ActiveSessionsByLotTests : IClassFixture<ParkinApiFactory>
       AccessMode = AccessMode.Open,
     });
     response.EnsureSuccessStatusCode();
-    var lot = await response.Content.ReadFromJsonAsync<LotRecord>(JsonOptions);
+    var lot = await response.Content.ReadFromJsonAsync<LotResponse>(JsonOptions);
     lot.ShouldNotBeNull();
 
     var spaceResponse = await client.PostAsJsonAsync($"/lots/{lot.Id}/spaces",
@@ -52,11 +52,11 @@ public class ActiveSessionsByLotTests : IClassFixture<ParkinApiFactory>
     return lot.Id;
   }
 
-  private static async Task<DriverRecord> CreateDriverWithPlateAsync(HttpClient client, string plate)
+  private static async Task<DriverResponse> CreateDriverWithPlateAsync(HttpClient client, string plate)
   {
     var driverResponse = await client.PostAsJsonAsync("/drivers", new { Name = $"Driver {Guid.NewGuid():N}" });
     driverResponse.EnsureSuccessStatusCode();
-    var driver = await driverResponse.Content.ReadFromJsonAsync<DriverRecord>(JsonOptions);
+    var driver = await driverResponse.Content.ReadFromJsonAsync<DriverResponse>(JsonOptions);
     driver.ShouldNotBeNull();
 
     var plateResponse = await client.PostAsJsonAsync($"/drivers/{driver.Id}/plates", new { PlateNumber = plate });

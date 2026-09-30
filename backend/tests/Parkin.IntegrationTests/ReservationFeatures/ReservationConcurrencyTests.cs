@@ -1,3 +1,4 @@
+using Parkin.Api.Domain.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Parkin.Api.Domain.DriverAggregate;
 using Parkin.Api.Domain.ParkingLotAggregate;
@@ -38,7 +39,7 @@ public class ReservationConcurrencyTests : IClassFixture<PostgresFixture>
     await using (var seed = CreateContext())
     {
       var lot = ParkingLot.Create("Concurrency Lot", "America/New_York");
-      var space = lot.AddSpace("A1", SpaceType.Reserved, actorId: null);
+      var space = lot.AddSpace("A1", SpaceType.Reserved, actorId: null).Value;
       var driverA = Driver.Create("Driver A", null, actorId: null);
       var driverB = Driver.Create("Driver B", null, actorId: null);
 
@@ -63,7 +64,7 @@ public class ReservationConcurrencyTests : IClassFixture<PostgresFixture>
         await context.SaveChangesAsync();
         return true;
       }
-      catch (DbUpdateException)
+      catch (UniqueConstraintViolationException violation) when (violation.ConstraintName == Reservation.ActiveSpaceIndex)
       {
         return false;
       }

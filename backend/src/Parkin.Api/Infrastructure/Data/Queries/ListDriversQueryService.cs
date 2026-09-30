@@ -1,46 +1,36 @@
 using Microsoft.EntityFrameworkCore;
 using Parkin.Api.Domain.DriverAggregate;
-using Parkin.Api.DriverFeatures;
-using Parkin.Api.DriverFeatures.List;
+using Parkin.Api.Features.Drivers;
+using Parkin.Api.Features.Drivers.List;
 
 namespace Parkin.Api.Infrastructure.Data.Queries;
 
 public class ListDriversQueryService(AppDbContext db) : IListDriversQueryService
 {
-  private readonly AppDbContext _db = db;
+  public Task<PagedResult<DriverResponse>> ListAsync(int page, int perPage, DriverStatusFilter? status,
+    string? search, CancellationToken cancellationToken)
+    => ApplySearch(ApplyStatus(db.Drivers.AsNoTracking(), status), search)
+      .OrderBy(driver => driver.Name)
+      .Select(driver => new DriverResponse(
+        driver.Id.Value, driver.Name, driver.Contact, driver.Status, driver.Plates.Count))
+      .ToPagedResultAsync(page, perPage, cancellationToken);
 
-  public async Task<PagedResult<DriverDto>> ListAsync(int page, int perPage, DriverStatusFilter? status, string? search = null)
-  {
-    var query = _db.Drivers.AsQueryable();
-
-    query = status switch
+  private static IQueryable<Driver> ApplyStatus(IQueryable<Driver> query, DriverStatusFilter? status)
+    => status switch
     {
       DriverStatusFilter.All => query,
-      DriverStatusFilter.Archived => query.Where(d => d.Status == DriverStatus.Archived),
-      _ => query.Where(d => d.Status == DriverStatus.Active), // default: active-only
+      DriverStatusFilter.Archived => query.Where(driver => driver.Status == DriverStatus.Archived),
+      _ => query.Where(driver => driver.Status == DriverStatus.Active),
     };
 
-    if (!string.IsNullOrWhiteSpace(search))
-    {
-      var pattern = LikePattern.Containing(search.Trim());
-      var platePattern = LikePattern.Containing(PlateNormalizer.Normalize(search));
-      query = query.Where(d => EF.Functions.ILike(d.Name, pattern) ||
-        (d.Contact != null && EF.Functions.ILike(d.Contact, pattern)) ||
-        d.Plates.Any(p => EF.Functions.ILike(p.NormalizedPlateNumber, platePattern)));
-    }
+  private static IQueryable<Driver> ApplySearch(IQueryable<Driver> query, string? search)
+  {
+    if (string.IsNullOrWhiteSpace(search)) return query;
 
-    var items = await query
-      .OrderBy(d => d.Name)
-      .Skip((page - 1) * perPage)
-      .Take(perPage)
-      .Select(d => new DriverDto(d.Id, d.Name, d.Contact, d.Status, d.Plates.Count))
-      .AsNoTracking()
-      .ToListAsync();
-
-    int totalCount = await query.CountAsync();
-    int totalPages = (int)Math.Ceiling(totalCount / (double)perPage);
-    var result = new PagedResult<DriverDto>(items, page, perPage, totalCount, totalPages);
-
-    return result;
+    var pattern = LikePattern.Containing(search.Trim());
+    var platePattern = LikePattern.Containing(PlateNormalizer.Normalize(search));
+    return query.Where(driver => EF.Functions.ILike(driver.Name, pattern) ||
+      (driver.Contact != null && EF.Functions.ILike(driver.Contact, pattern)) ||
+      driver.Plates.Any(plate => EF.Functions.ILike(plate.NormalizedPlateNumber, platePattern)));
   }
 }

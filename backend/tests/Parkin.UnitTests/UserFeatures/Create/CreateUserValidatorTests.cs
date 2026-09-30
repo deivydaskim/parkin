@@ -1,5 +1,5 @@
-using Parkin.Api.Infrastructure.Identity;
-using Parkin.Api.UserFeatures.Create;
+using Parkin.Api.Domain.StaffUsers;
+using Parkin.Api.Features.Users.Create;
 using Shouldly;
 using Xunit;
 
@@ -17,7 +17,7 @@ public class CreateUserValidatorTests
       Email = "operator@parkin.test",
       Password = "P@ssw0rd!",
       DisplayName = "Test Operator",
-      Role = Roles.Operator
+      Role = StaffRoles.Operator
     };
 
     var result = _validator.Validate(request);
@@ -35,7 +35,7 @@ public class CreateUserValidatorTests
       Email = "not-an-email",
       Password = "P@ssw0rd!",
       DisplayName = "Test Operator",
-      Role = Roles.Operator
+      Role = StaffRoles.Operator
     };
 
     var result = _validator.Validate(request);
@@ -53,7 +53,7 @@ public class CreateUserValidatorTests
       Email = "operator@parkin.test",
       Password = "",
       DisplayName = "Test Operator",
-      Role = Roles.Operator
+      Role = StaffRoles.Operator
     };
 
     var result = _validator.Validate(request);
@@ -71,7 +71,7 @@ public class CreateUserValidatorTests
       Email = "operator@parkin.test",
       Password = "P@ssw0rd!",
       DisplayName = "",
-      Role = Roles.Operator
+      Role = StaffRoles.Operator
     };
 
     var result = _validator.Validate(request);

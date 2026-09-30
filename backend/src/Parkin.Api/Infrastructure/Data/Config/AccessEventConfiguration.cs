@@ -62,11 +62,14 @@ public class AccessEventConfiguration : IEntityTypeConfiguration<AccessEvent>
       .HasMaxLength(30);
 
     builder.Property(entity => entity.IdempotencyKey)
-      .HasMaxLength(200)
+      .HasMaxLength(AccessEvent.IdempotencyKeyMaxLength)
       .IsRequired();
 
-    builder.HasIndex(entity => entity.IdempotencyKey)
-      .HasDatabaseName("ux_access_event_idempotency")
+    builder.Property(entity => entity.ActorId)
+      .IsRequired();
+
+    builder.HasIndex(entity => new { entity.ActorId, entity.IdempotencyKey })
+      .HasDatabaseName(AccessEvent.IdempotencyIndexName)
       .IsUnique();
   }
 }

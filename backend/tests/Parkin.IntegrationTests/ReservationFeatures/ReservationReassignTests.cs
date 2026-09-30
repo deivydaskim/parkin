@@ -1,3 +1,4 @@
+using Parkin.Api.Domain.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Parkin.Api.Domain.DriverAggregate;
 using Parkin.Api.Domain.Interfaces;
@@ -43,7 +44,7 @@ public class ReservationReassignTests : IClassFixture<PostgresFixture>
     // every [Fact] in this class via IClassFixture, so a fixed name would collide with
     // ux_lot_name on the second test to run.
     var lot = ParkingLot.Create($"Reassign Lot {Guid.NewGuid()}", "America/New_York");
-    var space = lot.AddSpace("A1", SpaceType.Reserved, actorId: null);
+    var space = lot.AddSpace("A1", SpaceType.Reserved, actorId: null).Value;
     var oldDriver = Driver.Create("Old Driver", null, actorId: null);
     var newDriver = Driver.Create("New Driver", null, actorId: null);
 
@@ -66,38 +67,34 @@ public class ReservationReassignTests : IClassFixture<PostgresFixture>
     // ACTIVE reservation runs before the old row is Cancelled — even inside one
     // transaction — ux_reservation_active_space sees two ACTIVE rows for the space and
     // Postgres rejects it.
-    var (spaceId, lotId, oldDriverId, newDriverId, oldReservationId) = await SeedAsync();
+    var (spaceId, lotId, _, newDriverId, _) = await SeedAsync();
 
     await using var context = CreateContext();
     await using var transaction = await context.Database.BeginTransactionAsync();
 
-    var newReservation = Reservation.CreateForReassignment(
-      spaceId, newDriverId, lotId, oldReservationId, oldDriverId, actorId: null);
-    context.Reservations.Add(newReservation);
+    context.Reservations.Add(Reservation.Create(spaceId, newDriverId, lotId, actorId: null));
 
-    await Should.ThrowAsync<DbUpdateException>(() => context.SaveChangesAsync());
+    var violation = await Should.ThrowAsync<UniqueConstraintViolationException>(() => context.SaveChangesAsync());
+    violation.ConstraintName.ShouldBe(Reservation.ActiveSpaceIndex);
   }
 
   [Fact]
   public async Task Reassign_UsingUnitOfWork_EndsOldAndActivatesNew_AsSingleAtomicSwap()
   {
-    var (spaceId, lotId, oldDriverId, newDriverId, oldReservationId) = await SeedAsync();
+    var (spaceId, _, oldDriverId, newDriverId, oldReservationId) = await SeedAsync();
 
     await using var context = CreateContext();
-    var oldReservation = await context.Reservations.SingleAsync(r => r.Id == oldReservationId);
+    var repository = new EfRepository<Reservation>(context);
     var unitOfWork = new EfUnitOfWork(context);
+    var oldReservation = await repository.GetByIdAsync(oldReservationId);
+    var newReservation = oldReservation!.ReassignTo(newDriverId, actorId: null).Value;
 
     // This is the exact statement order ReassignReservationHandler uses: cancel+save,
     // then create+save, both inside one ambient transaction opened by EfUnitOfWork.
     await unitOfWork.ExecuteInTransactionAsync(async ct =>
     {
-      oldReservation.Cancel(actorId: null);
-      await context.SaveChangesAsync(ct);
-
-      var newReservation = Reservation.CreateForReassignment(
-        spaceId, newDriverId, lotId, oldReservationId, oldDriverId, actorId: null);
-      context.Reservations.Add(newReservation);
-      await context.SaveChangesAsync(ct);
+      await repository.UpdateAsync(oldReservation, ct);
+      await repository.AddAsync(newReservation, ct);
     }, CancellationToken.None);
 
     await using var verify = CreateContext();
@@ -120,7 +117,7 @@ public class ReservationReassignTests : IClassFixture<PostgresFixture>
   [Fact]
   public async Task Reassign_WhileTransactionIsOpen_OtherConnectionNeverSeesZeroActiveReservations()
   {
-    var (spaceId, lotId, oldDriverId, newDriverId, oldReservationId) = await SeedAsync();
+    var (spaceId, _, _, newDriverId, oldReservationId) = await SeedAsync();
 
     await using var swapContext = CreateContext();
     var oldReservation = await swapContext.Reservations.SingleAsync(r => r.Id == oldReservationId);
@@ -128,7 +125,7 @@ public class ReservationReassignTests : IClassFixture<PostgresFixture>
 
     // Step 1 only: cancel + save, but do NOT commit yet — simulates being paused
     // mid-way through EfUnitOfWork.ExecuteInTransactionAsync.
-    oldReservation.Cancel(actorId: null);
+    var newReservation = oldReservation.ReassignTo(newDriverId, actorId: null).Value;
     await swapContext.SaveChangesAsync();
 
     // A completely separate connection must still see the space as actively reserved
@@ -144,8 +141,6 @@ public class ReservationReassignTests : IClassFixture<PostgresFixture>
     }
 
     // Step 2: create the new ACTIVE reservation + save, then commit.
-    var newReservation = Reservation.CreateForReassignment(
-      spaceId, newDriverId, lotId, oldReservationId, oldDriverId, actorId: null);
     swapContext.Reservations.Add(newReservation);
     await swapContext.SaveChangesAsync();
     await transaction.CommitAsync();

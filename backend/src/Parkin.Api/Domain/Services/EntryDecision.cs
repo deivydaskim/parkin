@@ -1,8 +1,7 @@
+using Parkin.Api.Domain.ParkingLotAggregate;
+
 namespace Parkin.Api.Domain.Services;
 
-// Result of EntryDecisionService.Decide. Reason/Pool/ReservedSpaceLabel are mutually exclusive
-// with each other depending on Outcome (mirrors the nullable "reason"/"pool" fields in the
-// POST /api/v1/access-events response shape from the architecture doc).
 public sealed record EntryDecision
 {
   public required EntryDecisionOutcome Outcome { get; init; }
@@ -24,4 +23,37 @@ public sealed record EntryDecision
     Outcome = EntryDecisionOutcome.Deny,
     Reason = reason
   };
+
+  public static EntryDecision Decide(EntryDecisionContext context)
+  {
+    ArgumentNullException.ThrowIfNull(context);
+
+    var isRestricted = context.LotAccessMode == AccessMode.Restricted;
+
+    if (!context.IsPlateKnown && isRestricted)
+    {
+      return Deny(DecisionReason.NotAuthorized);
+    }
+
+    // A reservation is checked before the grant so a reserved driver gets in even on a RESTRICTED
+    // lot without a grant, and bypasses the full-lot rules entirely.
+    if (context.HasActiveReservation)
+    {
+      return Allow(SessionPool.Reserved, context.ReservedSpaceLabel);
+    }
+
+    if (isRestricted && !context.HasActiveGrant)
+    {
+      return Deny(DecisionReason.NotAuthorized);
+    }
+
+    if (!context.IsGeneralPoolFull)
+    {
+      return Allow(SessionPool.General);
+    }
+
+    return context.LotFullBehavior == FullBehavior.Block
+      ? Deny(DecisionReason.LotFull)
+      : Allow(SessionPool.General, isOverCapacity: true);
+  }
 }

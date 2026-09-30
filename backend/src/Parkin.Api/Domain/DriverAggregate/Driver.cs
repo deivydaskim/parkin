@@ -5,7 +5,6 @@ namespace Parkin.Api.Domain.DriverAggregate;
 
 public class Driver : EntityBase<Driver, DriverId>, IAggregateRoot
 {
-  // Private constructor for EF Core
   private Driver() { }
 
   private Driver(DriverId id, string name, string? contact)
@@ -18,10 +17,9 @@ public class Driver : EntityBase<Driver, DriverId>, IAggregateRoot
     Status = DriverStatus.Active;
   }
 
-  // Factory method for creating new drivers (before persistence)
   public static Driver Create(string name, string? contact, Guid? actorId)
   {
-    var driver = new Driver(DriverId.From(Guid.NewGuid()), name, contact);
+    var driver = new Driver(DriverId.From(Guid.CreateVersion7()), name, contact);
     driver.RegisterDomainEvent(new DriverCreatedEvent(driver.Id, actorId));
     return driver;
   }
@@ -42,52 +40,68 @@ public class Driver : EntityBase<Driver, DriverId>, IAggregateRoot
     RegisterDomainEvent(new DriverUpdatedEvent(Id, actorId));
   }
 
-  public Plate AddPlate(string rawPlate, Guid? actorId)
-  {
-    var normalized = PlateNormalizer.Normalize(rawPlate);
-    var plate = Plate.Create(Id, normalized);
-    _plates.Add(plate);
-    RegisterDomainEvent(new PlateAddedEvent(Id, plate.Id, actorId));
-    return plate;
-  }
-
-  internal Plate RemovePlateForReassignment(PlateId plateId)
-  {
-    var plate = _plates.First(p => p.Id == plateId);
-    _plates.Remove(plate);
-    return plate;
-  }
-
-  internal void ReceivePlate(Plate plate, DriverId fromDriverId, Guid? actorId)
-  {
-    plate.ReassignTo(Id);
-    _plates.Add(plate);
-    RegisterDomainEvent(new PlateReassignedEvent(plate.Id, fromDriverId, Id, actorId));
-  }
-
-  public void DeactivatePlate(PlateId plateId, Guid? actorId)
-  {
-    var plate = _plates.First(p => p.Id == plateId);
-    plate.Deactivate();
-    RegisterDomainEvent(new PlateDeactivatedEvent(Id, plateId, actorId));
-  }
-
   public void Archive(Guid? actorId)
   {
+    if (Status == DriverStatus.Archived) return;
+
     Status = DriverStatus.Archived;
     RegisterDomainEvent(new DriverArchivedEvent(Id, actorId));
   }
 
   public void Restore(Guid? actorId)
   {
+    if (Status == DriverStatus.Active) return;
+
     Status = DriverStatus.Active;
     RegisterDomainEvent(new DriverRestoredEvent(Id, actorId));
   }
 
-  public void ReactivatePlate(PlateId plateId, Guid? actorId)
+  public Plate AddPlate(string rawPlate, Guid? actorId)
   {
-    var plate = _plates.First(p => p.Id == plateId);
+    var plate = Plate.Create(Id, PlateNormalizer.Normalize(rawPlate));
+    _plates.Add(plate);
+    RegisterDomainEvent(new PlateAddedEvent(Id, plate.Id, actorId));
+    return plate;
+  }
+
+  public Result<Plate> DeactivatePlate(PlateId plateId, Guid? actorId)
+  {
+    var plate = FindPlate(plateId);
+    if (plate is null) return Result.NotFound();
+    if (plate.Status == PlateStatus.Inactive) return plate;
+
+    plate.Deactivate();
+    RegisterDomainEvent(new PlateDeactivatedEvent(Id, plateId, actorId));
+    return plate;
+  }
+
+  public Result<Plate> ReactivatePlate(PlateId plateId, Guid? actorId)
+  {
+    var plate = FindPlate(plateId);
+    if (plate is null) return Result.NotFound();
+    if (plate.Status == PlateStatus.Active) return plate;
+
     plate.Reactivate();
     RegisterDomainEvent(new PlateReactivatedEvent(Id, plateId, actorId));
+    return plate;
   }
+
+  public Result<Plate> TransferPlate(PlateId plateId, Driver targetDriver, Guid? actorId)
+  {
+    var plate = FindPlate(plateId);
+    if (plate is null) return Result.NotFound();
+
+    if (targetDriver.Id == Id)
+    {
+      return Result.Invalid(new ValidationError("TargetDriverId", "Plate already belongs to this driver"));
+    }
+
+    _plates.Remove(plate);
+    plate.ReassignTo(targetDriver.Id);
+    targetDriver._plates.Add(plate);
+    targetDriver.RegisterDomainEvent(new PlateReassignedEvent(plate.Id, Id, targetDriver.Id, actorId));
+    return plate;
+  }
+
+  private Plate? FindPlate(PlateId plateId) => _plates.FirstOrDefault(plate => plate.Id == plateId);
 }

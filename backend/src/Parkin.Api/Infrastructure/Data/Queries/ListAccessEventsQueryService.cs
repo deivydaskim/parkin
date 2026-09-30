@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Parkin.Api.AccessEventFeatures.List;
+using Parkin.Api.Features.AccessEvents.List;
 using Parkin.Api.Domain.DriverAggregate;
 using Parkin.Api.Domain.ParkingLotAggregate;
 
@@ -7,7 +7,7 @@ namespace Parkin.Api.Infrastructure.Data.Queries;
 
 public class ListAccessEventsQueryService(AppDbContext db) : IListAccessEventsQueryService
 {
-  public async Task<PagedResult<AccessEventListItemDto>> ListByLotAsync(ParkingLotId lotId, int page, int perPage,
+  public async Task<PagedResult<AccessEventListItemResponse>> ListByLotAsync(ParkingLotId lotId, int page, int perPage,
     CancellationToken cancellationToken)
   {
     var query = db.AccessEvents.AsNoTracking().Where(e => e.LotId == lotId);
@@ -70,14 +70,14 @@ public class ListAccessEventsQueryService(AppDbContext db) : IListAccessEventsQu
         var spaceLabel = session?.SpaceId is { } spaceId ? spaceLabelById.GetValueOrDefault(spaceId) : null;
         var driverName = e.MatchedDriverId is { } driverId ? driverNameById.GetValueOrDefault(driverId) : null;
 
-        return new AccessEventListItemDto(e.Id, e.NormalizedPlate, e.Direction, e.Decision, e.DenyReason,
-          session?.Pool, spaceLabel, e.Source, e.MatchedDriverId, driverName, e.OccurredAt);
+        return new AccessEventListItemResponse(e.Id.Value, e.NormalizedPlate, e.Direction, e.Decision, e.DenyReason,
+          session?.Pool, spaceLabel, e.Source, e.MatchedDriverId?.Value, driverName, e.OccurredAt);
       })
       .ToList();
 
     int totalCount = await query.CountAsync(cancellationToken);
     int totalPages = (int)Math.Ceiling(totalCount / (double)perPage);
 
-    return new PagedResult<AccessEventListItemDto>(items, page, perPage, totalCount, totalPages);
+    return new PagedResult<AccessEventListItemResponse>(items, page, perPage, totalCount, totalPages);
   }
 }

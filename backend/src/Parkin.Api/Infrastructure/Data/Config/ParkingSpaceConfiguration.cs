@@ -18,7 +18,7 @@ public class ParkingSpaceConfiguration : IEntityTypeConfiguration<ParkingSpace>
       .IsRequired();
 
     builder.Property(entity => entity.Label)
-      .HasMaxLength(100)
+      .HasMaxLength(ParkingSpace.LabelMaxLength)
       .IsRequired();
 
     builder.Property(entity => entity.Type)
