@@ -27,7 +27,7 @@ public class CreateReservationHandler(
     var lot = await lotRepository.FirstOrDefaultAsync(new ParkingLotBySpaceIdSpec(request.SpaceId), cancellationToken);
     if (lot is null) return Result.NotFound();
 
-    if (lot.Spaces.Single(space => space.Id == request.SpaceId).Status != SpaceStatus.Active)
+    if (lot.FindSpace(request.SpaceId)?.Status != SpaceStatus.Active)
     {
       return Result.Invalid(new ValidationError("SpaceId", "Space is not active"));
     }
@@ -49,7 +49,7 @@ public class CreateReservationHandler(
     }
 
     var markReserved = lot.UpdateSpace(request.SpaceId, new SpaceUpdate(Type: SpaceType.Reserved), request.ActorId);
-    if (!markReserved.IsSuccess) return markReserved;
+    if (!markReserved.IsSuccess) return Result.Invalid(markReserved.ValidationErrors);
 
     var reservation = Reservation.Create(request.SpaceId, request.DriverId, lot.Id, request.ActorId);
     try
