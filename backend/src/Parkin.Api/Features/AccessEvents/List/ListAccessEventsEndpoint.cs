@@ -3,6 +3,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.ParkingLotAggregate;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.AccessEvents.List;
 
@@ -19,17 +20,19 @@ public sealed class ListAccessEventsRequest
   public int PerPage { get; init; } = Constants.DEFAULT_PAGE_SIZE;
 }
 
-public record AccessEventListResponse : PagedResult<AccessEventListItemRecord>
+public record AccessEventListResponse : PagedResult<AccessEventListItemResponse>
 {
-  public AccessEventListResponse(IReadOnlyList<AccessEventListItemRecord> Items, int Page, int PerPage, int TotalCount,
-    int TotalPages)
+  public AccessEventListResponse(IReadOnlyList<AccessEventListItemResponse> Items, int Page, int PerPage, int TotalCount, int TotalPages)
     : base(Items, Page, PerPage, TotalCount, TotalPages)
   {
   }
+
+  public static AccessEventListResponse From(PagedResult<AccessEventListItemResponse> page)
+    => new(page.Items, page.Page, page.PerPage, page.TotalCount, page.TotalPages);
 }
 
 public class ListAccessEventsEndpoint(IMediator mediator)
-  : Endpoint<ListAccessEventsRequest, Results<Ok<AccessEventListResponse>, NotFound>>
+  : Endpoint<ListAccessEventsRequest, Results<Ok<AccessEventListResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
@@ -57,41 +60,17 @@ public class ListAccessEventsEndpoint(IMediator mediator)
       .ProducesProblem(404));
   }
 
-  public override async Task<Results<Ok<AccessEventListResponse>, NotFound>>
+  public override async Task<Results<Ok<AccessEventListResponse>, ValidationProblem, ProblemHttpResult>>
     ExecuteAsync(ListAccessEventsRequest request, CancellationToken cancellationToken)
   {
     var result = await mediator.Send(
       new ListAccessEventsQuery(ParkingLotId.From(request.LotId), request.Page, request.PerPage), cancellationToken);
 
-    if (result.Status == ResultStatus.NotFound) return TypedResults.NotFound();
-
-    var paged = result.Value;
-    AddLinkHeader(paged.Page, paged.PerPage, paged.TotalPages);
-
-    var items = paged.Items.Select(AccessEventListItemRecord.FromDto).ToList();
-    return TypedResults.Ok(new AccessEventListResponse(items, paged.Page, paged.PerPage, paged.TotalCount,
-      paged.TotalPages));
-  }
-
-  private void AddLinkHeader(int page, int perPage, int totalPages)
-  {
-    var baseUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}{HttpContext.Request.Path}";
-    string Link(string rel, int p) => $"<{baseUrl}?page={p}&per_page={perPage}>; rel=\"{rel}\"";
-
-    var parts = new List<string>();
-    if (page > 1)
+    return result.ToHttpResult(page =>
     {
-      parts.Add(Link("first", 1));
-      parts.Add(Link("prev", page - 1));
-    }
-    if (page < totalPages)
-    {
-      parts.Add(Link("next", page + 1));
-      parts.Add(Link("last", totalPages));
-    }
-
-    if (parts.Count > 0)
-      HttpContext.Response.Headers["Link"] = string.Join(", ", parts);
+      HttpContext.AppendPaginationLinks(page);
+      return TypedResults.Ok(AccessEventListResponse.From(page));
+    });
   }
 }
 

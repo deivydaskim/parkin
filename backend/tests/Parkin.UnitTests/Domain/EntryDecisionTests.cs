@@ -5,10 +5,8 @@ using Xunit;
 
 namespace Parkin.UnitTests.Domain;
 
-public class EntryDecisionServiceTests
+public class EntryDecisionTests
 {
-  private readonly EntryDecisionService _sut = new();
-
   private const string SpaceLabel = "A-12";
 
   // ---------------------------------------------------------------------------
@@ -31,7 +29,7 @@ public class EntryDecisionServiceTests
       hasActiveReservation: false,
       isGeneralPoolFull: isGeneralPoolFull);
 
-    var decision = _sut.Decide(context);
+    var decision = EntryDecision.Decide(context);
 
     decision.Outcome.ShouldBe(EntryDecisionOutcome.Deny);
     decision.Reason.ShouldBe(DecisionReason.NotAuthorized);
@@ -56,7 +54,7 @@ public class EntryDecisionServiceTests
       hasActiveReservation: false,
       isGeneralPoolFull: false);
 
-    var decision = _sut.Decide(context);
+    var decision = EntryDecision.Decide(context);
 
     decision.Outcome.ShouldBe(EntryDecisionOutcome.Allow);
     decision.Pool.ShouldBe(SessionPool.General);
@@ -75,7 +73,7 @@ public class EntryDecisionServiceTests
       hasActiveReservation: false,
       isGeneralPoolFull: true);
 
-    var decision = _sut.Decide(context);
+    var decision = EntryDecision.Decide(context);
 
     decision.Outcome.ShouldBe(EntryDecisionOutcome.Deny);
     decision.Reason.ShouldBe(DecisionReason.LotFull);
@@ -92,7 +90,7 @@ public class EntryDecisionServiceTests
       hasActiveReservation: false,
       isGeneralPoolFull: true);
 
-    var decision = _sut.Decide(context);
+    var decision = EntryDecision.Decide(context);
 
     decision.Outcome.ShouldBe(EntryDecisionOutcome.Allow);
     decision.Pool.ShouldBe(SessionPool.General);
@@ -119,7 +117,7 @@ public class EntryDecisionServiceTests
       hasActiveReservation: false,
       isGeneralPoolFull: isGeneralPoolFull);
 
-    var decision = _sut.Decide(context);
+    var decision = EntryDecision.Decide(context);
 
     decision.Outcome.ShouldBe(EntryDecisionOutcome.Deny);
     decision.Reason.ShouldBe(DecisionReason.NotAuthorized);
@@ -139,7 +137,7 @@ public class EntryDecisionServiceTests
       hasActiveReservation: false,
       isGeneralPoolFull: false);
 
-    var decision = _sut.Decide(context);
+    var decision = EntryDecision.Decide(context);
 
     decision.Outcome.ShouldBe(EntryDecisionOutcome.Deny);
     decision.Reason.ShouldBe(DecisionReason.NotAuthorized);
@@ -171,7 +169,7 @@ public class EntryDecisionServiceTests
       isGeneralPoolFull: isGeneralPoolFull,
       reservedSpaceLabel: SpaceLabel);
 
-    var decision = _sut.Decide(context);
+    var decision = EntryDecision.Decide(context);
 
     decision.Outcome.ShouldBe(EntryDecisionOutcome.Allow);
     decision.Pool.ShouldBe(SessionPool.Reserved);
@@ -196,7 +194,7 @@ public class EntryDecisionServiceTests
       isGeneralPoolFull: false,
       reservedSpaceLabel: SpaceLabel);
 
-    var decision = _sut.Decide(context);
+    var decision = EntryDecision.Decide(context);
 
     decision.Outcome.ShouldBe(EntryDecisionOutcome.Allow);
     decision.Pool.ShouldBe(SessionPool.Reserved);
@@ -220,7 +218,7 @@ public class EntryDecisionServiceTests
       hasActiveReservation: false,
       isGeneralPoolFull: false);
 
-    var decision = _sut.Decide(context);
+    var decision = EntryDecision.Decide(context);
 
     decision.Outcome.ShouldBe(EntryDecisionOutcome.Allow);
     decision.Pool.ShouldBe(SessionPool.General);
@@ -237,7 +235,7 @@ public class EntryDecisionServiceTests
       hasActiveReservation: false,
       isGeneralPoolFull: true);
 
-    var decision = _sut.Decide(context);
+    var decision = EntryDecision.Decide(context);
 
     decision.Outcome.ShouldBe(EntryDecisionOutcome.Deny);
     decision.Reason.ShouldBe(DecisionReason.LotFull);
@@ -254,7 +252,7 @@ public class EntryDecisionServiceTests
       hasActiveReservation: false,
       isGeneralPoolFull: true);
 
-    var decision = _sut.Decide(context);
+    var decision = EntryDecision.Decide(context);
 
     decision.Outcome.ShouldBe(EntryDecisionOutcome.Allow);
     decision.Pool.ShouldBe(SessionPool.General);
@@ -281,8 +279,8 @@ public class EntryDecisionServiceTests
       hasActiveReservation: false,
       isGeneralPoolFull: false);
 
-    var decisionWithGrant = _sut.Decide(withGrant);
-    var decisionWithoutGrant = _sut.Decide(withoutGrant);
+    var decisionWithGrant = EntryDecision.Decide(withGrant);
+    var decisionWithoutGrant = EntryDecision.Decide(withoutGrant);
 
     decisionWithGrant.ShouldBe(decisionWithoutGrant);
     decisionWithGrant.Outcome.ShouldBe(EntryDecisionOutcome.Allow);
@@ -305,7 +303,7 @@ public class EntryDecisionServiceTests
       hasActiveReservation: false,
       isGeneralPoolFull: false);
 
-    var decision = _sut.Decide(context);
+    var decision = EntryDecision.Decide(context);
 
     decision.Outcome.ShouldBe(EntryDecisionOutcome.Allow);
     decision.Pool.ShouldBe(SessionPool.General);
@@ -323,7 +321,7 @@ public class EntryDecisionServiceTests
       hasActiveReservation: false,
       isGeneralPoolFull: true);
 
-    var decision = _sut.Decide(context);
+    var decision = EntryDecision.Decide(context);
 
     decision.Outcome.ShouldBe(EntryDecisionOutcome.Deny);
     decision.Reason.ShouldBe(DecisionReason.LotFull);
@@ -341,7 +339,7 @@ public class EntryDecisionServiceTests
       hasActiveReservation: false,
       isGeneralPoolFull: true);
 
-    var decision = _sut.Decide(context);
+    var decision = EntryDecision.Decide(context);
 
     decision.Outcome.ShouldBe(EntryDecisionOutcome.Allow);
     decision.Pool.ShouldBe(SessionPool.General);
@@ -351,7 +349,7 @@ public class EntryDecisionServiceTests
   [Fact]
   public void Decide_ThrowsOnNullContext()
   {
-    Should.Throw<ArgumentNullException>(() => _sut.Decide(null!));
+    Should.Throw<ArgumentNullException>(() => EntryDecision.Decide(null!));
   }
 }
 

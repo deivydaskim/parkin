@@ -2,17 +2,26 @@ using Microsoft.EntityFrameworkCore;
 using Parkin.Api.Domain.ParkingLotAggregate;
 using Parkin.Api.Domain.ParkingSessionAggregate;
 using Parkin.Api.Domain.Services;
-using Parkin.Api.Features.Occupancy.ListLotOccupancy;
+using Parkin.Api.Features.Occupancy;
 
 namespace Parkin.Api.Infrastructure.Data.Queries;
 
-public class ActiveLotOccupancyQueryService(AppDbContext db) : IActiveLotOccupancyQueryService
+public class LotOccupancyQueryService(AppDbContext db) : ILotOccupancyQueryService
 {
-  public async Task<IReadOnlyList<LotOccupancyInputs>> ListAsync(CancellationToken cancellationToken)
+  public async Task<LotOccupancyInputs?> FindAsync(ParkingLotId lotId, CancellationToken cancellationToken)
   {
-    var lots = await db.ParkingLots
+    var inputs = await ListAsync(db.ParkingLots.Where(lot => lot.Id == lotId), cancellationToken);
+    return inputs.SingleOrDefault();
+  }
+
+  public Task<IReadOnlyList<LotOccupancyInputs>> ListActiveAsync(CancellationToken cancellationToken)
+    => ListAsync(db.ParkingLots.Where(lot => lot.Status == LotStatus.Active), cancellationToken);
+
+  private async Task<IReadOnlyList<LotOccupancyInputs>> ListAsync(IQueryable<ParkingLot> lotsQuery,
+    CancellationToken cancellationToken)
+  {
+    var lots = await lotsQuery
       .AsNoTracking()
-      .Where(lot => lot.Status == LotStatus.Active)
       .OrderBy(lot => lot.Name)
       .Select(lot => new
       {

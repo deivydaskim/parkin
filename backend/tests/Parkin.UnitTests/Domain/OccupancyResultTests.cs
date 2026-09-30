@@ -4,10 +4,8 @@ using Xunit;
 
 namespace Parkin.UnitTests.Domain;
 
-public class OccupancyCalculatorTests
+public class OccupancyResultTests
 {
-  private readonly OccupancyCalculator _sut = new();
-
   // ---------------------------------------------------------------------------
   // general free = max(0, capacity - active GENERAL sessions)
   // ---------------------------------------------------------------------------
@@ -21,7 +19,7 @@ public class OccupancyCalculatorTests
   {
     var context = OccupancyContext.Create(capacity, used);
 
-    var result = _sut.Calculate(context);
+    var result = OccupancyResult.Calculate(context);
 
     result.GeneralFree.ShouldBe(expectedFree);
     result.GeneralUsed.ShouldBe(used);
@@ -35,7 +33,7 @@ public class OccupancyCalculatorTests
   {
     var context = OccupancyContext.Create(generalCapacity: 10, activeGeneralSessionCount: 9);
 
-    var result = _sut.Calculate(context);
+    var result = OccupancyResult.Calculate(context);
 
     result.GeneralFree.ShouldBe(1);
     result.IsGeneralPoolFull.ShouldBeFalse();
@@ -46,7 +44,7 @@ public class OccupancyCalculatorTests
   {
     var context = OccupancyContext.Create(generalCapacity: 10, activeGeneralSessionCount: 10);
 
-    var result = _sut.Calculate(context);
+    var result = OccupancyResult.Calculate(context);
 
     result.GeneralFree.ShouldBe(0);
     result.IsGeneralPoolFull.ShouldBeTrue();
@@ -67,7 +65,7 @@ public class OccupancyCalculatorTests
   {
     var context = OccupancyContext.Create(capacity, used);
 
-    var result = _sut.Calculate(context);
+    var result = OccupancyResult.Calculate(context);
 
     result.GeneralFree.ShouldBe(0);
     result.IsGeneralPoolFull.ShouldBeTrue();
@@ -84,7 +82,7 @@ public class OccupancyCalculatorTests
   {
     var context = OccupancyContext.Create(generalCapacity: 0, activeGeneralSessionCount: 0);
 
-    var result = _sut.Calculate(context);
+    var result = OccupancyResult.Calculate(context);
 
     result.GeneralFree.ShouldBe(0);
     result.IsGeneralPoolFull.ShouldBeTrue();
@@ -96,7 +94,7 @@ public class OccupancyCalculatorTests
   {
     var context = OccupancyContext.Create(generalCapacity: 0, activeGeneralSessionCount: 1);
 
-    var result = _sut.Calculate(context);
+    var result = OccupancyResult.Calculate(context);
 
     result.GeneralFree.ShouldBe(0);
     result.IsOverCapacity.ShouldBeTrue();
@@ -116,7 +114,7 @@ public class OccupancyCalculatorTests
   {
     var context = OccupancyContext.Create(generalCapacity: 5, activeGeneralSessionCount: 5, activeReservedSessionCount: reservedCount);
 
-    var result = _sut.Calculate(context);
+    var result = OccupancyResult.Calculate(context);
 
     result.GeneralFree.ShouldBe(0);
     result.GeneralUsed.ShouldBe(5);
@@ -130,7 +128,7 @@ public class OccupancyCalculatorTests
   {
     var context = OccupancyContext.Create(generalCapacity: 10, activeGeneralSessionCount: 2, activeReservedSessionCount: 20);
 
-    var result = _sut.Calculate(context);
+    var result = OccupancyResult.Calculate(context);
 
     result.GeneralFree.ShouldBe(8);
     result.ReservedCount.ShouldBe(20);
@@ -141,7 +139,7 @@ public class OccupancyCalculatorTests
   {
     var context = OccupancyContext.Create(generalCapacity: 5, activeGeneralSessionCount: 1);
 
-    var result = _sut.Calculate(context);
+    var result = OccupancyResult.Calculate(context);
 
     result.ReservedCount.ShouldBe(0);
   }
@@ -149,7 +147,7 @@ public class OccupancyCalculatorTests
   [Fact]
   public void Calculate_ThrowsOnNullContext()
   {
-    Should.Throw<ArgumentNullException>(() => _sut.Calculate(null!));
+    Should.Throw<ArgumentNullException>(() => OccupancyResult.Calculate(null!));
   }
 }
 

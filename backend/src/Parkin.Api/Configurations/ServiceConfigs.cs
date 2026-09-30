@@ -1,3 +1,4 @@
+using Parkin.Api.Features.AccessEvents.Ingest;
 using Parkin.Api.Infrastructure;
 using Parkin.Api.Web;
 
@@ -13,6 +14,7 @@ public static class ServiceConfigs
             .AddProblemDetails()
             .AddExceptionHandler<UniqueConstraintViolationExceptionHandler>()
             .AddInfrastructureServices(configuration)
+            .AddIngestAccessEventServices()
             .AddMediatorSourceGen();
 
     return services;

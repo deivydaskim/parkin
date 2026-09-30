@@ -54,8 +54,8 @@ public class DriverLifecycleTests : IClassFixture<ParkinApiFactory>
     await ReadAsync<PlateResponse>(
       await client.PostAsJsonAsync($"/drivers/{driverId}/plates", new { PlateNumber = plate }), HttpStatusCode.Created);
 
-  private static async Task<LotRecord> CreateLotAsync(HttpClient client) =>
-    await ReadAsync<LotRecord>(await client.PostAsJsonAsync("/lots",
+  private static async Task<LotResponse> CreateLotAsync(HttpClient client) =>
+    await ReadAsync<LotResponse>(await client.PostAsJsonAsync("/lots",
       new { Name = $"Lifecycle Lot {Unique()}", Timezone = "Europe/Vilnius", AccessMode = "Restricted" }),
       HttpStatusCode.Created);
 
@@ -159,7 +159,7 @@ public class DriverLifecycleTests : IClassFixture<ParkinApiFactory>
   {
     using var client = await CreateOperatorClientAsync();
     var lot = await CreateLotAsync(client);
-    var space = await ReadAsync<SpaceRecord>(
+    var space = await ReadAsync<SpaceResponse>(
       await client.PostAsJsonAsync($"/lots/{lot.Id}/spaces", new { Label = "R1", Type = "General" }),
       HttpStatusCode.Created);
     var firstDriver = await CreateDriverAsync(client);

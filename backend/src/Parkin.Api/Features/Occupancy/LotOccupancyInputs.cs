@@ -1,6 +1,6 @@
 using Parkin.Api.Domain.ParkingLotAggregate;
 
-namespace Parkin.Api.Features.Occupancy.ListLotOccupancy;
+namespace Parkin.Api.Features.Occupancy;
 
 public record LotOccupancyInputs(
   ParkingLotId LotId,

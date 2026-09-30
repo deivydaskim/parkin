@@ -1,7 +1,9 @@
 using FastEndpoints;
 using FluentValidation;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.ParkingLotAggregate;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Sessions.ListActiveByLot;
 
@@ -18,17 +20,20 @@ public sealed class ListActiveSessionsByLotRequest
   public int PerPage { get; init; } = Constants.DEFAULT_PAGE_SIZE;
 }
 
-public record ActiveSessionListResponse : PagedResult<ActiveSessionRecord>
+public record ActiveSessionListResponse : PagedResult<ActiveSessionResponse>
 {
-  public ActiveSessionListResponse(IReadOnlyList<ActiveSessionRecord> Items, int Page, int PerPage, int TotalCount,
-    int TotalPages)
+  public ActiveSessionListResponse(IReadOnlyList<ActiveSessionResponse> Items, int Page, int PerPage, int TotalCount, int TotalPages)
     : base(Items, Page, PerPage, TotalCount, TotalPages)
   {
   }
+
+  public static ActiveSessionListResponse From(PagedResult<ActiveSessionResponse> page)
+    => new(page.Items, page.Page, page.PerPage, page.TotalCount, page.TotalPages);
 }
 
 public class ListActiveSessionsByLotEndpoint(IMediator mediator)
-  : Endpoint<ListActiveSessionsByLotRequest, ActiveSessionListResponse, ListActiveSessionsByLotMapper>
+  : Endpoint<ListActiveSessionsByLotRequest,
+    Results<Ok<ActiveSessionListResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
@@ -54,42 +59,18 @@ public class ListActiveSessionsByLotEndpoint(IMediator mediator)
       .ProducesProblem(400));
   }
 
-  public override async Task HandleAsync(ListActiveSessionsByLotRequest request, CancellationToken cancellationToken)
+  public override async Task<Results<Ok<ActiveSessionListResponse>, ValidationProblem, ProblemHttpResult>>
+    ExecuteAsync(ListActiveSessionsByLotRequest request, CancellationToken cancellationToken)
   {
     var result = await mediator.Send(
       new ListActiveSessionsByLotQuery(ParkingLotId.From(request.LotId), request.Page, request.PerPage),
       cancellationToken);
-    if (!result.IsSuccess)
+
+    return result.ToHttpResult(page =>
     {
-      await Send.ErrorsAsync(statusCode: 400, cancellationToken);
-      return;
-    }
-
-    var pagedResult = result.Value;
-    AddLinkHeader(pagedResult.Page, pagedResult.PerPage, pagedResult.TotalPages);
-
-    await Send.OkAsync(Map.FromEntity(pagedResult), cancellationToken);
-  }
-
-  private void AddLinkHeader(int page, int perPage, int totalPages)
-  {
-    var baseUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}{HttpContext.Request.Path}";
-    string Link(string rel, int p) => $"<{baseUrl}?page={p}&per_page={perPage}>; rel=\"{rel}\"";
-
-    var parts = new List<string>();
-    if (page > 1)
-    {
-      parts.Add(Link("first", 1));
-      parts.Add(Link("prev", page - 1));
-    }
-    if (page < totalPages)
-    {
-      parts.Add(Link("next", page + 1));
-      parts.Add(Link("last", totalPages));
-    }
-
-    if (parts.Count > 0)
-      HttpContext.Response.Headers["Link"] = string.Join(", ", parts);
+      HttpContext.AppendPaginationLinks(page);
+      return TypedResults.Ok(ActiveSessionListResponse.From(page));
+    });
   }
 }
 
@@ -108,16 +89,5 @@ public sealed class ListActiveSessionsByLotValidator : Validator<ListActiveSessi
     RuleFor(x => x.PerPage)
       .InclusiveBetween(1, Constants.MAX_PAGE_SIZE)
       .WithMessage($"per_page must be between 1 and {Constants.MAX_PAGE_SIZE}");
-  }
-}
-
-public sealed class ListActiveSessionsByLotMapper
-  : Mapper<ListActiveSessionsByLotRequest, ActiveSessionListResponse, PagedResult<ActiveSessionDto>>
-{
-  public override ActiveSessionListResponse FromEntity(PagedResult<ActiveSessionDto> e)
-  {
-    var items = e.Items.Select(ActiveSessionRecord.FromDto).ToList();
-
-    return new ActiveSessionListResponse(items, e.Page, e.PerPage, e.TotalCount, e.TotalPages);
   }
 }

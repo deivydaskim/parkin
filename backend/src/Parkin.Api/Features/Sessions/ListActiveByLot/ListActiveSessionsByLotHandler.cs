@@ -2,18 +2,13 @@ using Parkin.Api.Domain.ParkingLotAggregate;
 
 namespace Parkin.Api.Features.Sessions.ListActiveByLot;
 
-public record ListActiveSessionsByLotQuery(ParkingLotId LotId, int? Page = 1, int? PerPage = Constants.DEFAULT_PAGE_SIZE)
-  : IQuery<Result<PagedResult<ActiveSessionDto>>>;
+public record ListActiveSessionsByLotQuery(ParkingLotId LotId, int Page, int PerPage)
+  : IQuery<Result<PagedResult<ActiveSessionResponse>>>;
 
 public class ListActiveSessionsByLotHandler(IListActiveSessionsByLotQueryService query)
-  : IQueryHandler<ListActiveSessionsByLotQuery, Result<PagedResult<ActiveSessionDto>>>
+  : IQueryHandler<ListActiveSessionsByLotQuery, Result<PagedResult<ActiveSessionResponse>>>
 {
-  public async ValueTask<Result<PagedResult<ActiveSessionDto>>> Handle(ListActiveSessionsByLotQuery request,
-                                                                         CancellationToken cancellationToken)
-  {
-    var result = await query.ListAsync(request.LotId, request.Page ?? 1,
-      request.PerPage ?? Constants.DEFAULT_PAGE_SIZE, cancellationToken);
-
-    return Result.Success(result);
-  }
+  public async ValueTask<Result<PagedResult<ActiveSessionResponse>>> Handle(ListActiveSessionsByLotQuery request,
+    CancellationToken cancellationToken)
+    => await query.ListAsync(request.LotId, request.Page, request.PerPage, cancellationToken);
 }

@@ -2,8 +2,8 @@ using Parkin.Api.Domain.AuditAggregate;
 
 namespace Parkin.Api.Domain.AccessEventAggregate.Events;
 
-public class AccessEventRecordedEvent(AccessEvent accessEvent, Guid? actorId)
-  : AuditableDomainEvent(accessEvent.ActingStaffId ?? actorId, AuditActions.AccessEventIngested,
+public class AccessEventRecordedEvent(AccessEvent accessEvent)
+  : AuditableDomainEvent(accessEvent.ActorId, AuditActions.AccessEventIngested,
     AuditEntityTypes.AccessEvent, accessEvent.Id.Value)
 {
   public AccessEvent AccessEvent { get; } = accessEvent;

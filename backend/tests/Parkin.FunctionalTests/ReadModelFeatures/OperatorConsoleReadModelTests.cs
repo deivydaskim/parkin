@@ -89,7 +89,7 @@ public class OperatorConsoleReadModelTests : IClassFixture<ParkinApiFactory>
     return driver;
   }
 
-  private static async Task<AccessEventDecisionRecord> RecordManualAsync(HttpClient client, Guid lotId, string plate,
+  private static async Task<AccessEventDecisionResponse> RecordManualAsync(HttpClient client, Guid lotId, string plate,
     Direction direction)
   {
     var request = new HttpRequestMessage(HttpMethod.Post, $"/lots/{lotId}/manual-events")
@@ -97,7 +97,7 @@ public class OperatorConsoleReadModelTests : IClassFixture<ParkinApiFactory>
       Content = JsonContent.Create(new { Plate = plate, Direction = direction.ToString() }),
     };
     request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("N"));
-    return await ReadAsync<AccessEventDecisionRecord>(await client.SendAsync(request));
+    return await ReadAsync<AccessEventDecisionResponse>(await client.SendAsync(request));
   }
 
   [Fact]
@@ -206,7 +206,7 @@ public class OperatorConsoleReadModelTests : IClassFixture<ParkinApiFactory>
     var archived = await CreateLotAsync(client, $"Archived {Unique()}");
     (await client.PostAsync($"/lots/{archived.Id}/archive", null)).EnsureSuccessStatusCode();
 
-    var occupancies = await ReadAsync<List<LotOccupancyRecord>>(await client.GetAsync("/occupancy"));
+    var occupancies = await ReadAsync<List<LotOccupancyResponse>>(await client.GetAsync("/occupancy"));
 
     var row = occupancies.Single(o => o.LotId == lot.Id);
     row.LotName.ShouldBe(lot.Name);

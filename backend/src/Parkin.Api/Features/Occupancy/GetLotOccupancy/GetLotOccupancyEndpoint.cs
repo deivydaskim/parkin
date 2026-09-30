@@ -3,7 +3,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.ParkingLotAggregate;
-using Parkin.Api.Extensions;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Occupancy.GetLotOccupancy;
 
@@ -14,7 +14,7 @@ public sealed class GetLotOccupancyRequest
 }
 
 public class GetLotOccupancyEndpoint(IMediator mediator)
-  : Endpoint<GetLotOccupancyRequest, Results<Ok<LotOccupancyRecord>, NotFound, ProblemHttpResult>>
+  : Endpoint<GetLotOccupancyRequest, Results<Ok<LotOccupancyResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
@@ -36,17 +36,17 @@ public class GetLotOccupancyEndpoint(IMediator mediator)
 
     Description(builder => builder
       .Accepts<GetLotOccupancyRequest>()
-      .Produces<LotOccupancyRecord>(200, "application/json")
+      .Produces<LotOccupancyResponse>(200, "application/json")
       .ProducesProblem(404));
   }
 
-  public override async Task<Results<Ok<LotOccupancyRecord>, NotFound, ProblemHttpResult>>
+  public override async Task<Results<Ok<LotOccupancyResponse>, ValidationProblem, ProblemHttpResult>>
     ExecuteAsync(GetLotOccupancyRequest request, CancellationToken cancellationToken)
   {
     var result = await mediator.Send(
       new GetLotOccupancyQuery(ParkingLotId.From(request.LotId)), cancellationToken);
 
-    return result.ToGetByIdResult(OccupancyMapping.ToRecord);
+    return result.ToOkResult(occupancy => occupancy);
   }
 }
 

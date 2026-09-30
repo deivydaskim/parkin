@@ -1,14 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Parkin.Api.Domain.ParkingLotAggregate;
 using Parkin.Api.Domain.ParkingSessionAggregate;
-using Parkin.Api.Features.Sessions;
 using Parkin.Api.Features.Sessions.ListActiveByLot;
 
 namespace Parkin.Api.Infrastructure.Data.Queries;
 
 public class ListActiveSessionsByLotQueryService(AppDbContext db) : IListActiveSessionsByLotQueryService
 {
-  public async Task<PagedResult<ActiveSessionDto>> ListAsync(ParkingLotId lotId, int page, int perPage,
+  public async Task<PagedResult<ActiveSessionResponse>> ListAsync(ParkingLotId lotId, int page, int perPage,
     CancellationToken cancellationToken)
   {
     var query = db.ParkingSessions
@@ -43,13 +42,13 @@ public class ListActiveSessionsByLotQueryService(AppDbContext db) : IListActiveS
       .ToDictionaryAsync(s => s.Id, s => s.Label, cancellationToken);
 
     var items = sessions
-      .Select(s => new ActiveSessionDto(
-        s.Id,
+      .Select(s => new ActiveSessionResponse(
+        s.Id.Value,
         s.Plate,
-        s.DriverId,
+        s.DriverId?.Value,
         s.DriverId is { } driverId ? driverNameById.GetValueOrDefault(driverId) : null,
         s.Pool,
-        s.SpaceId,
+        s.SpaceId?.Value,
         s.SpaceId is { } spaceId ? spaceLabelById.GetValueOrDefault(spaceId) : null,
         s.EntryTime))
       .ToList();
@@ -57,6 +56,6 @@ public class ListActiveSessionsByLotQueryService(AppDbContext db) : IListActiveS
     int totalCount = await query.CountAsync(cancellationToken);
     int totalPages = (int)Math.Ceiling(totalCount / (double)perPage);
 
-    return new PagedResult<ActiveSessionDto>(items, page, perPage, totalCount, totalPages);
+    return new PagedResult<ActiveSessionResponse>(items, page, perPage, totalCount, totalPages);
   }
 }
