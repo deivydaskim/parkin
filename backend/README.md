@@ -1,27 +1,28 @@
-# Parkin
+# Parkin Backend
 
-Welcome to your new project generated with the **Minimal Clean Architecture** template!
+Single-tenant Parking Management System API. It manages parking lots and spaces, drivers and plates, access grants, reservations and parking sessions. It also exposes an inbound Access Events API that decides, per gate event, whether a vehicle may enter.
 
-This is a streamlined, single-project Vertical Slice Architecture (VSA) that follows Clean Architecture principles without the overhead of multiple projects. Perfect for smaller applications, MVPs, or teams that want architectural guidance without complex project boundaries.
+The backend is a single Web project organized by **vertical slices** (features), following Clean Architecture principles without multiple projects.
 
 ## Getting Started
+
+All commands run from the `backend/` directory. Docker must be running (PostgreSQL container, Testcontainers).
 
 ### Build and Run
 
 ```powershell
-# Build the solution
 dotnet build
 
-# Run the application
-dotnet run --project src/Parkin.Api
-
-# Or run with Aspire (if using)
 dotnet run --project src/Parkin.AspireHost
+
+dotnet run --project src/Parkin.Api
 ```
+
+`TreatWarningsAsErrors` is enabled, so warnings fail the build.
 
 ### Database Setup
 
-This project uses **PostgreSQL in a container** managed by Aspire. When you run the Aspire AppHost, it automatically starts a PostgreSQL container and creates the database.
+The database is **PostgreSQL**.
 
 #### Option 1: Run with Aspire (Recommended)
 
@@ -29,105 +30,97 @@ This project uses **PostgreSQL in a container** managed by Aspire. When you run 
 dotnet run --project src/Parkin.AspireHost
 ```
 
-The PostgreSQL container and database are automatically provisioned and migrations are applied on startup.
+The AppHost provisions a persistent PostgreSQL container with an `AppDb` database and launches the API. Pending migrations are applied and identity data is seeded on startup.
 
-#### Option 2: Run Web project directly (local PostgreSQL)
+#### Option 2: Run Api project directly (local PostgreSQL)
 
-If running the Web project without Aspire, point `ConnectionStrings:AppDb` in `appsettings.json` at a local PostgreSQL instance, then:
+Point `ConnectionStrings:AppDb` in `appsettings.json` at a local PostgreSQL instance, then:
 
 ```powershell
-dotnet ef database update -c AppDbContext -p src/Parkin.Api -s src/Parkin.Api
+dotnet ef database update --project src/Parkin.Api
 dotnet run --project src/Parkin.Api
 ```
 
+The API requires a connection string named `AppDb`. In development only, set `DatabaseOptions:RecreateOnStartup = true` to drop and recreate the database on each launch.
+
+API docs (Scalar UI and OpenAPI) are served in development at `/openapi/{documentName}.json`.
+
 ## Project Structure
 
-This template uses a **single Web project** organized by **vertical slices** (features):
-
 ```text
-src/Parkin.Api/
-├── Domain/                    # Domain entities and aggregates
-│   ├── CartAggregate/
-│   ├── OrderAggregate/
-│   └── ProductAggregate/
-├── Infrastructure/            # Data access and external services
-│   ├── Data/
-│   │   ├── AppDbContext.cs
-│   │   ├── Config/           # EF Core configurations
-│   │   └── Migrations/
-│   └── Email/                # Email services
-├── Endpoints/                 # API endpoints (FastEndpoints)
-│   ├── Cart/
-│   ├── Order/
-│   └── Product/
-└── Program.cs                # Application startup
+backend/
+├── src/
+│   ├── Parkin.Api/
+│   │   ├── Domain/                # Aggregates, domain events, specifications, pure domain services
+│   │   │   ├── AccessEventAggregate/
+│   │   │   ├── AccessGrantAggregate/
+│   │   │   ├── ApiKeyAggregate/
+│   │   │   ├── AuditAggregate/
+│   │   │   ├── DriverAggregate/
+│   │   │   ├── ParkingLotAggregate/
+│   │   │   ├── ParkingSessionAggregate/
+│   │   │   ├── ReservationAggregate/
+│   │   │   ├── Services/          # EntryDecision, OccupancyResult
+│   │   │   └── StaffUsers/        # Staff user abstractions
+│   │   ├── Features/              # Vertical slices: Features/<Area>/<Action>/
+│   │   │   ├── AccessEvents/  ApiKeys/  Audit/  Auth/  Drivers/
+│   │   │   ├── Grants/  LotLayouts/  Lots/  Occupancy/  Plates/
+│   │   │   └── Reservations/  Sessions/  Spaces/  Users/
+│   │   ├── Infrastructure/
+│   │   │   ├── ApiKeys/           # X-Api-Key authentication handler
+│   │   │   ├── Data/              # AppDbContext, Config/, Migrations/, Queries/, interceptors, SeedData
+│   │   │   └── Identity/          # ASP.NET Identity staff user implementation
+│   │   ├── Authorization/         # Policies, schemes, claim types
+│   │   ├── Configurations/        # DI and middleware extension methods
+│   │   ├── Web/                   # Result -> HTTP mapping, pagination headers, current user
+│   │   └── Program.cs
+│   ├── Parkin.AspireHost/         # Local orchestration (PostgreSQL + API)
+│   └── Parkin.ServiceDefaults/    # OpenTelemetry, health checks, resilience
+└── tests/
+    ├── Parkin.UnitTests/
+    ├── Parkin.IntegrationTests/
+    └── Parkin.FunctionalTests/
 ```
 
 ### Key Design Decisions
 
-```text
-Single project vertical slice architecture
-```
-
-- **Single Project**: All code in one Web project - simpler dependencies, faster builds
-- **Vertical Slices**: Organized by feature (Cart, Order, Product) not layer
-- **Domain-Driven Design**: Entities use proper encapsulation and business logic
-- **FastEndpoints**: REPR pattern for clean, testable API endpoints
-- **Entity Framework Core**: Data access with PostgreSQL (Npgsql provider) and migrations
-- **Mediator Pattern**: Optional - use for cross-cutting concerns or remove for simplicity
-
-## What's Different from Full Clean Architecture?
-
-This minimal template simplifies the full Clean Architecture template:
-
-| Full Template | Minimal Template |
-|--------------|------------------|
-| 4+ projects (Core, UseCases, Infrastructure, Web) | 1 Web project |
-| Repository pattern with Specifications | Repository pattern with Specifications if needed |
-| Extensive use of interfaces and abstractions | Pragmatic abstractions where needed |
-| Separate Use Cases project with Mediator | Optional Mediator; logic can be in endpoints |
-| Complex domain patterns (Aggregates, Value Objects, Domain Events) | Pragmatic DDD patterns (Aggregates, Value Objects) |
-
-## When to Use This Template
-
-**Use Minimal Clean Architecture when:**
-
-- ✓ Building MVPs or smaller applications
-- ✓ You want architectural guidance without project ceremony
-- ✓ Team prefers simplicity and fast iteration
-- ✓ Vertical slice architecture appeals to you
-- ✓ You may grow into full Clean Architecture later
-
-**Use Full Clean Architecture when:**
-
-- × Building large, complex enterprise applications
-- × Multiple teams working on different layers
-- × Need strict separation of concerns and dependencies
-- × Domain complexity requires extensive DDD patterns
-- × Long-term maintenance and evolution expected
+- **Vertical Slices**: organized by feature (lots, drivers, grants, ...), not by layer.
+- **REPR endpoints (FastEndpoints)**: each slice has an `Endpoint` with its request and validator, plus a Mediator command/query and handler. Endpoints stay thin; writes and orchestration live in handlers.
+- **Mediator**: the source-generated [martinothamar Mediator](https://github.com/martinothamar/Mediator) library (not MediatR). Handlers return `ValueTask<T>`.
+- **Domain-Driven Design**: aggregates derive from `EntityBase` and `IAggregateRoot`, use private constructors and `Create(...)` factories, and expose behavior through methods. Expected failures return `Result`, never exceptions.
+- **Strongly-typed IDs**: Vogen `[ValueObject<Guid>]` for every aggregate. Each must be registered in `Infrastructure/Data/Config/VogenEfCoreConverters.cs`.
+- **Auditing**: domain events deriving from `AuditableDomainEvent` become `audit_log` rows inside the same `SaveChanges` as the business change.
+- **Two auth schemes**: cookie-based ASP.NET Identity for the operator console, and `X-Api-Key` (scoped to a parking lot) for gates.
+- **Enforced boundaries**: NsDepCop (`config.nsdepcop`) fails the build if `Features.*` depends on `Infrastructure.*`, or `Domain.*` depends on `Infrastructure.*`, `Features.*` or `Web.*`.
+- **Time**: handlers inject `TimeProvider`; domain methods take `now` as a parameter.
 
 ## Technology Stack
 
-- **.NET 10**: Latest LTS framework
-- **FastEndpoints**: REPR pattern for API endpoints
-- **Entity Framework Core**: Data access with migrations
-- **PostgreSQL**: Containerized database via Aspire (Npgsql EF Core provider)
-- **Aspire**: Cloud-ready orchestration and observability
-- **Serilog**: Structured logging
-- **FluentValidation**: Request validation
+- **.NET 10**
+- **FastEndpoints**: REPR pattern for API endpoints (with built-in validation)
+- **Mediator** (source generated)
+- **Entity Framework Core** with **PostgreSQL** (Npgsql provider) and migrations
+- **Ardalis.Specification**, **Ardalis.Result**, **Ardalis.GuardClauses**
+- **Vogen**: strongly-typed IDs
+- **ASP.NET Core Identity**: staff users
+- **Aspire**: local orchestration and observability
+- **Serilog** and **OpenTelemetry**: logging and telemetry
+- **Scalar**: API documentation UI
+- **xUnit**, **Shouldly**, **NSubstitute**, **Testcontainers**
 
 ## Common Tasks
 
 ### Adding a New Feature (Vertical Slice)
 
-1. **Create Domain Entity**: Add to `Domain/YourFeatureAggregate/`
-2. **Add EF Configuration**: Create config in `Infrastructure/Data/Config/`
-3. **Create Migration**: `dotnet ef migrations add AddYourFeature`
-4. **Create Endpoints**: Add FastEndpoints in `Endpoints/YourFeature/`
+1. **Create the aggregate**: add to `Domain/YourFeatureAggregate/` (typed ID, events, specifications).
+2. **Register the ID converter**: add the Vogen ID to `Infrastructure/Data/Config/VogenEfCoreConverters.cs`.
+3. **Add EF configuration**: create an `IEntityTypeConfiguration` in `Infrastructure/Data/Config/`.
+4. **Create a migration**: `dotnet ef migrations add AddYourFeature --project src/Parkin.Api`
+5. **Create the slice**: add endpoint, command/query and handler in `Features/YourFeature/<Action>/`.
 
 ### Database connection
 
-Set the `AppDb` connection string in `appsettings.json` (Aspire injects this automatically when run via the AppHost):
+Set the `AppDb` connection string in `appsettings.json` (Aspire injects it automatically when run via the AppHost):
 
 ```json
 {
@@ -139,34 +132,21 @@ Set the `AppDb` connection string in `appsettings.json` (Aspire injects this aut
 
 ### Running Tests
 
+Run one test project at a time (MSBuild rejects multiple `.csproj` arguments). Integration and functional tests start PostgreSQL via Testcontainers, so Docker must be running.
+
 ```powershell
-dotnet test
+dotnet test tests/Parkin.UnitTests/Parkin.UnitTests.csproj
+dotnet test tests/Parkin.IntegrationTests/Parkin.IntegrationTests.csproj
+dotnet test tests/Parkin.FunctionalTests/Parkin.FunctionalTests.csproj
 ```
 
-## Migration Path to Full Clean Architecture
-
-As your application grows, you can migrate to the full Clean Architecture template:
-
-1. **Extract Core**: Move Domain entities to separate Core project
-2. **Extract UseCases**: Move business logic to UseCases project with Mediator
-3. **Extract Infrastructure**: Move data access to Infrastructure project
-4. **Update Dependencies**: Set up proper dependency flow (Core ← UseCases ← Infrastructure)
-
-Learn more: [Clean Architecture Template](https://github.com/ardalis/CleanArchitecture)
+- **UnitTests**: pure domain and handler tests, no I/O.
+- **IntegrationTests**: database-level invariants (partial unique indexes, idempotency, concurrency, migrations).
+- **FunctionalTests**: full HTTP pipeline through `WebApplicationFactory<Program>`.
 
 ## Resources
 
-- [Clean Architecture Template Repository](https://github.com/ardalis/CleanArchitecture)
-- [Vertical Slice Architecture](https://jimmybogard.com/vertical-slice-architecture/)
 - [FastEndpoints Documentation](https://fast-endpoints.com/)
-- [Ardalis on YouTube](https://www.youtube.com/@Ardalis)
-
-## Need Help?
-
-- Report issues: [GitHub Issues](https://github.com/ardalis/CleanArchitecture/issues)
-- Ask questions: [Discussions](https://github.com/ardalis/CleanArchitecture/discussions)
-- Follow updates: [@ardalis](https://twitter.com/ardalis)
-
----
-
-**Happy Coding!** 🚀
+- [Mediator](https://github.com/martinothamar/Mediator)
+- [Vertical Slice Architecture](https://jimmybogard.com/vertical-slice-architecture/)
+- [Ardalis Clean Architecture Template](https://github.com/ardalis/CleanArchitecture) (origin of the project structure)
