@@ -8,6 +8,7 @@ using Parkin.Api.Features.Grants.ListByLot;
 using Parkin.Api.Features.Sessions.ListActiveByLot;
 using Parkin.Api.Domain.Interfaces;
 using Parkin.Api.Domain.Services;
+using Parkin.Api.Domain.StaffUsers;
 using Parkin.Api.Infrastructure.Data;
 using Parkin.Api.Infrastructure.Data.Queries;
 using Parkin.Api.Infrastructure.Identity;
@@ -72,7 +73,9 @@ public static class InfrastructureServiceExtensions
            .AddScoped<IListGrantsByLotQueryService, ListGrantsByLotQueryService>()
            .AddScoped<IActiveReservationChecker, ActiveReservationChecker>()
            .AddScoped<ILotRowLocker, LotRowLocker>()
-           .AddScoped<IUnitOfWork, EfUnitOfWork>();
+           .AddScoped<IUnitOfWork, EfUnitOfWork>()
+           .AddScoped<IStaffUserService, StaffUserService>()
+           .AddScoped<IStaffAuthService, StaffAuthService>();
 
     services.AddSingleton<IEntryDecisionService, EntryDecisionService>()
             .AddSingleton<IOccupancyCalculator, OccupancyCalculator>();

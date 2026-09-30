@@ -2,5 +2,5 @@ namespace Parkin.Api.Features.Users.List;
 
 public interface IListUsersQueryService
 {
-  Task<PagedResult<UserRecord>> ListAsync(int page, int perPage);
+  Task<PagedResult<UserResponse>> ListAsync(int page, int perPage, CancellationToken cancellationToken);
 }

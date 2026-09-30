@@ -1,4 +1,4 @@
-namespace Parkin.Api.Infrastructure.Identity;
+namespace Parkin.Api.Domain.StaffUsers;
 
 public enum UserStatus
 {

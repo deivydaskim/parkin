@@ -6,31 +6,27 @@ namespace Parkin.Api.Infrastructure.Data.Queries;
 
 public class ListUsersQueryService(AppDbContext db) : IListUsersQueryService
 {
-  private readonly AppDbContext _db = db;
-
-  public async Task<PagedResult<UserRecord>> ListAsync(int page, int perPage)
+  public async Task<PagedResult<UserResponse>> ListAsync(int page, int perPage, CancellationToken cancellationToken)
   {
-    var query = _db.Users.AsQueryable();
-
-    var items = await query
+    var items = await db.Users
       .OrderBy(u => u.Email)
       .Skip((page - 1) * perPage)
       .Take(perPage)
-      .Select(u => new UserRecord(
+      .Select(u => new UserResponse(
         u.Id,
         u.Email!,
         u.DisplayName,
-        (from ur in _db.UserRoles
-         join r in _db.Roles on ur.RoleId equals r.Id
+        (from ur in db.UserRoles
+         join r in db.Roles on ur.RoleId equals r.Id
          where ur.UserId == u.Id
          select r.Name!).FirstOrDefault() ?? string.Empty,
         u.Status.ToString()))
       .AsNoTracking()
-      .ToListAsync();
+      .ToListAsync(cancellationToken);
 
-    int totalCount = await query.CountAsync();
-    int totalPages = (int)Math.Ceiling(totalCount / (double)perPage);
+    var totalCount = await db.Users.CountAsync(cancellationToken);
+    var totalPages = (int)Math.Ceiling(totalCount / (double)perPage);
 
-    return new PagedResult<UserRecord>(items, page, perPage, totalCount, totalPages);
+    return new PagedResult<UserResponse>(items, page, perPage, totalCount, totalPages);
   }
 }

@@ -1,21 +1,22 @@
 using Parkin.Api.Domain.ApiKeyAggregate;
-using Parkin.Api.Domain.ApiKeyAggregate.Specifications;
 
 namespace Parkin.Api.Features.ApiKeys.Revoke;
 
-public record RevokeApiKeyCommand(ApiKeyId ApiKeyId, Guid? ActorId) : ICommand<Result<ApiKeyDto>>;
+public record RevokeApiKeyCommand(ApiKeyId ApiKeyId, Guid? ActorId) : ICommand<Result<ApiKeyResponse>>;
 
-public class RevokeApiKeyHandler(IRepository<ApiKey> repository)
-  : ICommandHandler<RevokeApiKeyCommand, Result<ApiKeyDto>>
+public class RevokeApiKeyHandler(IRepository<ApiKey> repository, TimeProvider timeProvider)
+  : ICommandHandler<RevokeApiKeyCommand, Result<ApiKeyResponse>>
 {
-  public async ValueTask<Result<ApiKeyDto>> Handle(RevokeApiKeyCommand request, CancellationToken cancellationToken)
+  public async ValueTask<Result<ApiKeyResponse>> Handle(RevokeApiKeyCommand request,
+    CancellationToken cancellationToken)
   {
-    var apiKey = await repository.FirstOrDefaultAsync(new ApiKeyByIdSpec(request.ApiKeyId), cancellationToken);
-    if (apiKey == null) return Result.NotFound();
+    var apiKey = await repository.GetByIdAsync(request.ApiKeyId, cancellationToken);
+    if (apiKey is null) return Result.NotFound();
 
-    apiKey.Revoke(request.ActorId);
+    var revoked = apiKey.Revoke(request.ActorId, timeProvider.GetUtcNow());
+    if (!revoked.IsSuccess) return Result.Conflict([.. revoked.Errors]);
+
     await repository.UpdateAsync(apiKey, cancellationToken);
-
-    return new ApiKeyDto(apiKey.Id, apiKey.Name, apiKey.Prefix, apiKey.Status, apiKey.CreatedAt, apiKey.RevokedAt);
+    return ApiKeyResponse.From(apiKey);
   }
 }

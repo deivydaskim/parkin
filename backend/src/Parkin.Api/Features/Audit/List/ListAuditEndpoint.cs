@@ -1,12 +1,16 @@
 using FastEndpoints;
 using FluentValidation;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.AuditAggregate;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Audit.List;
 
 public sealed class ListAuditRequest
 {
+  public const string Route = "/audit";
+
   [BindFrom("page")]
   public int Page { get; init; } = 1;
 
@@ -29,21 +33,23 @@ public sealed class ListAuditRequest
   public string? Entity { get; init; }
 }
 
-public record AuditListResponse : PagedResult<AuditLogEntryRecord>
+public record AuditListResponse : PagedResult<AuditLogEntryResponse>
 {
-  public AuditListResponse(IReadOnlyList<AuditLogEntryRecord> Items, int Page, int PerPage, int TotalCount, int TotalPages)
+  public AuditListResponse(IReadOnlyList<AuditLogEntryResponse> Items, int Page, int PerPage, int TotalCount, int TotalPages)
     : base(Items, Page, PerPage, TotalCount, TotalPages)
   {
   }
+
+  public static AuditListResponse From(PagedResult<AuditLogEntryResponse> page)
+    => new(page.Items, page.Page, page.PerPage, page.TotalCount, page.TotalPages);
 }
 
-public class ListEndpoint(IMediator mediator) : Endpoint<ListAuditRequest, AuditListResponse>
+public class ListAuditEndpoint(IMediator mediator)
+  : Endpoint<ListAuditRequest, Results<Ok<AuditListResponse>, ValidationProblem, ProblemHttpResult>>
 {
-  private readonly IMediator _mediator = mediator;
-
   public override void Configure()
   {
-    Get("/audit");
+    Get(ListAuditRequest.Route);
     Roles(AccessPolicies.AdminOnly);
 
     Summary(s =>
@@ -71,45 +77,18 @@ public class ListEndpoint(IMediator mediator) : Endpoint<ListAuditRequest, Audit
       .ProducesProblem(400));
   }
 
-  public override async Task HandleAsync(ListAuditRequest request, CancellationToken cancellationToken)
+  public override async Task<Results<Ok<AuditListResponse>, ValidationProblem, ProblemHttpResult>>
+    ExecuteAsync(ListAuditRequest request, CancellationToken cancellationToken)
   {
-    var result = await _mediator.Send(
-      new ListAuditQuery(request.Page, request.PerPage, request.From, request.To, request.Actor, request.ActorType, request.Entity),
-      cancellationToken);
+    var filter = new AuditLogFilter(request.Page, request.PerPage, request.From, request.To, request.Actor,
+      request.ActorType, request.Entity);
+    var result = await mediator.Send(new ListAuditQuery(filter), cancellationToken);
 
-    if (!result.IsSuccess)
+    return result.ToHttpResult(page =>
     {
-      await Send.ErrorsAsync(statusCode: 400, cancellationToken);
-      return;
-    }
-
-    var pagedResult = result.Value;
-    AddLinkHeader(pagedResult.Page, pagedResult.PerPage, pagedResult.TotalPages);
-
-    var items = pagedResult.Items.Select(AuditMapping.ToRecord).ToList();
-    var response = new AuditListResponse(items, pagedResult.Page, pagedResult.PerPage, pagedResult.TotalCount, pagedResult.TotalPages);
-    await Send.OkAsync(response, cancellationToken);
-  }
-
-  private void AddLinkHeader(int page, int perPage, int totalPages)
-  {
-    var baseUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}{HttpContext.Request.Path}";
-    string Link(string rel, int p) => $"<{baseUrl}?page={p}&per_page={perPage}>; rel=\"{rel}\"";
-
-    var parts = new List<string>();
-    if (page > 1)
-    {
-      parts.Add(Link("first", 1));
-      parts.Add(Link("prev", page - 1));
-    }
-    if (page < totalPages)
-    {
-      parts.Add(Link("next", page + 1));
-      parts.Add(Link("last", totalPages));
-    }
-
-    if (parts.Count > 0)
-      HttpContext.Response.Headers["Link"] = string.Join(", ", parts);
+      HttpContext.AppendPaginationLinks(page);
+      return TypedResults.Ok(AuditListResponse.From(page));
+    });
   }
 }
 

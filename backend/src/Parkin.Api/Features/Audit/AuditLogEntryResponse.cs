@@ -1,6 +1,6 @@
 namespace Parkin.Api.Features.Audit;
 
-public record AuditLogEntryRecord(
+public record AuditLogEntryResponse(
   Guid Id,
   string ActorType,
   Guid? ActorId,

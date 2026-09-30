@@ -1,11 +1,12 @@
 using FastEndpoints;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.ApiKeys.List;
 
 public class ListApiKeysEndpoint(IMediator mediator)
-  : EndpointWithoutRequest<Ok<IReadOnlyList<ApiKeyRecord>>>
+  : EndpointWithoutRequest<Results<Ok<IReadOnlyList<ApiKeyResponse>>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
@@ -22,13 +23,13 @@ public class ListApiKeysEndpoint(IMediator mediator)
     Tags("ApiKeys");
 
     Description(builder => builder
-      .Produces<IReadOnlyList<ApiKeyRecord>>(200, "application/json"));
+      .Produces<IReadOnlyList<ApiKeyResponse>>(200, "application/json"));
   }
 
-  public override async Task<Ok<IReadOnlyList<ApiKeyRecord>>> ExecuteAsync(CancellationToken cancellationToken)
+  public override async Task<Results<Ok<IReadOnlyList<ApiKeyResponse>>, ValidationProblem, ProblemHttpResult>>
+    ExecuteAsync(CancellationToken cancellationToken)
   {
     var result = await mediator.Send(new ListApiKeysQuery(), cancellationToken);
-    IReadOnlyList<ApiKeyRecord> response = result.Value.Select(ApiKeyMapping.ToRecord).ToList();
-    return TypedResults.Ok(response);
+    return result.ToOkResult(keys => keys);
   }
 }

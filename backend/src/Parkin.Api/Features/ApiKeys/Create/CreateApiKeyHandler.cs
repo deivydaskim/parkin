@@ -2,19 +2,17 @@ using Parkin.Api.Domain.ApiKeyAggregate;
 
 namespace Parkin.Api.Features.ApiKeys.Create;
 
-public record ApiKeyCreateDto(ApiKeyDto ApiKey, string RawKey);
+public record CreateApiKeyCommand(string Name, Guid? ActorId) : ICommand<Result<CreateApiKeyResponse>>;
 
-public record CreateApiKeyCommand(string Name, Guid? ActorId) : ICommand<Result<ApiKeyCreateDto>>;
-
-public class CreateApiKeyHandler(IRepository<ApiKey> repository)
-  : ICommandHandler<CreateApiKeyCommand, Result<ApiKeyCreateDto>>
+public class CreateApiKeyHandler(IRepository<ApiKey> repository, TimeProvider timeProvider)
+  : ICommandHandler<CreateApiKeyCommand, Result<CreateApiKeyResponse>>
 {
-  public async ValueTask<Result<ApiKeyCreateDto>> Handle(CreateApiKeyCommand request, CancellationToken cancellationToken)
+  public async ValueTask<Result<CreateApiKeyResponse>> Handle(CreateApiKeyCommand request,
+    CancellationToken cancellationToken)
   {
-    var (apiKey, rawKey) = ApiKey.Create(request.Name, request.ActorId);
+    var (apiKey, rawKey) = ApiKey.Create(request.Name, request.ActorId, timeProvider.GetUtcNow());
     await repository.AddAsync(apiKey, cancellationToken);
 
-    var dto = new ApiKeyDto(apiKey.Id, apiKey.Name, apiKey.Prefix, apiKey.Status, apiKey.CreatedAt, apiKey.RevokedAt);
-    return new ApiKeyCreateDto(dto, rawKey);
+    return CreateApiKeyResponse.From(apiKey, rawKey);
   }
 }

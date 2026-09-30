@@ -1,15 +1,11 @@
 using FastEndpoints;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Identity;
-using Parkin.Api.Infrastructure.Identity;
+using Parkin.Api.Domain.StaffUsers;
 
 namespace Parkin.Api.Features.Auth.Logout;
 
-public class LogoutEndpoint(SignInManager<ApplicationUser> signInManager) :
-  EndpointWithoutRequest<NoContent>
+public class LogoutEndpoint(IStaffAuthService staffAuth) : EndpointWithoutRequest<NoContent>
 {
-  private readonly SignInManager<ApplicationUser> _signInManager = signInManager;
-
   public override void Configure()
   {
     Post("/auth/logout");
@@ -27,7 +23,7 @@ public class LogoutEndpoint(SignInManager<ApplicationUser> signInManager) :
 
   public override async Task<NoContent> ExecuteAsync(CancellationToken cancellationToken)
   {
-    await _signInManager.SignOutAsync();
+    await staffAuth.SignOutAsync();
     return TypedResults.NoContent();
   }
 }

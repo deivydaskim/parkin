@@ -1,6 +1,6 @@
-namespace Parkin.Api.Infrastructure.Identity;
+namespace Parkin.Api.Domain.StaffUsers;
 
-public static class Roles
+public static class StaffRoles
 {
   public const string SystemAdmin = "SystemAdmin";
   public const string Operator = "Operator";

@@ -56,7 +56,7 @@ public static class AuthConfig
     services.AddAuthorization();
 
     // Default revalidation interval is 30 minutes — too slow for "disable ends sessions
-    // immediately" (A4 AC). A rotated security stamp (see UserFeatures/Disable) is only
+    // immediately" (A4 AC). A rotated security stamp (see StaffUserService.DisableAsync) is only
     // checked on the next revalidation, so this interval bounds how stale a live cookie can be.
     services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.FromSeconds(30));
 

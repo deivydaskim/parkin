@@ -1,15 +1,12 @@
 using FastEndpoints;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Identity;
-using Parkin.Api.Infrastructure.Identity;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Auth.Me;
 
-public class MeEndpoint(UserManager<ApplicationUser> userManager) :
+public class MeEndpoint(IMediator mediator, ICurrentUser currentUser) :
   EndpointWithoutRequest<Results<Ok<CurrentUserResponse>, UnauthorizedHttpResult>>
 {
-  private readonly UserManager<ApplicationUser> _userManager = userManager;
-
   public override void Configure()
   {
     Get("/auth/me");
@@ -28,13 +25,7 @@ public class MeEndpoint(UserManager<ApplicationUser> userManager) :
   public override async Task<Results<Ok<CurrentUserResponse>, UnauthorizedHttpResult>>
     ExecuteAsync(CancellationToken cancellationToken)
   {
-    var user = await _userManager.GetUserAsync(User);
-    if (user is null || user.Status == UserStatus.Disabled)
-    {
-      return TypedResults.Unauthorized();
-    }
-
-    var response = await CurrentUserResponseFactory.BuildAsync(_userManager, user);
-    return TypedResults.Ok(response);
+    var result = await mediator.Send(new GetCurrentUserQuery(currentUser.Id), cancellationToken);
+    return result.IsSuccess ? TypedResults.Ok(result.Value) : TypedResults.Unauthorized();
   }
 }

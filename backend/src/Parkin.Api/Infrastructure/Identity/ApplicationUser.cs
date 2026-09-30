@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Parkin.Api.Domain.StaffUsers;
 
 namespace Parkin.Api.Infrastructure.Identity;
 

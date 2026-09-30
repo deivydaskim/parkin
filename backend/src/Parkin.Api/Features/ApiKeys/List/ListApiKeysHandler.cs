@@ -1,13 +1,11 @@
 namespace Parkin.Api.Features.ApiKeys.List;
 
-public record ListApiKeysQuery : IQuery<Result<IReadOnlyList<ApiKeyDto>>>;
+public record ListApiKeysQuery : IQuery<Result<IReadOnlyList<ApiKeyResponse>>>;
 
 public class ListApiKeysHandler(IListApiKeysQueryService query)
-  : IQueryHandler<ListApiKeysQuery, Result<IReadOnlyList<ApiKeyDto>>>
+  : IQueryHandler<ListApiKeysQuery, Result<IReadOnlyList<ApiKeyResponse>>>
 {
-  public async ValueTask<Result<IReadOnlyList<ApiKeyDto>>> Handle(ListApiKeysQuery request, CancellationToken cancellationToken)
-  {
-    var result = await query.ListAsync(cancellationToken);
-    return Result.Success(result);
-  }
+  public async ValueTask<Result<IReadOnlyList<ApiKeyResponse>>> Handle(ListApiKeysQuery request,
+    CancellationToken cancellationToken)
+    => Result.Success(await query.ListAsync(cancellationToken));
 }

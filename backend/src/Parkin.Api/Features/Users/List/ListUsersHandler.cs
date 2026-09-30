@@ -1,18 +1,11 @@
 namespace Parkin.Api.Features.Users.List;
 
-public record ListUsersQuery(int? Page = 1,
-  int? PerPage = Constants.DEFAULT_PAGE_SIZE)
-  : IQuery<Result<PagedResult<UserRecord>>>;
+public record ListUsersQuery(int Page, int PerPage) : IQuery<Result<PagedResult<UserResponse>>>;
 
-public class ListUsersHandler(IListUsersQueryService query) : IQueryHandler<ListUsersQuery, Result<PagedResult<UserRecord>>>
+public class ListUsersHandler(IListUsersQueryService query)
+  : IQueryHandler<ListUsersQuery, Result<PagedResult<UserResponse>>>
 {
-  private readonly IListUsersQueryService _query = query;
-
-  public async ValueTask<Result<PagedResult<UserRecord>>> Handle(ListUsersQuery request,
-                                                                   CancellationToken cancellationToken)
-  {
-    var result = await _query.ListAsync(request.Page ?? 1, request.PerPage ?? Constants.DEFAULT_PAGE_SIZE);
-
-    return Result.Success(result);
-  }
+  public async ValueTask<Result<PagedResult<UserResponse>>> Handle(ListUsersQuery request,
+    CancellationToken cancellationToken)
+    => await query.ListAsync(request.Page, request.PerPage, cancellationToken);
 }

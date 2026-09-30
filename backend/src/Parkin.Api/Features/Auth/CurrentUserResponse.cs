@@ -1,21 +1,8 @@
-using Microsoft.AspNetCore.Identity;
-using Parkin.Api.Infrastructure.Identity;
+using Parkin.Api.Domain.StaffUsers;
 
 namespace Parkin.Api.Features.Auth;
 
-public sealed record CurrentUserResponse(
-  Guid Id,
-  string Email,
-  string DisplayName,
-  IList<string> Roles);
-
-public static class CurrentUserResponseFactory
+public sealed record CurrentUserResponse(Guid Id, string Email, string DisplayName, IReadOnlyList<string> Roles)
 {
-  public static async Task<CurrentUserResponse> BuildAsync(
-    UserManager<ApplicationUser> userManager,
-    ApplicationUser user)
-  {
-    var roles = await userManager.GetRolesAsync(user);
-    return new CurrentUserResponse(user.Id, user.Email ?? string.Empty, user.DisplayName, roles);
-  }
+  public static CurrentUserResponse From(StaffUser user) => new(user.Id, user.Email, user.DisplayName, user.Roles);
 }

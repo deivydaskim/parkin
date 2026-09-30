@@ -1,33 +1,27 @@
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Identity;
-using Parkin.Api.Infrastructure.Identity;
+using Parkin.Api.Domain.StaffUsers;
 
 namespace Parkin.Api.Features.Auth.Login;
 
 public sealed class LoginRequest
 {
+  public const string Route = "/auth/login";
+
   public string Email { get; init; } = string.Empty;
   public string Password { get; init; } = string.Empty;
 }
 
-public class LoginEndpoint(
-  SignInManager<ApplicationUser> signInManager,
-  UserManager<ApplicationUser> userManager) :
-  Endpoint<LoginRequest,
-           Results<Ok<CurrentUserResponse>, ProblemHttpResult>>
+public class LoginEndpoint(IMediator mediator) :
+  Endpoint<LoginRequest, Results<Ok<CurrentUserResponse>, ProblemHttpResult>>
 {
-  // Generic message for every failure path so accounts can't be enumerated.
   private const string InvalidCredentials = "Invalid email or password.";
   private const string LockedOut = "Account temporarily locked. Try again later.";
 
-  private readonly SignInManager<ApplicationUser> _signInManager = signInManager;
-  private readonly UserManager<ApplicationUser> _userManager = userManager;
-
   public override void Configure()
   {
-    Post("/auth/login");
+    Post(LoginRequest.Route);
     AllowAnonymous();
 
     Summary(s =>
@@ -45,27 +39,14 @@ public class LoginEndpoint(
   public override async Task<Results<Ok<CurrentUserResponse>, ProblemHttpResult>>
     ExecuteAsync(LoginRequest request, CancellationToken cancellationToken)
   {
-    var user = await _userManager.FindByEmailAsync(request.Email);
-    if (user is null || user.Status == UserStatus.Disabled)
+    var result = await mediator.Send(new LoginCommand(request.Email, request.Password), cancellationToken);
+
+    return result switch
     {
-      return TypedResults.Problem(InvalidCredentials, statusCode: StatusCodes.Status401Unauthorized);
-    }
-
-    var result = await _signInManager.PasswordSignInAsync(
-      user, request.Password, isPersistent: true, lockoutOnFailure: true);
-
-    if (result.Succeeded)
-    {
-      var response = await CurrentUserResponseFactory.BuildAsync(_userManager, user);
-      return TypedResults.Ok(response);
-    }
-
-    if (result.IsLockedOut)
-    {
-      return TypedResults.Problem(LockedOut, statusCode: StatusCodes.Status423Locked);
-    }
-
-    return TypedResults.Problem(InvalidCredentials, statusCode: StatusCodes.Status401Unauthorized);
+      { Outcome: StaffSignInResult.Succeeded, User: { } user } => TypedResults.Ok(user),
+      { Outcome: StaffSignInResult.LockedOut } => TypedResults.Problem(LockedOut, statusCode: StatusCodes.Status423Locked),
+      _ => TypedResults.Problem(InvalidCredentials, statusCode: StatusCodes.Status401Unauthorized)
+    };
   }
 }
 

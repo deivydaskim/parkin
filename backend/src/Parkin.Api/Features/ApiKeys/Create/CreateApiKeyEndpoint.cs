@@ -1,10 +1,9 @@
-using System.Security.Claims;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.ApiKeyAggregate;
-using Parkin.Api.Extensions;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.ApiKeys.Create;
 
@@ -22,9 +21,13 @@ public record CreateApiKeyResponse(
   ApiKeyStatus Status,
   DateTimeOffset CreatedAt,
   DateTimeOffset? RevokedAt,
-  string Key);
+  string Key)
+{
+  public static CreateApiKeyResponse From(ApiKey apiKey, string rawKey)
+    => new(apiKey.Id.Value, apiKey.Name, apiKey.Prefix, apiKey.Status, apiKey.CreatedAt, apiKey.RevokedAt, rawKey);
+}
 
-public class CreateApiKeyEndpoint(IMediator mediator)
+public class CreateApiKeyEndpoint(IMediator mediator, ICurrentUser currentUser)
   : Endpoint<CreateApiKeyRequest, Results<Created<CreateApiKeyResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
@@ -51,22 +54,8 @@ public class CreateApiKeyEndpoint(IMediator mediator)
   public override async Task<Results<Created<CreateApiKeyResponse>, ValidationProblem, ProblemHttpResult>>
     ExecuteAsync(CreateApiKeyRequest request, CancellationToken cancellationToken)
   {
-    var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-    var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
-    var command = new CreateApiKeyCommand(request.Name, actorId);
-
-    var result = await mediator.Send(command, cancellationToken);
-
-    return result.ToCreatedResult(
-      created => $"/api-keys/{created.ApiKey.Id.Value}",
-      created => new CreateApiKeyResponse(
-        created.ApiKey.Id.Value,
-        created.ApiKey.Name,
-        created.ApiKey.Prefix,
-        created.ApiKey.Status,
-        created.ApiKey.CreatedAt,
-        created.ApiKey.RevokedAt,
-        created.RawKey));
+    var result = await mediator.Send(new CreateApiKeyCommand(request.Name, currentUser.Id), cancellationToken);
+    return result.ToCreatedResult(created => $"/api-keys/{created.Id}", created => created);
   }
 }
 
