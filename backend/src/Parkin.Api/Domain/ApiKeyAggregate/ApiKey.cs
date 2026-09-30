@@ -28,7 +28,7 @@ public class ApiKey : EntityBase<ApiKey, ApiKeyId>, IAggregateRoot
   public static (ApiKey Entity, string RawKey) Create(string name, Guid? createdByUserId)
   {
     var (rawKey, displayPrefix, hash) = ApiKeySecret.Generate();
-    var entity = new ApiKey(ApiKeyId.From(Guid.NewGuid()), name, hash, displayPrefix, createdByUserId);
+    var entity = new ApiKey(ApiKeyId.From(Guid.CreateVersion7()), name, hash, displayPrefix, createdByUserId);
     entity.RegisterDomainEvent(new ApiKeyCreatedEvent(entity.Id, createdByUserId));
     return (entity, rawKey);
   }

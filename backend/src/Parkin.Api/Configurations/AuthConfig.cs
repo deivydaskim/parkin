@@ -13,8 +13,7 @@ public static class AuthConfig
     IConfiguration configuration,
     IWebHostEnvironment environment)
   {
-    // Identity.Application cookie is the default scheme so FastEndpoints authorization uses it.
-    // The ApiKey scheme is additive — no endpoint opts into it yet (see T5.2).
+    // The Identity cookie is the default scheme; the gate ingest endpoint opts into ApiKey explicitly.
     var authenticationBuilder = services.AddAuthentication(IdentityConstants.ApplicationScheme);
     authenticationBuilder.AddIdentityCookies();
     authenticationBuilder.AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(

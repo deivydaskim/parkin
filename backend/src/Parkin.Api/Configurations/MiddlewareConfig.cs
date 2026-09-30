@@ -1,10 +1,9 @@
-using Ardalis.ListStartupServices;
+using System.Text.Json.Serialization;
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using System.Text.Json.Serialization;
 using Parkin.Api.Infrastructure.Data;
 using Parkin.Api.Infrastructure.Identity;
 using Scalar.AspNetCore;
@@ -13,17 +12,14 @@ namespace Parkin.Api.Configurations;
 
 public static class MiddlewareConfig
 {
-  public static async Task<IApplicationBuilder> UseAppMiddlewareAndSeedDatabase(this WebApplication app)
+  public static WebApplication UseAppMiddleware(this WebApplication app)
   {
-    if (app.Environment.IsDevelopment())
+    app.UseExceptionHandler();
+
+    if (!app.Environment.IsDevelopment())
     {
-      app.UseDeveloperExceptionPage();
-      app.UseShowAllServicesMiddleware(); // see https://github.com/ardalis/AspNetCoreStartupServices
-    }
-    else
-    {   
-      app.UseDefaultExceptionHandler(); // from FastEndpoints
       app.UseHsts();
+      app.UseHttpsRedirection();
     }
 
     app.UseCors(AuthConfig.CorsPolicy);
@@ -35,63 +31,46 @@ public static class MiddlewareConfig
 
     if (app.Environment.IsDevelopment())
     {
-      app.UseSwaggerGen(options =>
-      {
-        options.Path = "/openapi/{documentName}.json";
-      });
+      app.UseSwaggerGen(options => options.Path = "/openapi/{documentName}.json");
       app.MapScalarApiReference();
     }
-
-    // In dev the SPA talks to the API over http (same scheme as the http page) so the
-    // auth cookie survives; redirecting to https would flip the scheme and drop it.
-    if (!app.Environment.IsDevelopment())
-    {
-      app.UseHttpsRedirection(); // Note this will drop Authorization headers
-    }
-
-    await SeedDatabase(app);
 
     return app;
   }
 
-  static async Task SeedDatabase(WebApplication app)
+  public static async Task MigrateAndSeedDatabaseAsync(this WebApplication app)
   {
     using var scope = app.Services.CreateScope();
     var services = scope.ServiceProvider;
     var logger = services.GetRequiredService<ILogger<Program>>();
+    var context = services.GetRequiredService<AppDbContext>();
+    var databaseOptions = services.GetRequiredService<IOptions<DatabaseOptions>>().Value;
+
+    if (app.Environment.IsDevelopment() && databaseOptions.RecreateOnStartup)
+    {
+      logger.LogWarning("Dropping database for a fresh start (DatabaseOptions:RecreateOnStartup = true)");
+      await context.Database.EnsureDeletedAsync();
+    }
+
+    logger.LogInformation("Applying database migrations");
+    await context.Database.MigrateAsync();
+
+    await SeedData.SeedIdentityAsync(
+      services.GetRequiredService<RoleManager<IdentityRole<Guid>>>(),
+      services.GetRequiredService<UserManager<ApplicationUser>>(),
+      services.GetRequiredService<IOptions<SeedAdminOptions>>().Value,
+      services.GetRequiredService<IOptions<SeedOperatorOptions>>().Value,
+      logger);
+
+    if (!databaseOptions.SeedDemoData) return;
 
     try
     {
-      var context = services.GetRequiredService<AppDbContext>();
-      var dbOptions = services.GetService<IOptions<DatabaseOptions>>()?.Value;
-      
-      // Drop and recreate database in development if configured
-      if (app.Environment.IsDevelopment() && dbOptions?.RecreateOnStartup == true)
-      {
-        logger.LogWarning("DROPPING database for fresh start (DatabaseOptions:RecreateOnStartup = true)...");
-        await context.Database.EnsureDeletedAsync();
-        logger.LogInformation("Database dropped.");
-      }
-
-      // Apply all pending migrations
-      logger.LogInformation("Applying database migrations...");
-      await context.Database.MigrateAsync();
-      logger.LogInformation("Database migrations applied successfully.");
-
-      var roleManager = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
-      var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
-      var seedAdmin = services.GetRequiredService<IOptions<SeedAdminOptions>>().Value;
-      var seedOperator = services.GetService<IOptions<SeedOperatorOptions>>()?.Value;
-      await SeedData.SeedIdentityAsync(roleManager, userManager, seedAdmin, seedOperator, logger);
-
-      if (dbOptions?.SeedDemoData == true)
-      {
-        await SeedData.SeedDemoLotAsync(context, logger);
-      }
+      await SeedData.SeedDemoLotAsync(context, logger);
     }
     catch (Exception ex)
     {
-      logger.LogError(ex, "An error occurred seeding the DB. {exceptionMessage}", ex.Message);
+      logger.LogError(ex, "Seeding demo data failed; continuing without it");
     }
   }
 }

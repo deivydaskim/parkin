@@ -67,6 +67,7 @@ public class ChangeRoleEndpoint(UserManager<ApplicationUser> userManager, IRepos
       AuditActions.UserChangeRole,
       AuditEntityTypes.User,
       user.Id,
+      DateTimeOffset.UtcNow,
       new { fromRole, toRole = request.Role });
     await auditRepository.AddAsync(entry, cancellationToken);
     await auditRepository.SaveChangesAsync(cancellationToken);

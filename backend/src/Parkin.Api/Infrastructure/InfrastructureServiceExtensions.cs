@@ -26,22 +26,21 @@ public static class InfrastructureServiceExtensions
 {
   public static IServiceCollection AddInfrastructureServices(
     this IServiceCollection services,
-    ConfigurationManager config,
-    ILogger logger)
+    IConfiguration config)
   {
-    // Always use PostgreSQL from Aspire
     string? connectionString = config.GetConnectionString("AppDb");
     Guard.Against.Null(connectionString, "AppDb connection string is required. Make sure the application is running with Aspire.");
 
+    services.AddScoped<AuditingInterceptor>();
     services.AddScoped<EventDispatchInterceptor>();
     services.AddScoped<IDomainEventDispatcher, MediatorDomainEventDispatcher>();
 
     services.AddDbContext<AppDbContext>((provider, options) =>
     {
-      var eventDispatchInterceptor = provider.GetRequiredService<EventDispatchInterceptor>();
-      
       options.UseNpgsql(connectionString);
-      options.AddInterceptors(eventDispatchInterceptor);
+      options.AddInterceptors(
+        provider.GetRequiredService<AuditingInterceptor>(),
+        provider.GetRequiredService<EventDispatchInterceptor>());
     });
 
     services.AddIdentityCore<ApplicationUser>(options =>
@@ -77,8 +76,6 @@ public static class InfrastructureServiceExtensions
 
     services.AddSingleton<IEntryDecisionService, EntryDecisionService>()
             .AddSingleton<IOccupancyCalculator, OccupancyCalculator>();
-
-    logger.LogInformation("{Project} services registered", "Infrastructure");
 
     return services;
   }

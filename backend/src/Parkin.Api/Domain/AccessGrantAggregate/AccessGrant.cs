@@ -33,7 +33,7 @@ public class AccessGrant : EntityBase<AccessGrant, AccessGrantId>, IAggregateRoo
     DateTimeOffset? validFrom, DateTimeOffset? validTo, Guid? actorId)
   {
     var grant = new AccessGrant(
-      AccessGrantId.From(Guid.NewGuid()), driverId, lotId, validFrom ?? DateTimeOffset.UtcNow, validTo, actorId);
+      AccessGrantId.From(Guid.CreateVersion7()), driverId, lotId, validFrom ?? DateTimeOffset.UtcNow, validTo, actorId);
     grant.RegisterDomainEvent(new GrantCreatedEvent(grant.Id, driverId, lotId, actorId));
     return grant;
   }

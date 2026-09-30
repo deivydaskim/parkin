@@ -21,7 +21,7 @@ public class Reservation : EntityBase<Reservation, ReservationId>, IAggregateRoo
   // Factory method for creating new reservations (before persistence)
   public static Reservation Create(ParkingSpaceId spaceId, DriverId driverId, ParkingLotId lotId, Guid? actorId)
   {
-    var reservation = new Reservation(ReservationId.From(Guid.NewGuid()), spaceId, driverId, lotId);
+    var reservation = new Reservation(ReservationId.From(Guid.CreateVersion7()), spaceId, driverId, lotId);
     reservation.RegisterDomainEvent(new ReservationCreatedEvent(reservation.Id, spaceId, driverId, lotId, actorId));
     return reservation;
   }
@@ -33,7 +33,7 @@ public class Reservation : EntityBase<Reservation, ReservationId>, IAggregateRoo
   public static Reservation CreateForReassignment(ParkingSpaceId spaceId, DriverId driverId, ParkingLotId lotId,
     ReservationId previousReservationId, DriverId previousDriverId, Guid? actorId)
   {
-    var reservation = new Reservation(ReservationId.From(Guid.NewGuid()), spaceId, driverId, lotId);
+    var reservation = new Reservation(ReservationId.From(Guid.CreateVersion7()), spaceId, driverId, lotId);
     reservation.RegisterDomainEvent(new ReservationReassignedEvent(
       reservation.Id, previousReservationId, spaceId, lotId, previousDriverId, driverId, actorId));
     return reservation;

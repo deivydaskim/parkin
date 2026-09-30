@@ -76,6 +76,7 @@ public class CreateEndpoint(UserManager<ApplicationUser> userManager, IRepositor
       AuditActions.UserCreate,
       AuditEntityTypes.User,
       user.Id,
+      DateTimeOffset.UtcNow,
       new { role = request.Role });
     await auditRepository.AddAsync(entry, cancellationToken);
     await auditRepository.SaveChangesAsync(cancellationToken);

@@ -47,7 +47,8 @@ public class EnableEndpoint(UserManager<ApplicationUser> userManager, IRepositor
       HttpContext.User.ActorId(userManager),
       AuditActions.UserEnable,
       AuditEntityTypes.User,
-      user.Id);
+      user.Id,
+      DateTimeOffset.UtcNow);
     await auditRepository.AddAsync(entry, cancellationToken);
     await auditRepository.SaveChangesAsync(cancellationToken);
 

@@ -1,44 +1,18 @@
-using Ardalis.ListStartupServices;
-using Parkin.Api.Infrastructure.Email;
-using Parkin.Api.Infrastructure.Identity;
 using System.Text.Json.Serialization;
+using Parkin.Api.Infrastructure.Identity;
 
 namespace Parkin.Api.Configurations;
 
 public static class OptionConfigs
 {
-  public static IServiceCollection AddOptionConfigs(this IServiceCollection services,
-                                                    IConfiguration configuration,
-                                                    Microsoft.Extensions.Logging.ILogger logger,
-                                                    WebApplicationBuilder builder)
+  public static IServiceCollection AddOptionConfigs(this IServiceCollection services, IConfiguration configuration)
   {
     services.ConfigureHttpJsonOptions(options =>
       options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
-    services.Configure<MailserverConfiguration>(configuration.GetSection("Mailserver"))
-    .Configure<DatabaseOptions>(configuration.GetSection("DatabaseOptions"))
-    .Configure<SeedAdminOptions>(configuration.GetSection(SeedAdminOptions.SectionName))
-    .Configure<SeedOperatorOptions>(configuration.GetSection(SeedOperatorOptions.SectionName))
-    // Configure Web Behavior
-    .Configure<CookiePolicyOptions>(options =>
-    {
-      options.CheckConsentNeeded = context => true;
-      options.MinimumSameSitePolicy = SameSiteMode.None;
-    });
-
-    if (builder.Environment.IsDevelopment())
-    {
-      // add list services for diagnostic purposes - see https://github.com/ardalis/AspNetCoreStartupServices
-      services.Configure<ServiceConfig>(config =>
-      {
-        config.Services = new List<ServiceDescriptor>(builder.Services);
-
-        // optional - default path to view services is /listallservices - recommended to choose your own path
-        config.Path = "/listservices";
-      });
-    }
-
-    logger.LogInformation("{Project} were configured", "Options");
+    services.Configure<DatabaseOptions>(configuration.GetSection(DatabaseOptions.SectionName))
+            .Configure<SeedAdminOptions>(configuration.GetSection(SeedAdminOptions.SectionName))
+            .Configure<SeedOperatorOptions>(configuration.GetSection(SeedOperatorOptions.SectionName));
 
     return services;
   }

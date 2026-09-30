@@ -1,3 +1,4 @@
+using Parkin.Api.Domain.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Parkin.Api.Domain.DriverAggregate;
 using Parkin.Api.Domain.ParkingLotAggregate;
@@ -63,7 +64,7 @@ public class ReservationConcurrencyTests : IClassFixture<PostgresFixture>
         await context.SaveChangesAsync();
         return true;
       }
-      catch (DbUpdateException)
+      catch (UniqueConstraintViolationException)
       {
         return false;
       }

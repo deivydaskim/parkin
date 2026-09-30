@@ -58,7 +58,8 @@ public class DisableEndpoint(UserManager<ApplicationUser> userManager, IReposito
       HttpContext.User.ActorId(userManager),
       AuditActions.UserDisable,
       AuditEntityTypes.User,
-      user.Id);
+      user.Id,
+      DateTimeOffset.UtcNow);
     await auditRepository.AddAsync(entry, cancellationToken);
     await auditRepository.SaveChangesAsync(cancellationToken);
 

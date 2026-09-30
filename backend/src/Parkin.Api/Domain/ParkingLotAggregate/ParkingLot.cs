@@ -28,7 +28,7 @@ public class ParkingLot : EntityBase<ParkingLot, ParkingLotId>, IAggregateRoot
     AccessMode accessMode = AccessMode.Open, FullBehavior fullBehavior = FullBehavior.Block, Guid? actorId = null,
     LotLayout? layout = null)
   {
-    var lot = new ParkingLot(ParkingLotId.From(Guid.NewGuid()), name, timezone, address, accessMode, fullBehavior);
+    var lot = new ParkingLot(ParkingLotId.From(Guid.CreateVersion7()), name, timezone, address, accessMode, fullBehavior);
     lot.Layout = layout;
     lot.RegisterDomainEvent(new LotCreatedEvent(lot.Id, actorId));
     return lot;

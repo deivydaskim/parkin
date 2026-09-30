@@ -1,3 +1,4 @@
+using Parkin.Api.Domain.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using Parkin.Api.Features.AccessEvents;
 using Parkin.Api.Features.AccessEvents.Ingest;
@@ -111,7 +112,7 @@ public class AccessEventIngestionTests : IClassFixture<PostgresFixture>
         await context.SaveChangesAsync();
         return true;
       }
-      catch (DbUpdateException)
+      catch (UniqueConstraintViolationException)
       {
         return false;
       }

@@ -215,6 +215,7 @@ public class IngestAccessEventHandler(
       AuditActions.AccessEventIngested,
       AuditEntityTypes.ParkingLot,
       request.LotId.Value,
+      DateTimeOffset.UtcNow,
       new
       {
         lotId = request.LotId.Value,

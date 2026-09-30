@@ -40,7 +40,7 @@ public class ParkingSession : EntityBase<ParkingSession, ParkingSessionId>, IAgg
       throw new ArgumentException("A GENERAL session occupies the shared pool, not a specific space.", nameof(spaceId));
     }
 
-    return new ParkingSession(ParkingSessionId.From(Guid.NewGuid()), lotId, driverId, plate, spaceId, pool,
+    return new ParkingSession(ParkingSessionId.From(Guid.CreateVersion7()), lotId, driverId, plate, spaceId, pool,
       entryEventId, entryTime);
   }
 

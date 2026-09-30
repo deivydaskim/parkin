@@ -8,10 +8,6 @@ using Parkin.Api.Infrastructure.Data;
 
 namespace Parkin.Api.Infrastructure.ApiKeys;
 
-// Validates the X-Api-Key header against api_keys.key_hash. Registered as an
-// additional scheme in AuthConfig alongside the Identity cookie scheme, but
-// not yet applied to any endpoint — T5.2's ingestion endpoint will opt in via
-// AuthSchemes(ApiKeyAuthenticationOptions.SchemeName).
 public class ApiKeyAuthenticationHandler(
   IOptionsMonitor<ApiKeyAuthenticationOptions> options,
   ILoggerFactory loggerFactory,
@@ -34,7 +30,8 @@ public class ApiKeyAuthenticationHandler(
 
     var hash = ApiKeySecret.Hash(presentedKey);
     var apiKey = await dbContext.ApiKeys
-      .SingleOrDefaultAsync(k => k.KeyHash == hash && k.Status == ApiKeyStatus.Active);
+      .AsNoTracking()
+      .SingleOrDefaultAsync(k => k.KeyHash == hash && k.Status == ApiKeyStatus.Active, Context.RequestAborted);
 
     if (apiKey is null)
     {
@@ -43,7 +40,7 @@ public class ApiKeyAuthenticationHandler(
 
     var claims = new[]
     {
-      new Claim(ClaimTypes.NameIdentifier, apiKey.Id.ToString()),
+      new Claim(ClaimTypes.NameIdentifier, apiKey.Id.Value.ToString()),
       new Claim("api_key_name", apiKey.Name)
     };
     var identity = new ClaimsIdentity(claims, Scheme.Name);

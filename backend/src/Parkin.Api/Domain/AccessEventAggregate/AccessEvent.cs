@@ -52,7 +52,7 @@ public class AccessEvent : EntityBase<AccessEvent, AccessEventId>, IAggregateRoo
       throw new ArgumentException("A DENY decision must carry a reason.", nameof(denyReason));
     }
 
-    var accessEvent = new AccessEvent(AccessEventId.From(Guid.NewGuid()), lotId, rawPlate, normalizedPlate,
+    var accessEvent = new AccessEvent(AccessEventId.From(Guid.CreateVersion7()), lotId, rawPlate, normalizedPlate,
       matchedPlateId, matchedDriverId, direction, source, decision, denyReason, occurredAt, idempotencyKey,
       actingStaffId, overrideOf);
     accessEvent.RegisterDomainEvent(new AccessEventRecordedEvent(accessEvent, actorId));

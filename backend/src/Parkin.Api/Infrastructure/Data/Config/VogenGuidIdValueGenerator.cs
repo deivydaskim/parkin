@@ -18,7 +18,7 @@ internal class VogenGuidIdValueGenerator<TContext, TEntityBase, TId> : ValueGene
       throw new InvalidOperationException($"Type {typeof(TId).Name} does not have a From(Guid) method");
     }
 
-    return (TId)fromMethod.Invoke(null, new object[] { Guid.NewGuid() })!;
+    return (TId)fromMethod.Invoke(null, new object[] { Guid.CreateVersion7() })!;
   }
 
   public override bool GeneratesTemporaryValues => false;

@@ -21,7 +21,7 @@ public class Driver : EntityBase<Driver, DriverId>, IAggregateRoot
   // Factory method for creating new drivers (before persistence)
   public static Driver Create(string name, string? contact, Guid? actorId)
   {
-    var driver = new Driver(DriverId.From(Guid.NewGuid()), name, contact);
+    var driver = new Driver(DriverId.From(Guid.CreateVersion7()), name, contact);
     driver.RegisterDomainEvent(new DriverCreatedEvent(driver.Id, actorId));
     return driver;
   }

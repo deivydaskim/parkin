@@ -1,9 +1,26 @@
+using Parkin.Api.Domain.AuditAggregate;
+
 namespace Parkin.Api.Domain.AccessEventAggregate.Events;
 
-// Carries the entity, not ids: the handler runs after SaveChanges, so AttachSession has already
-// run and the session link is available to audit.
-public class AccessEventRecordedEvent(AccessEvent accessEvent, Guid? actorId) : DomainEventBase
+public class AccessEventRecordedEvent(AccessEvent accessEvent, Guid? actorId)
+  : AuditableDomainEvent(accessEvent.ActingStaffId ?? actorId, AuditActions.AccessEventIngested,
+    AuditEntityTypes.AccessEvent, accessEvent.Id.Value)
 {
   public AccessEvent AccessEvent { get; } = accessEvent;
-  public Guid? ActorId { get; } = actorId;
+
+  public override AuditActorType ActorType =>
+    AccessEvent.ActingStaffId is null ? AuditActorType.Api : AuditActorType.Staff;
+
+  public override object Metadata => new
+  {
+    lotId = AccessEvent.LotId.Value,
+    plate = AccessEvent.NormalizedPlate,
+    direction = AccessEvent.Direction.ToString(),
+    source = AccessEvent.Source.ToString(),
+    decision = AccessEvent.Decision.ToString(),
+    reason = AccessEvent.DenyReason?.ToString(),
+    driverId = AccessEvent.MatchedDriverId?.Value,
+    sessionId = AccessEvent.SessionId?.Value,
+    actingStaffId = AccessEvent.ActingStaffId
+  };
 }
