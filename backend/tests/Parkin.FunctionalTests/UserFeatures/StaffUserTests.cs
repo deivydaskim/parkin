@@ -6,6 +6,7 @@ using Parkin.Api.Domain.StaffUsers;
 using Parkin.Api.Features.ApiKeys.Create;
 using Parkin.Api.Features.Audit.List;
 using Parkin.Api.Features.Auth;
+using Parkin.Api.Features.Lots;
 using Parkin.Api.Features.Users;
 using Parkin.Api.Features.Users.List;
 using Shouldly;
@@ -174,7 +175,12 @@ public class StaffUserTests : IClassFixture<ParkinApiFactory>
   public async Task RevokeApiKey_Twice_Returns409()
   {
     using var admin = await LoginAsync(AdminEmail, AdminPassword);
-    var createResponse = await admin.PostAsJsonAsync("/api-keys", new { Name = $"Gate {Guid.NewGuid():N}" });
+    var lotResponse = await admin.PostAsJsonAsync("/lots",
+      new { Name = $"Key Lot {Guid.NewGuid():N}", Timezone = "Europe/Vilnius" });
+    lotResponse.EnsureSuccessStatusCode();
+    var lot = await ReadAsync<LotResponse>(lotResponse);
+    var createResponse = await admin.PostAsJsonAsync("/api-keys",
+      new { Name = $"Gate {Guid.NewGuid():N}", LotId = lot.Id });
     var created = await ReadAsync<CreateApiKeyResponse>(createResponse);
 
     var first = await admin.PostAsync($"/api-keys/{created.Id}/revoke", null);

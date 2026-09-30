@@ -12,7 +12,6 @@ public sealed class IngestAccessEventRequest
 {
   public const string Route = "/api/v1/access-events";
 
-  public Guid LotId { get; init; }
   public string Plate { get; init; } = string.Empty;
   public Direction Direction { get; init; }
   public DateTimeOffset OccurredAt { get; init; }
@@ -35,13 +34,14 @@ public class IngestAccessEventEndpoint(IMediator mediator, ICurrentUser currentU
     {
       s.Summary = "Record a gate access event and return the entry decision";
       s.Description = "Called by the LPR / barrier system on every ENTER and EXIT. Authenticated with " +
-        "the X-Api-Key header; a required Idempotency-Key makes retries safe. Keys are scoped to the " +
-        "calling API key: replaying a key with the same lot, plate and direction returns the original " +
-        "decision verbatim and never double-counts, while reusing it for a different lot, plate or " +
+        "the X-Api-Key header; the parking lot is a property of the key, never of the request body. " +
+        "A required Idempotency-Key makes retries safe. Keys are scoped to the " +
+        "calling API key: replaying a key with the same plate and direction returns the original " +
+        "decision verbatim and never double-counts, while reusing it for a different plate or " +
         "direction is rejected with 409. An ALLOWed ENTER opens a parking session; an EXIT closes the " +
-        "most-recent open session for that plate in that lot, or is recorded as a NoOpenSession anomaly " +
+        "most-recent open session for that plate in the key's lot, or is recorded as a NoOpenSession anomaly " +
         "that leaves occupancy untouched. Every genuine outcome is a 200 with a decision body, including " +
-        "denials and an unknown lot id.";
+        "denials.";
       s.Responses[200] = "Decision recorded";
       s.Responses[400] = "Malformed body or missing Idempotency-Key";
       s.Responses[401] = "Missing, invalid, or revoked API key";
@@ -62,7 +62,7 @@ public class IngestAccessEventEndpoint(IMediator mediator, ICurrentUser currentU
     ExecuteAsync(IngestAccessEventRequest request, CancellationToken cancellationToken)
   {
     var command = new IngestAccessEventCommand(
-      ParkingLotId.From(request.LotId),
+      ParkingLotId.From(currentUser.RequiredLotId),
       request.Plate,
       request.Direction,
       request.Source,
@@ -80,10 +80,6 @@ public sealed class IngestAccessEventValidator : Validator<IngestAccessEventRequ
 {
   public IngestAccessEventValidator()
   {
-    RuleFor(x => x.LotId)
-      .NotEmpty()
-      .WithMessage("Lot ID is required");
-
     RuleFor(x => x.Plate)
       .NotEmpty()
       .WithMessage("Plate is required")

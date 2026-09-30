@@ -8,11 +8,12 @@ public class ListApiKeysQueryService(AppDbContext db) : IListApiKeysQueryService
 {
   public async Task<IReadOnlyList<ApiKeyResponse>> ListAsync(CancellationToken cancellationToken)
   {
-    var keys = await db.ApiKeys
-      .OrderByDescending(k => k.CreatedAt)
+    var rows = await db.ApiKeys
+      .Join(db.ParkingLots, key => key.LotId, lot => lot.Id, (key, lot) => new { Key = key, LotName = lot.Name })
+      .OrderByDescending(row => row.Key.CreatedAt)
       .AsNoTracking()
       .ToListAsync(cancellationToken);
 
-    return keys.Select(ApiKeyResponse.From).ToList();
+    return rows.Select(row => ApiKeyResponse.From(row.Key, row.LotName)).ToList();
   }
 }

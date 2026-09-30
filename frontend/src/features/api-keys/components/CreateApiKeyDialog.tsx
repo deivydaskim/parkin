@@ -22,15 +22,17 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
+import { LotCombobox } from '@/features/lots/components/LotCombobox'
 import { useCreateApiKey } from '../queries'
 import { createApiKeySchema, type CreateApiKeyInput } from '../schemas'
 
-const emptyDefaults: CreateApiKeyInput = { name: '' }
+const emptyDefaults: CreateApiKeyInput = { name: '', lotId: '' }
 
 export function CreateApiKeyDialog() {
   const [open, setOpen] = useState(false)
   const [rawKey, setRawKey] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [lotLabel, setLotLabel] = useState<string | null>(null)
   const createApiKeyMutation = useCreateApiKey()
 
   const form = useForm<CreateApiKeyInput>({
@@ -45,6 +47,7 @@ export function CreateApiKeyDialog() {
       createApiKeyMutation.reset()
       setRawKey(null)
       setCopied(false)
+      setLotLabel(null)
     }
   }
 
@@ -146,6 +149,31 @@ export function CreateApiKeyDialog() {
                       </FormControl>
                       <FormDescription>
                         Helps you recognise it in the audit log.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="lotId"
+                  render={({ field, fieldState }) => (
+                    <FormItem>
+                      <FormLabel>Lot</FormLabel>
+                      <FormControl>
+                        <LotCombobox
+                          value={field.value || null}
+                          selectedLabel={lotLabel}
+                          onChange={(option) => {
+                            setLotLabel(option?.label ?? null)
+                            field.onChange(option?.id ?? '')
+                          }}
+                          aria-invalid={fieldState.invalid}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        The key can only record events for this lot.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

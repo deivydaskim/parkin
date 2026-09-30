@@ -38,11 +38,12 @@ public class LotOccupancyTests : IClassFixture<ParkinApiFactory>
     response.EnsureSuccessStatusCode();
   }
 
-  private static async Task<string> CreateApiKeyAsync(HttpClient adminClient)
+  private static async Task<string> CreateApiKeyAsync(HttpClient adminClient, Guid lotId)
   {
     var response = await adminClient.PostAsJsonAsync("/api-keys", new CreateApiKeyRequest
     {
       Name = $"Occupancy gate {Guid.NewGuid():N}",
+      LotId = lotId,
     });
     response.EnsureSuccessStatusCode();
     var created = await response.Content.ReadFromJsonAsync<CreateApiKeyResponse>(JsonOptions);
@@ -109,11 +110,11 @@ public class LotOccupancyTests : IClassFixture<ParkinApiFactory>
     return request;
   }
 
-  private static object EnterBody(Guid lotId, string plate) =>
-    new { LotId = lotId, Plate = plate, Direction = "Enter", OccurredAt = DateTimeOffset.UtcNow };
+  private static object EnterBody(string plate) =>
+    new { Plate = plate, Direction = "Enter", OccurredAt = DateTimeOffset.UtcNow };
 
-  private static object ExitBody(Guid lotId, string plate) =>
-    new { LotId = lotId, Plate = plate, Direction = "Exit", OccurredAt = DateTimeOffset.UtcNow };
+  private static object ExitBody(string plate) =>
+    new { Plate = plate, Direction = "Exit", OccurredAt = DateTimeOffset.UtcNow };
 
   private async Task GateAsync(string apiKey, string idempotencyKey, object body)
   {
@@ -181,20 +182,20 @@ public class LotOccupancyTests : IClassFixture<ParkinApiFactory>
   {
     using var admin = _factory.CreateClient();
     await LoginAsAdminAsync(admin);
-    var apiKey = await CreateApiKeyAsync(admin);
     var lotId = await CreateLotAsync(admin);
+    var apiKey = await CreateApiKeyAsync(admin, lotId);
     await CreateSpaceAsync(admin, lotId, "G1", SpaceType.General);
     await CreateSpaceAsync(admin, lotId, "G2", SpaceType.General);
 
     var plate = NewPlate();
 
-    await GateAsync(apiKey, $"enter-{Guid.NewGuid():N}", EnterBody(lotId, plate));
+    await GateAsync(apiKey, $"enter-{Guid.NewGuid():N}", EnterBody(plate));
 
     var afterEnter = await GetOccupancyAsync(admin, lotId);
     afterEnter.GeneralUsed.ShouldBe(1);
     afterEnter.GeneralFree.ShouldBe(1);
 
-    await GateAsync(apiKey, $"exit-{Guid.NewGuid():N}", ExitBody(lotId, plate));
+    await GateAsync(apiKey, $"exit-{Guid.NewGuid():N}", ExitBody(plate));
 
     var afterExit = await GetOccupancyAsync(admin, lotId);
     afterExit.GeneralUsed.ShouldBe(0);
@@ -206,16 +207,16 @@ public class LotOccupancyTests : IClassFixture<ParkinApiFactory>
   {
     using var admin = _factory.CreateClient();
     await LoginAsAdminAsync(admin);
-    var apiKey = await CreateApiKeyAsync(admin);
     var lotId = await CreateLotAsync(admin);
+    var apiKey = await CreateApiKeyAsync(admin, lotId);
     await CreateSpaceAsync(admin, lotId, "G1", SpaceType.General);
     await CreateSpaceAsync(admin, lotId, "G2", SpaceType.General);
 
     var plate = NewPlate();
     var idempotencyKey = $"replay-{Guid.NewGuid():N}";
 
-    await GateAsync(apiKey, idempotencyKey, EnterBody(lotId, plate));
-    await GateAsync(apiKey, idempotencyKey, EnterBody(lotId, plate));
+    await GateAsync(apiKey, idempotencyKey, EnterBody(plate));
+    await GateAsync(apiKey, idempotencyKey, EnterBody(plate));
 
     var occupancy = await GetOccupancyAsync(admin, lotId);
     occupancy.GeneralUsed.ShouldBe(1);
@@ -227,11 +228,11 @@ public class LotOccupancyTests : IClassFixture<ParkinApiFactory>
   {
     using var admin = _factory.CreateClient();
     await LoginAsAdminAsync(admin);
-    var apiKey = await CreateApiKeyAsync(admin);
     var lotId = await CreateLotAsync(admin);
+    var apiKey = await CreateApiKeyAsync(admin, lotId);
     await CreateSpaceAsync(admin, lotId, "G1", SpaceType.General);
 
-    await GateAsync(apiKey, $"full-{Guid.NewGuid():N}", EnterBody(lotId, NewPlate()));
+    await GateAsync(apiKey, $"full-{Guid.NewGuid():N}", EnterBody(NewPlate()));
 
     var occupancy = await GetOccupancyAsync(admin, lotId);
     occupancy.GeneralUsed.ShouldBe(1);
@@ -245,12 +246,12 @@ public class LotOccupancyTests : IClassFixture<ParkinApiFactory>
   {
     using var admin = _factory.CreateClient();
     await LoginAsAdminAsync(admin);
-    var apiKey = await CreateApiKeyAsync(admin);
     var lotId = await CreateLotAsync(admin, FullBehavior.AllowOverflow);
+    var apiKey = await CreateApiKeyAsync(admin, lotId);
     await CreateSpaceAsync(admin, lotId, "G1", SpaceType.General);
 
-    await GateAsync(apiKey, $"overflow-a-{Guid.NewGuid():N}", EnterBody(lotId, NewPlate()));
-    await GateAsync(apiKey, $"overflow-b-{Guid.NewGuid():N}", EnterBody(lotId, NewPlate()));
+    await GateAsync(apiKey, $"overflow-a-{Guid.NewGuid():N}", EnterBody(NewPlate()));
+    await GateAsync(apiKey, $"overflow-b-{Guid.NewGuid():N}", EnterBody(NewPlate()));
 
     var occupancy = await GetOccupancyAsync(admin, lotId);
     occupancy.GeneralCapacity.ShouldBe(1);
@@ -264,8 +265,8 @@ public class LotOccupancyTests : IClassFixture<ParkinApiFactory>
   {
     using var admin = _factory.CreateClient();
     await LoginAsAdminAsync(admin);
-    var apiKey = await CreateApiKeyAsync(admin);
     var lotId = await CreateLotAsync(admin);
+    var apiKey = await CreateApiKeyAsync(admin, lotId);
     await CreateSpaceAsync(admin, lotId, "G1", SpaceType.General);
     var reservedSpaceId = await CreateSpaceAsync(admin, lotId, "R1", SpaceType.Reserved);
 
@@ -273,7 +274,7 @@ public class LotOccupancyTests : IClassFixture<ParkinApiFactory>
     var driverId = await CreateDriverWithPlateAsync(admin, plate);
     await ReserveAsync(admin, reservedSpaceId, driverId);
 
-    await GateAsync(apiKey, $"reserved-{Guid.NewGuid():N}", EnterBody(lotId, plate));
+    await GateAsync(apiKey, $"reserved-{Guid.NewGuid():N}", EnterBody(plate));
 
     var occupancy = await GetOccupancyAsync(admin, lotId);
     occupancy.ReservedOccupied.ShouldBe(1);

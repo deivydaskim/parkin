@@ -28,6 +28,7 @@ export function ApiKeyTable({ apiKeys }: Props) {
         <TableHeader>
           <TableRow className="bg-muted/40 hover:bg-muted/40">
             <TableHead>Name</TableHead>
+            <TableHead>Lot</TableHead>
             <TableHead>Key</TableHead>
             <TableHead className="hidden sm:table-cell">Created</TableHead>
             <TableHead>Status</TableHead>
@@ -40,6 +41,7 @@ export function ApiKeyTable({ apiKeys }: Props) {
           {apiKeys.map((apiKey) => (
             <TableRow key={apiKey.id}>
               <TableCell className="font-medium">{apiKey.name}</TableCell>
+              <TableCell>{apiKey.lotName}</TableCell>
               <TableCell>
                 <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
                   {apiKey.prefix}…

@@ -1,5 +1,6 @@
 using Ardalis.GuardClauses;
 using Parkin.Api.Domain.ApiKeyAggregate.Events;
+using Parkin.Api.Domain.ParkingLotAggregate;
 
 namespace Parkin.Api.Domain.ApiKeyAggregate;
 
@@ -7,7 +8,7 @@ public class ApiKey : EntityBase<ApiKey, ApiKeyId>, IAggregateRoot
 {
   private ApiKey() { }
 
-  private ApiKey(ApiKeyId id, string name, string keyHash, string prefix, Guid? createdByUserId,
+  private ApiKey(ApiKeyId id, string name, ParkingLotId lotId, string keyHash, string prefix, Guid? createdByUserId,
     DateTimeOffset createdAt)
   {
     Guard.Against.NullOrWhiteSpace(name, nameof(name));
@@ -16,6 +17,7 @@ public class ApiKey : EntityBase<ApiKey, ApiKeyId>, IAggregateRoot
 
     Id = id;
     Name = name;
+    LotId = lotId;
     KeyHash = keyHash;
     Prefix = prefix;
     Status = ApiKeyStatus.Active;
@@ -23,15 +25,18 @@ public class ApiKey : EntityBase<ApiKey, ApiKeyId>, IAggregateRoot
     CreatedByUserId = createdByUserId;
   }
 
-  public static (ApiKey Entity, string RawKey) Create(string name, Guid? createdByUserId, DateTimeOffset now)
+  public static (ApiKey Entity, string RawKey) Create(string name, ParkingLotId lotId, Guid? createdByUserId,
+    DateTimeOffset now)
   {
     var (rawKey, displayPrefix, hash) = ApiKeySecret.Generate();
-    var entity = new ApiKey(ApiKeyId.From(Guid.CreateVersion7()), name, hash, displayPrefix, createdByUserId, now);
-    entity.RegisterDomainEvent(new ApiKeyCreatedEvent(entity.Id, createdByUserId));
+    var entity = new ApiKey(ApiKeyId.From(Guid.CreateVersion7()), name, lotId, hash, displayPrefix, createdByUserId,
+      now);
+    entity.RegisterDomainEvent(new ApiKeyCreatedEvent(entity.Id, lotId, createdByUserId));
     return (entity, rawKey);
   }
 
   public string Name { get; private set; } = string.Empty;
+  public ParkingLotId LotId { get; private set; }
   public string KeyHash { get; private set; } = string.Empty;
   public string Prefix { get; private set; } = string.Empty;
   public ApiKeyStatus Status { get; private set; }

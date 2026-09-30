@@ -3,6 +3,7 @@ using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Parkin.Api.Authorization;
 using Parkin.Api.Domain.ApiKeyAggregate;
 using Parkin.Api.Infrastructure.Data;
 
@@ -41,7 +42,8 @@ public class ApiKeyAuthenticationHandler(
     var claims = new[]
     {
       new Claim(ClaimTypes.NameIdentifier, apiKey.Id.Value.ToString()),
-      new Claim("api_key_name", apiKey.Name)
+      new Claim("api_key_name", apiKey.Name),
+      new Claim(ApiKeyClaimTypes.LotId, apiKey.LotId.Value.ToString())
     };
     var identity = new ClaimsIdentity(claims, Scheme.Name);
     var principal = new ClaimsPrincipal(identity);

@@ -106,7 +106,7 @@ public class ManualAccessEventTests : IClassFixture<ParkinApiFactory>
     using var admin = _factory.CreateClient();
     await LoginAsAdminAsync(admin);
     var lotId = await CreateLotAsync(admin);
-    var keyResponse = await admin.PostAsJsonAsync("/api-keys", new CreateApiKeyRequest { Name = $"Gate {Guid.NewGuid():N}" });
+    var keyResponse = await admin.PostAsJsonAsync("/api-keys", new CreateApiKeyRequest { Name = $"Gate {Guid.NewGuid():N}", LotId = lotId });
     var apiKey = await keyResponse.Content.ReadFromJsonAsync<CreateApiKeyResponse>(JsonOptions);
     apiKey.ShouldNotBeNull();
 

@@ -284,7 +284,7 @@ public class OperatorConsoleReadModelTests : IClassFixture<ParkinApiFactory>
     using var admin = _factory.CreateClient();
     await LoginAsAdminAsync(admin);
     var lot = await CreateLotAsync(admin, $"Keyed {Unique()}");
-    var keyResponse = await admin.PostAsJsonAsync("/api-keys", new { Name = $"Gate {Unique()}" });
+    var keyResponse = await admin.PostAsJsonAsync("/api-keys", new { Name = $"Gate {Unique()}", LotId = lot.Id });
     keyResponse.EnsureSuccessStatusCode();
     var key = (await keyResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("key").GetString();
 

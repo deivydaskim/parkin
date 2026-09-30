@@ -1,10 +1,14 @@
 using Parkin.Api.Domain.ApiKeyAggregate;
+using Parkin.Api.Domain.ParkingLotAggregate;
 
 namespace Parkin.Api.Features.ApiKeys.Revoke;
 
 public record RevokeApiKeyCommand(ApiKeyId ApiKeyId, Guid? ActorId) : ICommand<Result<ApiKeyResponse>>;
 
-public class RevokeApiKeyHandler(IRepository<ApiKey> repository, TimeProvider timeProvider)
+public class RevokeApiKeyHandler(
+  IRepository<ApiKey> repository,
+  IReadRepository<ParkingLot> lotRepository,
+  TimeProvider timeProvider)
   : ICommandHandler<RevokeApiKeyCommand, Result<ApiKeyResponse>>
 {
   public async ValueTask<Result<ApiKeyResponse>> Handle(RevokeApiKeyCommand request,
@@ -17,6 +21,8 @@ public class RevokeApiKeyHandler(IRepository<ApiKey> repository, TimeProvider ti
     if (!revoked.IsSuccess) return Result.Conflict([.. revoked.Errors]);
 
     await repository.UpdateAsync(apiKey, cancellationToken);
-    return ApiKeyResponse.From(apiKey);
+
+    var lot = await lotRepository.GetByIdAsync(apiKey.LotId, cancellationToken);
+    return ApiKeyResponse.From(apiKey, lot!.Name);
   }
 }

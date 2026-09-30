@@ -9,7 +9,6 @@ export const MASKED_API_KEY = 'pk_live_••••••••••••'
 const REQUEST_TIMEOUT_MS = 5000
 
 export type AccessEventBody = {
-  lotId: string
   plate: string
   direction: Direction
   occurredAt: string
@@ -42,14 +41,12 @@ export type AccessEventRequest = {
 }
 
 export function createAccessEventRequest(
-  lotId: string,
   plate: string,
   direction: Direction,
 ): AccessEventRequest {
   return {
     idempotencyKey: `gate-sim-${crypto.randomUUID()}`,
     body: {
-      lotId,
       plate,
       direction,
       occurredAt: new Date().toISOString(),

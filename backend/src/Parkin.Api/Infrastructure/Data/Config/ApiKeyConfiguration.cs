@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Parkin.Api.Domain.ApiKeyAggregate;
+using Parkin.Api.Domain.ParkingLotAggregate;
 
 namespace Parkin.Api.Infrastructure.Data.Config;
 
@@ -16,6 +17,15 @@ public class ApiKeyConfiguration : IEntityTypeConfiguration<ApiKey>
     builder.Property(entity => entity.Name)
       .HasMaxLength(200)
       .IsRequired();
+
+    builder.Property(entity => entity.LotId)
+      .HasVogenConversion()
+      .IsRequired();
+
+    builder.HasOne<ParkingLot>()
+      .WithMany()
+      .HasForeignKey(entity => entity.LotId)
+      .OnDelete(DeleteBehavior.Restrict);
 
     builder.Property(entity => entity.KeyHash)
       .HasMaxLength(64)

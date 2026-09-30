@@ -19,7 +19,13 @@ const DEMO_DRIVERS = [
 
 type Page<T> = { items: T[] }
 type Lot = { id: string; name: string }
-type ApiKey = { id: string; name: string; prefix: string; status: string }
+type ApiKey = {
+  id: string
+  name: string
+  prefix: string
+  status: string
+  lotId: string
+}
 type CreatedApiKey = ApiKey & { key: string }
 type Driver = { id: string; name: string; plateCount: number }
 type Plate = { normalizedPlateNumber: string; status: string }
@@ -97,23 +103,31 @@ async function findLot(client: Client, name: string) {
   return lot
 }
 
-async function resolveApiKey(client: Client, existingKey: string | undefined) {
+async function resolveApiKey(
+  client: Client,
+  existingKey: string | undefined,
+  lot: Lot,
+) {
   const keys = await client.get<ApiKey[]>('/api-keys')
-  const stillActive =
+  const reusable =
     existingKey &&
     keys.some(
-      (key) => key.status === 'Active' && existingKey.startsWith(key.prefix),
+      (key) =>
+        key.status === 'Active' &&
+        key.lotId === lot.id &&
+        existingKey.startsWith(key.prefix),
     )
 
-  if (existingKey && stillActive) {
-    log('Existing API key is still active, keeping it')
+  if (existingKey && reusable) {
+    log('Existing API key is still active for this lot, keeping it')
     return existingKey
   }
 
   const created = await client.post<CreatedApiKey>('/api-keys', {
     name: API_KEY_NAME,
+    lotId: lot.id,
   })
-  log(`Created API key "${API_KEY_NAME}" (${created.prefix}…)`)
+  log(`Created API key "${API_KEY_NAME}" for "${lot.name}" (${created.prefix}…)`)
   return created.key
 }
 
@@ -189,7 +203,7 @@ async function main() {
   const lot = await findLot(client, lotName)
   log(`Using lot "${lot.name}" (${lot.id})`)
 
-  const apiKey = await resolveApiKey(client, existing.GATE_API_KEY)
+  const apiKey = await resolveApiKey(client, existing.GATE_API_KEY, lot)
   const demoPlates = await ensureDemoPlates(client)
 
   writeEnvFile({

@@ -3,11 +3,13 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Parkin.Api.Features.AccessEvents;
+using Parkin.Api.Features.ApiKeys;
 using Parkin.Api.Features.ApiKeys.Create;
 using Parkin.Api.Domain.AccessEventAggregate;
 using Parkin.Api.Domain.Services;
 using Parkin.Api.Features.Lots;
 using Parkin.Api.Features.Lots.Create;
+using Parkin.Api.Features.Occupancy;
 using Shouldly;
 using Xunit;
 
@@ -33,11 +35,12 @@ public class AccessEventIngestionTests : IClassFixture<ParkinApiFactory>
     response.EnsureSuccessStatusCode();
   }
 
-  private static async Task<string> CreateApiKeyAsync(HttpClient adminClient)
+  private static async Task<string> CreateApiKeyAsync(HttpClient adminClient, Guid lotId)
   {
     var response = await adminClient.PostAsJsonAsync("/api-keys", new CreateApiKeyRequest
     {
       Name = $"Gate {Guid.NewGuid():N}",
+      LotId = lotId,
     });
     response.EnsureSuccessStatusCode();
     var created = await response.Content.ReadFromJsonAsync<CreateApiKeyResponse>(JsonOptions);
@@ -80,18 +83,18 @@ public class AccessEventIngestionTests : IClassFixture<ParkinApiFactory>
     return request;
   }
 
-  private static object EnterBody(Guid lotId, string plate) =>
-    new { LotId = lotId, Plate = plate, Direction = "Enter", OccurredAt = DateTimeOffset.UtcNow };
+  private static object EnterBody(string plate) =>
+    new { Plate = plate, Direction = "Enter", OccurredAt = DateTimeOffset.UtcNow };
 
-  private static object ExitBody(Guid lotId, string plate) =>
-    new { LotId = lotId, Plate = plate, Direction = "Exit", OccurredAt = DateTimeOffset.UtcNow };
+  private static object ExitBody(string plate) =>
+    new { Plate = plate, Direction = "Exit", OccurredAt = DateTimeOffset.UtcNow };
 
   [Fact]
   public async Task Post_WithoutApiKey_Returns401()
   {
     using var client = _factory.CreateClient();
 
-    var response = await client.PostAsJsonAsync(Route, EnterBody(Guid.NewGuid(), "NOKEY 1"), JsonOptions);
+    var response = await client.PostAsJsonAsync(Route, EnterBody("NOKEY 1"), JsonOptions);
 
     response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
   }
@@ -103,7 +106,7 @@ public class AccessEventIngestionTests : IClassFixture<ParkinApiFactory>
     await LoginAsAdminAsync(client);
 
     // The endpoint opts into the ApiKey scheme only.
-    var response = await client.PostAsJsonAsync(Route, EnterBody(Guid.NewGuid(), "COOKIE 1"), JsonOptions);
+    var response = await client.PostAsJsonAsync(Route, EnterBody("COOKIE 1"), JsonOptions);
 
     response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
   }
@@ -114,9 +117,11 @@ public class AccessEventIngestionTests : IClassFixture<ParkinApiFactory>
     using var admin = _factory.CreateClient();
     await LoginAsAdminAsync(admin);
 
+    var lotId = await CreateLotAsync(admin);
     var createResponse = await admin.PostAsJsonAsync("/api-keys", new CreateApiKeyRequest
     {
       Name = $"Revoked {Guid.NewGuid():N}",
+      LotId = lotId,
     });
     createResponse.EnsureSuccessStatusCode();
     var created = await createResponse.Content.ReadFromJsonAsync<CreateApiKeyResponse>(JsonOptions);
@@ -127,7 +132,7 @@ public class AccessEventIngestionTests : IClassFixture<ParkinApiFactory>
 
     using var gate = _factory.CreateClient();
     var response = await gate.SendAsync(
-      GateRequest(created.Key, "revoked-key-attempt", EnterBody(Guid.NewGuid(), "REVOKED 1")));
+      GateRequest(created.Key, "revoked-key-attempt", EnterBody("REVOKED 1")));
 
     response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
   }
@@ -137,48 +142,132 @@ public class AccessEventIngestionTests : IClassFixture<ParkinApiFactory>
   {
     using var admin = _factory.CreateClient();
     await LoginAsAdminAsync(admin);
-    var apiKey = await CreateApiKeyAsync(admin);
     var lotId = await CreateLotAsync(admin);
+    var apiKey = await CreateApiKeyAsync(admin, lotId);
 
     using var gate = _factory.CreateClient();
-    var response = await gate.SendAsync(GateRequest(apiKey, idempotencyKey: null, EnterBody(lotId, "NOIDEM 1")));
+    var response = await gate.SendAsync(GateRequest(apiKey, idempotencyKey: null, EnterBody("NOIDEM 1")));
 
     response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
   }
 
   [Fact]
-  public async Task Post_UnknownLot_Returns200WithLotNotFoundDenial()
+  public async Task Post_ToArchivedLot_Returns200WithLotArchivedDenial()
   {
     using var admin = _factory.CreateClient();
     await LoginAsAdminAsync(admin);
-    var apiKey = await CreateApiKeyAsync(admin);
+    var lotId = await CreateLotAsync(admin);
+    var apiKey = await CreateApiKeyAsync(admin, lotId);
+    (await admin.PostAsync($"/lots/{lotId}/archive", content: null)).EnsureSuccessStatusCode();
 
     using var gate = _factory.CreateClient();
-    var response = await gate.SendAsync(GateRequest(apiKey, $"unknown-lot-{Guid.NewGuid():N}",
-      EnterBody(Guid.NewGuid(), "GHOSTLOT 1")));
+    var response = await gate.SendAsync(GateRequest(apiKey, $"archived-{Guid.NewGuid():N}", EnterBody("ARCHIVED 1")));
 
     response.StatusCode.ShouldBe(HttpStatusCode.OK);
     var decision = await response.Content.ReadFromJsonAsync<AccessEventDecisionResponse>(JsonOptions);
     decision.ShouldNotBeNull();
     decision.Decision.ShouldBe(Decision.Deny);
-    decision.Reason.ShouldBe(DenyReason.LotNotFound);
-    decision.EventId.ShouldBeNull();
+    decision.Reason.ShouldBe(DenyReason.LotArchived);
   }
 
+  [Fact]
+  public async Task Post_RecordsTheEventAgainstTheKeysLot_IgnoringAnyLotIdInTheBody()
+  {
+    using var admin = _factory.CreateClient();
+    await LoginAsAdminAsync(admin);
+    var lotA = await CreateLotAsync(admin);
+    var lotB = await CreateLotAsync(admin);
+    await CreateGeneralSpaceAsync(admin, lotA, "A1");
+    await CreateGeneralSpaceAsync(admin, lotB, "B1");
+    var keyForA = await CreateApiKeyAsync(admin, lotA);
+
+    using var gate = _factory.CreateClient();
+    var response = await gate.SendAsync(GateRequest(keyForA, $"scoped-{Guid.NewGuid():N}",
+      new { LotId = lotB, Plate = "SCOPED 1", Direction = "Enter", OccurredAt = DateTimeOffset.UtcNow }));
+
+    response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    var decision = await response.Content.ReadFromJsonAsync<AccessEventDecisionResponse>(JsonOptions);
+    decision.ShouldNotBeNull();
+    decision.Decision.ShouldBe(Decision.Allow);
+
+    var occupancyA = await admin.GetFromJsonAsync<LotOccupancyResponse>($"/lots/{lotA}/occupancy", JsonOptions);
+    var occupancyB = await admin.GetFromJsonAsync<LotOccupancyResponse>($"/lots/{lotB}/occupancy", JsonOptions);
+    occupancyA.ShouldNotBeNull();
+    occupancyB.ShouldNotBeNull();
+    occupancyA.GeneralUsed.ShouldBe(1);
+    occupancyB.GeneralUsed.ShouldBe(0);
+  }
+
+  [Fact]
+  public async Task CreateApiKey_WithoutLot_Returns400()
+  {
+    using var admin = _factory.CreateClient();
+    await LoginAsAdminAsync(admin);
+
+    var response = await admin.PostAsJsonAsync("/api-keys", new { Name = $"No lot {Guid.NewGuid():N}" });
+
+    response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+  }
+
+  [Fact]
+  public async Task CreateApiKey_ForUnknownLot_Returns404()
+  {
+    using var admin = _factory.CreateClient();
+    await LoginAsAdminAsync(admin);
+
+    var response = await admin.PostAsJsonAsync("/api-keys",
+      new CreateApiKeyRequest { Name = $"Ghost {Guid.NewGuid():N}", LotId = Guid.NewGuid() });
+
+    response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+  }
+
+  [Fact]
+  public async Task CreateApiKey_ForArchivedLot_Returns400()
+  {
+    using var admin = _factory.CreateClient();
+    await LoginAsAdminAsync(admin);
+    var lotId = await CreateLotAsync(admin);
+    (await admin.PostAsync($"/lots/{lotId}/archive", content: null)).EnsureSuccessStatusCode();
+
+    var response = await admin.PostAsJsonAsync("/api-keys",
+      new CreateApiKeyRequest { Name = $"Archived {Guid.NewGuid():N}", LotId = lotId });
+
+    response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+  }
+
+  [Fact]
+  public async Task ListApiKeys_ExposesTheBoundLotIdAndName()
+  {
+    using var admin = _factory.CreateClient();
+    await LoginAsAdminAsync(admin);
+    var lotId = await CreateLotAsync(admin);
+    var createResponse = await admin.PostAsJsonAsync("/api-keys",
+      new CreateApiKeyRequest { Name = $"Listed {Guid.NewGuid():N}", LotId = lotId });
+    createResponse.EnsureSuccessStatusCode();
+    var created = await createResponse.Content.ReadFromJsonAsync<CreateApiKeyResponse>(JsonOptions);
+    created.ShouldNotBeNull();
+
+    var keys = await admin.GetFromJsonAsync<List<ApiKeyResponse>>("/api-keys", JsonOptions);
+
+    keys.ShouldNotBeNull();
+    var listed = keys.Single(k => k.Id == created.Id);
+    listed.LotId.ShouldBe(lotId);
+    listed.LotName.ShouldBe(created.LotName);
+  }
   [Fact]
   public async Task Post_EnterThenExit_OpensAndClosesASession()
   {
     using var admin = _factory.CreateClient();
     await LoginAsAdminAsync(admin);
-    var apiKey = await CreateApiKeyAsync(admin);
     var lotId = await CreateLotAsync(admin);
+    var apiKey = await CreateApiKeyAsync(admin, lotId);
     await CreateGeneralSpaceAsync(admin, lotId, "G1");
 
     var plate = $"FN{Guid.NewGuid():N}"[..8];
     var enterKey = $"enter-{Guid.NewGuid():N}";
 
     using var gate = _factory.CreateClient();
-    var enterResponse = await gate.SendAsync(GateRequest(apiKey, enterKey, EnterBody(lotId, plate)));
+    var enterResponse = await gate.SendAsync(GateRequest(apiKey, enterKey, EnterBody(plate)));
 
     enterResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
     var entered = await enterResponse.Content.ReadFromJsonAsync<AccessEventDecisionResponse>(JsonOptions);
@@ -187,7 +276,7 @@ public class AccessEventIngestionTests : IClassFixture<ParkinApiFactory>
     entered.Pool.ShouldBe(SessionPool.General);
     entered.SessionId.ShouldNotBeNull();
 
-    var replayResponse = await gate.SendAsync(GateRequest(apiKey, enterKey, EnterBody(lotId, plate)));
+    var replayResponse = await gate.SendAsync(GateRequest(apiKey, enterKey, EnterBody(plate)));
     replayResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
     var replayed = await replayResponse.Content.ReadFromJsonAsync<AccessEventDecisionResponse>(JsonOptions);
     replayed.ShouldNotBeNull();
@@ -195,7 +284,7 @@ public class AccessEventIngestionTests : IClassFixture<ParkinApiFactory>
     replayed.SessionId.ShouldBe(entered.SessionId);
 
     var exitResponse = await gate.SendAsync(
-      GateRequest(apiKey, $"exit-{Guid.NewGuid():N}", ExitBody(lotId, plate)));
+      GateRequest(apiKey, $"exit-{Guid.NewGuid():N}", ExitBody(plate)));
     exitResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
     var exited = await exitResponse.Content.ReadFromJsonAsync<AccessEventDecisionResponse>(JsonOptions);
     exited.ShouldNotBeNull();
@@ -208,16 +297,16 @@ public class AccessEventIngestionTests : IClassFixture<ParkinApiFactory>
   {
     using var admin = _factory.CreateClient();
     await LoginAsAdminAsync(admin);
-    var northKey = await CreateApiKeyAsync(admin);
-    var southKey = await CreateApiKeyAsync(admin);
     var lotId = await CreateLotAsync(admin);
+    var northKey = await CreateApiKeyAsync(admin, lotId);
+    var southKey = await CreateApiKeyAsync(admin, lotId);
     await CreateGeneralSpaceAsync(admin, lotId, "G1");
     await CreateGeneralSpaceAsync(admin, lotId, "G2");
     var sharedKey = $"1-{Guid.NewGuid():N}";
 
     using var gate = _factory.CreateClient();
-    var northResponse = await gate.SendAsync(GateRequest(northKey, sharedKey, EnterBody(lotId, "NORTH01")));
-    var southResponse = await gate.SendAsync(GateRequest(southKey, sharedKey, EnterBody(lotId, "SOUTH01")));
+    var northResponse = await gate.SendAsync(GateRequest(northKey, sharedKey, EnterBody("NORTH01")));
+    var southResponse = await gate.SendAsync(GateRequest(southKey, sharedKey, EnterBody("SOUTH01")));
 
     northResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
     southResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -236,14 +325,14 @@ public class AccessEventIngestionTests : IClassFixture<ParkinApiFactory>
   {
     using var admin = _factory.CreateClient();
     await LoginAsAdminAsync(admin);
-    var apiKey = await CreateApiKeyAsync(admin);
     var lotId = await CreateLotAsync(admin);
+    var apiKey = await CreateApiKeyAsync(admin, lotId);
     await CreateGeneralSpaceAsync(admin, lotId, "G1");
     var key = $"reused-{Guid.NewGuid():N}";
 
     using var gate = _factory.CreateClient();
-    var first = await gate.SendAsync(GateRequest(apiKey, key, EnterBody(lotId, "FIRST01")));
-    var reused = await gate.SendAsync(GateRequest(apiKey, key, EnterBody(lotId, "OTHER01")));
+    var first = await gate.SendAsync(GateRequest(apiKey, key, EnterBody("FIRST01")));
+    var reused = await gate.SendAsync(GateRequest(apiKey, key, EnterBody("OTHER01")));
 
     first.StatusCode.ShouldBe(HttpStatusCode.OK);
     reused.StatusCode.ShouldBe(HttpStatusCode.Conflict);
@@ -254,12 +343,12 @@ public class AccessEventIngestionTests : IClassFixture<ParkinApiFactory>
   {
     using var admin = _factory.CreateClient();
     await LoginAsAdminAsync(admin);
-    var apiKey = await CreateApiKeyAsync(admin);
     var lotId = await CreateLotAsync(admin);
+    var apiKey = await CreateApiKeyAsync(admin, lotId);
 
     using var gate = _factory.CreateClient();
     var response = await gate.SendAsync(GateRequest(apiKey, $"ghost-exit-{Guid.NewGuid():N}",
-      ExitBody(lotId, "GHOSTEXIT")));
+      ExitBody("GHOSTEXIT")));
 
     response.StatusCode.ShouldBe(HttpStatusCode.OK);
     var decision = await response.Content.ReadFromJsonAsync<AccessEventDecisionResponse>(JsonOptions);

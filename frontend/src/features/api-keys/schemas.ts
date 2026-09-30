@@ -7,6 +7,8 @@ export type ApiKeyStatus = z.infer<typeof apiKeyStatusSchema>
 export const apiKeySchema = z.object({
   id: z.uuid(),
   name: z.string(),
+  lotId: z.uuid(),
+  lotName: z.string(),
   prefix: z.string(),
   status: apiKeyStatusSchema,
   createdAt: z.string(),
@@ -20,6 +22,7 @@ export const createApiKeySchema = z.object({
     .string()
     .min(1, 'Name is required')
     .max(200, 'Name must not exceed 200 characters'),
+  lotId: z.string().min(1, 'Lot is required'),
 })
 
 export type CreateApiKeyInput = z.infer<typeof createApiKeySchema>

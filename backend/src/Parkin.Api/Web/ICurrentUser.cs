@@ -5,4 +5,6 @@ public interface ICurrentUser
   Guid? Id { get; }
 
   Guid RequiredId { get; }
+
+  Guid RequiredLotId { get; }
 }

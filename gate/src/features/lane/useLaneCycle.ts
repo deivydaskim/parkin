@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef } from 'react'
-import { env } from '@/config/env'
 import {
   describeDecision,
   describeOffline,
@@ -121,7 +120,7 @@ export function useLaneCycle(direction: Direction) {
         if (!(await wait(SCAN_MS))) return false
 
         store.patchLane(direction, { phase: 'deciding' })
-        const request = createAccessEventRequest(env.lotId, plate, direction)
+        const request = createAccessEventRequest(plate, direction)
         const exchange = await sendAccessEvent(request)
         if (!mountedRef.current) return false
 

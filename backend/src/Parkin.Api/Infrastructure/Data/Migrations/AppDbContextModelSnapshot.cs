@@ -281,6 +281,9 @@ namespace Parkin.Api.Infrastructure.Data.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<Guid>("LotId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -306,6 +309,8 @@ namespace Parkin.Api.Infrastructure.Data.Migrations
 
                     b.HasIndex("KeyHash")
                         .IsUnique();
+
+                    b.HasIndex("LotId");
 
                     b.ToTable("ApiKeys");
                 });
@@ -697,6 +702,15 @@ namespace Parkin.Api.Infrastructure.Data.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Parkin.Api.Domain.ApiKeyAggregate.ApiKey", b =>
+                {
+                    b.HasOne("Parkin.Api.Domain.ParkingLotAggregate.ParkingLot", null)
+                        .WithMany()
+                        .HasForeignKey("LotId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
