@@ -96,12 +96,16 @@ public class ParkingLot : EntityBase<ParkingLot, ParkingLotId>, IAggregateRoot
 
   public void Archive(Guid? actorId)
   {
+    if (Status == LotStatus.Archived) return;
+
     Status = LotStatus.Archived;
     RegisterDomainEvent(new LotArchivedEvent(Id, actorId));
   }
 
   public void Restore(Guid? actorId)
   {
+    if (Status == LotStatus.Active) return;
+
     Status = LotStatus.Active;
     RegisterDomainEvent(new LotRestoredEvent(Id, actorId));
   }

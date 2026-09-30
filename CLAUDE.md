@@ -18,12 +18,12 @@ Read these before building parking features — they are the source of truth for
 
 **The target domain is a single-tenant Parking Management System** (parking lots/spaces, drivers/plates, access grants, reservations, parking sessions, an inbound Access Events API, and an `EntryDecisionService`).
 
-### Important: template vs. target domain
+### Origin
 
-The backend was generated from the **Ardalis Minimal Clean Architecture** template and still contains the template's **e-commerce demo domain** (`Product`, `Cart`, `Order`, `GuestUser`). None of the parking domain exists in code yet. When building features, follow the established patterns below but model the parking domain from the PRD/architecture docs — treat the Cart/Order/Product slices as worked examples to use, not as domain to preserve.
+The backend started from the **Ardalis Minimal Clean Architecture** template; the template e-commerce demo domain has been removed and all code now models the parking domain from the PRD/architecture docs.
 
 Confirmed stack decisions:
-- **ID type: Guid for every parking aggregate.** Resolves doc discrepancy (architecture §3 tree showed `ParkingLotId` as Vogen `int`, §5 ER diagram uses `uuid`). Every parking-domain strongly-typed ID is `[ValueObject<Guid>]`, matching the ER diagram — no int-sentinel IDs for parking aggregates. The `int`-sentinel pattern stays only on legacy template aggregates (Product/Cart/Order) until retired per T0.5.
+- **ID type: Guid for every parking aggregate.** Resolves doc discrepancy (architecture §3 tree showed `ParkingLotId` as Vogen `int`, §5 ER diagram uses `uuid`). Every parking-domain strongly-typed ID is `[ValueObject<Guid>]`, matching the ER diagram — no int-sentinel IDs for parking aggregates.
 - **Database: PostgreSQL (Npgsql).** Wired throughout — `UseNpgsql` (`InfrastructureServiceExtensions`, `AppDbContextExtensions`, design-time `AppDbContextFactory`), `builder.AddPostgres("postgres")` in the AppHost, and Npgsql-flavored EF migrations (`uuid`, `timestamp with time zone`, `boolean`). New persistence work targets PostgreSQL.
 - **Mediation: the source-generated `Mediator` library** (martinothamar), not MediatR. Both the docs and the code agree on this — see the Mediator section below.
 
@@ -33,12 +33,12 @@ All commands run from `backend/`:
 
 ```powershell
 dotnet build                                    # TreatWarningsAsErrors=true — warnings fail the build
-dotnet run --project src/Parkin.AspireHost      # full local stack (recommended): PostgreSQL + Papercut SMTP + API
+dotnet run --project src/Parkin.AspireHost      # full local stack (recommended): PostgreSQL + API
 dotnet run --project src/Parkin.Api             # API only, against a local PostgreSQL (ConnectionStrings:AppDb in appsettings.json)
 ```
 
-- **Aspire** (`src/Parkin.AspireHost/AppHost.cs`) provisions a persistent PostgreSQL container (`AppDb`) and a Papercut SMTP container, then launches the API project. The API project hard-requires a connection string named **`AppDb`** (guarded in `InfrastructureServiceExtensions`).
-- On startup the app **applies pending migrations and seeds data** (`MiddlewareConfig.UseAppMiddlewareAndSeedDatabase` → `SeedData.InitializeAsync`). Set `DatabaseOptions:RecreateOnStartup = true` (dev only) to drop & recreate the DB each launch.
+- **Aspire** (`src/Parkin.AspireHost/AppHost.cs`) provisions a persistent PostgreSQL container (`AppDb`) and launches the API project. The API project hard-requires a connection string named **`AppDb`** (guarded in `InfrastructureServiceExtensions`).
+- On startup the app **applies pending migrations and seeds data** (`MiddlewareConfig.MigrateAndSeedDatabaseAsync` → `SeedData`). Set `DatabaseOptions:RecreateOnStartup = true` (dev only) to drop & recreate the DB each launch.
 - API docs: Scalar UI + OpenAPI at `/openapi/{documentName}.json` (development only).
 
 ### EF Core migrations
@@ -48,7 +48,7 @@ dotnet ef migrations add <Name> --project src/Parkin.Api
 dotnet ef database update    --project src/Parkin.Api
 ```
 
-`AppDbContextFactory` provides the design-time context. Migrations live in `src/Parkin.Api/Infrastructure/Data/Migrations/`.
+`AppDbContextFactory` provides the design-time context (reads `ConnectionStrings__AppDb` from the environment, else a local default). Migrations live in `src/Parkin.Api/Infrastructure/Data/Migrations/`.
 
 ### Tests
 
@@ -61,44 +61,47 @@ Three test projects under `tests/`, all runnable via `dotnet test <project>.cspr
 
 ## Architecture & conventions
 
-Single Web project organized by **vertical slices**, not layers. Folders: `Domain/`, `Infrastructure/`, `<Name>Features/`, `Configurations/`.
+Single Web project organized by **vertical slices**, not layers. Folders: `Domain/`, `Infrastructure/`, `Features/<Area>/<Action>/` (namespace `Parkin.Api.Features.<Area>.<Action>`), `Web/`, `Authorization/`, `Configurations/`.
 
 ### Feature slices (REPR pattern via FastEndpoints)
 
-Each feature folder (`ProductFeatures/`, `CartFeatures/`) groups one slice. A slice file colocates the **Endpoint + Request/Response + Validator + Mapper**, and (for write/complex ops) a **Command/Query + Handler**. Two patterns coexist:
-- **Direct repository in the endpoint** for simple CRUD (e.g. `ProductFeatures/Create`).
-- **Mediator command/query → handler** for orchestration and cross-aggregate logic (e.g. `CartFeatures/AddToCart`, `ProductFeatures/List`). The endpoint injects `IMediator`, sends the command, and maps the `Result<T>`.
+Each action folder holds one slice: `<Verb><Entity>Endpoint` + its `Request` class + `Validator` in one file, and a Mediator `Command`/`Query` + `Handler` in another. Endpoints are thin: build the command (actor from `ICurrentUser`), `mediator.Send`, map the result. All writes, guardrails and orchestration live in handlers.
 
-Endpoints translate `Ardalis.Result` status into typed HTTP results (`Results<Ok<T>, NotFound, ValidationProblem, ProblemHttpResult>`). List endpoints use 1-based `page`/`per_page` pagination (`PagedResult<T>`, `Constants.DEFAULT_PAGE_SIZE`/`MAX_PAGE_SIZE`) and emit RFC-5988 `Link` headers.
+- One wire model per entity: `<Entity>Response` (plain `Guid` ids, static `From(...)` factory), returned directly by handlers and query services. No separate Dto/Record/Mapping layers.
+- `Web/ResultHttpExtensions` is the single `Result` → HTTP map: `ToOkResult`, `ToCreatedResult`, `ToNoContentResult`, `ToHttpResult`, `ToFailure<T>` (Invalid→400 ValidationProblem, NotFound→404, Conflict→409, Forbidden→403, other errors→400 problem). Endpoint return types are `Results<Ok<T>, ValidationProblem, ProblemHttpResult>`-style unions.
+- List endpoints use 1-based `page`/`per_page` pagination (`PagedResult<T>`, `Constants.DEFAULT_PAGE_SIZE`/`MAX_PAGE_SIZE`) and call `HttpContext.AppendPaginationLinks(page)` for RFC-5988 `Link` headers (other query parameters are preserved).
+- Every query-service method takes a `CancellationToken`.
 
 ### Mediator (not MediatR)
 
 Uses **martinothamar `Mediator`** (source-generated, registered in `Configurations/MediatorConfig.cs` via `AddMediatorSourceGen`). Consequences:
 - Handlers implement `ICommandHandler<,>` / `IQueryHandler<,>` and return **`ValueTask<T>`** (not `Task<T>`).
 - Commands/queries implement `ICommand<Result<T>>` / `IQuery<Result<T>>`.
-- Pipeline behaviors are registered in `MediatorConfig` (order matters); `LoggingBehavior` currently lives under namespace `Nimble.Modulith.Web` (a template leftover).
+- Pipeline behaviors are registered in `MediatorConfig` (order matters). `RequestLoggingBehavior` logs request name, result status and duration only — never payloads (plates are personal data).
+- `MSG0005` (notification without handler) is suppressed: domain events may legitimately have no handlers.
 
 ### Domain
 
-- Aggregates live in `Domain/<Name>Aggregate/`, derive from `EntityBase<TEntity, TId>` + `IAggregateRoot`, use private EF constructors and `static Create(...)` factories, and expose behavior through methods (no public setters).
-- **Strongly-typed IDs via Vogen** (`readonly partial struct`). Parking aggregates use `[ValueObject<Guid>]` (see ID type decision above). Legacy template aggregates still use `[ValueObject<int>]` with a `New => From(0)` sentinel meaning "not yet persisted"; EF assigns the real value on save. Every typed ID/value object must be registered in `Infrastructure/Data/Config/VogenEfCoreConverters.cs` (`[EfCoreConverter<...>]`) or EF can't map it.
-- Domain events are collected on entities and dispatched **after** a successful `SaveChanges` by `EventDispatchInterceptor` → `MediatorDomainEventDispatcher`.
-- Persistence: `Ardalis.Specification` repositories (`IRepository<T>`/`IReadRepository<T>` → `EfRepository<T>`). Query logic goes in `Specifications/` (e.g. `ProductByIdSpec`) or in dedicated query services (`IListProductsQueryService`) for read-optimized projections.
+- Aggregates live in `Domain/<Name>Aggregate/`, derive from `EntityBase<TEntity, TId>` + `IAggregateRoot`, use private EF constructors and `static Create(...)` factories, and expose behavior through methods (no public setters). Expected failures (unknown child id, rule violations) return `Result`/`Result<T>` — aggregates never throw on user input. Lifecycle methods are idempotent (a no-op raises no event).
+- **Strongly-typed IDs via Vogen** (`[ValueObject<Guid>]`, generated with `Guid.CreateVersion7()`). Every typed ID/value object must be registered in `Infrastructure/Data/Config/VogenEfCoreConverters.cs` (`[EfCoreConverter<...>]`) or EF can't map it.
+- Time: never `DateTimeOffset.UtcNow` — handlers inject `TimeProvider` and pass `now` into domain methods.
+- Pure domain rules are static functions (`EntryDecision.Decide`, `OccupancyResult.Calculate`), not DI services.
+- **Auditing**: events deriving from `AuditAggregate/AuditableDomainEvent` (action, entity, actor, optional `Metadata`) are turned into `audit_log` rows by `Infrastructure/Data/AuditingInterceptor` inside the **same** `SaveChanges` as the business change. Never save audit rows separately and never write audit-only handlers; new audited behavior = new event type + `AuditActions` constant. `EventDispatchInterceptor` still publishes events after save for any future non-audit handlers.
+- Staff users (ASP.NET Identity) sit behind `Domain/StaffUsers` abstractions (`IStaffUserService`, `IStaffAuthService`, `StaffRoles`, `UserStatus`) implemented in `Infrastructure/Identity`.
+- Persistence: `Ardalis.Specification` repositories (`IRepository<T>`/`IReadRepository<T>` → `EfRepository<T>`). Use `GetByIdAsync` for simple loads; add a spec only for includes/filters; read-optimized projections go in query services (`Infrastructure/Data/Queries`). Multi-save units of work go through `IUnitOfWork`.
+- Postgres unique violations are translated in `AppDbContext.SaveChangesAsync` into `Domain.Exceptions.UniqueConstraintViolationException` (with `ConstraintName`); unhandled ones become a 409 via `Web/UniqueConstraintViolationExceptionHandler`. Features never catch EF/Npgsql exceptions.
 - EF config: one `IEntityTypeConfiguration` per entity in `Infrastructure/Data/Config/`, auto-applied via `ApplyConfigurationsFromAssembly`.
 
 ### Enforced architectural boundaries (NsDepCop)
 
-`src/Parkin.Api/config.nsdepcop` is compiled with `NSDEPCOP01` as an **error** — violations fail the build. Current rules forbid:
-- `Domain.*` → `Infrastructure.*`
-- `*Features.*` → `Infrastructure.*` (feature slices depend on Domain abstractions, not concrete infra)
-- `Domain.OrderAggregate.*` → `Domain.CartAggregate.*`
-
-When adding parking aggregates/features, extend these rules to keep the dependency direction clean.
+`src/Parkin.Api/config.nsdepcop` is compiled with `NSDEPCOP01` as an **error** — violations fail the build. Rules forbid:
+- `Features.*` → `Infrastructure.*` (slices depend on Domain abstractions; new slices are covered automatically)
+- `Domain.*` → `Infrastructure.*`, `Features.*`, `Web.*`
 
 ### Cross-cutting
 
-- **Config / DI** is split into `Configurations/*Configs.cs` extension methods (`AddOptionConfigs`, `AddServiceConfigs`, `AddInfrastructureServices`, `AddMediatorSourceGen`) called from `Program.cs` — add new registrations there, not inline in `Program.cs`.
+- **Config / DI** is split into `Configurations/*Configs.cs` extension methods (`AddOptionConfigs`, `AddServiceConfigs`, `AddInfrastructureServices`, `AddMediatorSourceGen`, `AddAuthConfigs`) called from `Program.cs` — add new registrations there, not inline in `Program.cs`.
+- Startup (`MiddlewareConfig.MigrateAndSeedDatabaseAsync`) applies migrations and seeds identity **fail-fast**; only optional demo seeding may fail without stopping the app.
 - **Logging**: Serilog (console) + OpenTelemetry via `Parkin.ServiceDefaults`.
-- **Email**: `IEmailSender` → `MimeKitEmailSender` (points at the Papercut SMTP container in dev); `FakeEmailSender` available.
 - Central package versions in `Directory.Packages.props`; shared MSBuild props (net10.0, nullable, `TreatWarningsAsErrors`) in `Directory.Build.props`.
 - Dont Leave Comments; Comment TODO's or important things only, remove comments when they not necessary anymore, or when solved. Don't create summary comments.

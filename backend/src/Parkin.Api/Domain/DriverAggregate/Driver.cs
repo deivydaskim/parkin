@@ -42,12 +42,16 @@ public class Driver : EntityBase<Driver, DriverId>, IAggregateRoot
 
   public void Archive(Guid? actorId)
   {
+    if (Status == DriverStatus.Archived) return;
+
     Status = DriverStatus.Archived;
     RegisterDomainEvent(new DriverArchivedEvent(Id, actorId));
   }
 
   public void Restore(Guid? actorId)
   {
+    if (Status == DriverStatus.Active) return;
+
     Status = DriverStatus.Active;
     RegisterDomainEvent(new DriverRestoredEvent(Id, actorId));
   }
@@ -64,6 +68,7 @@ public class Driver : EntityBase<Driver, DriverId>, IAggregateRoot
   {
     var plate = FindPlate(plateId);
     if (plate is null) return Result.NotFound();
+    if (plate.Status == PlateStatus.Inactive) return plate;
 
     plate.Deactivate();
     RegisterDomainEvent(new PlateDeactivatedEvent(Id, plateId, actorId));
@@ -74,6 +79,7 @@ public class Driver : EntityBase<Driver, DriverId>, IAggregateRoot
   {
     var plate = FindPlate(plateId);
     if (plate is null) return Result.NotFound();
+    if (plate.Status == PlateStatus.Active) return plate;
 
     plate.Reactivate();
     RegisterDomainEvent(new PlateReactivatedEvent(Id, plateId, actorId));
