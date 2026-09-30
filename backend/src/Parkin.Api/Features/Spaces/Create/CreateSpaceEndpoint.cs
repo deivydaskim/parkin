@@ -1,10 +1,9 @@
-using System.Security.Claims;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.ParkingLotAggregate;
-using Parkin.Api.Extensions;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Spaces.Create;
 
@@ -19,8 +18,8 @@ public sealed class CreateSpaceRequest
   public SpacePlacementRequest? Placement { get; init; }
 }
 
-public class CreateSpaceEndpoint(IMediator mediator)
-  : Endpoint<CreateSpaceRequest, Results<Created<SpaceRecord>, ValidationProblem, ProblemHttpResult>>
+public class CreateSpaceEndpoint(IMediator mediator, ICurrentUser currentUser)
+  : Endpoint<CreateSpaceRequest, Results<Created<SpaceResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
@@ -41,31 +40,20 @@ public class CreateSpaceEndpoint(IMediator mediator)
 
     Description(builder => builder
       .Accepts<CreateSpaceRequest>()
-      .Produces<SpaceRecord>(201, "application/json")
+      .Produces<SpaceResponse>(201, "application/json")
       .ProducesProblem(400)
       .ProducesProblem(404));
   }
 
-  public override async Task<Results<Created<SpaceRecord>, ValidationProblem, ProblemHttpResult>>
+  public override async Task<Results<Created<SpaceResponse>, ValidationProblem, ProblemHttpResult>>
     ExecuteAsync(CreateSpaceRequest request, CancellationToken cancellationToken)
   {
-    var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-    var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
-    var placement = request.Placement?.ToValue();
-    if (placement is { IsSuccess: false })
-    {
-      return Result<SpaceDto>.Invalid(placement.ValidationErrors)
-        .ToCreatedResult(space => $"/spaces/{space.Id.Value}", SpaceEnumMapping.ToRecord);
-    }
-
-    var command = new CreateSpaceCommand(ParkingLotId.From(request.LotId), request.Label, request.Type, actorId,
-      request.Zone, placement?.Value);
+    var command = new CreateSpaceCommand(ParkingLotId.From(request.LotId), request.Label, request.Type,
+      currentUser.Id, request.Zone, request.Placement?.ToValue().Value);
 
     var result = await mediator.Send(command, cancellationToken);
 
-    return result.ToCreatedResult(
-      space => $"/spaces/{space.Id.Value}",
-      SpaceEnumMapping.ToRecord);
+    return result.ToCreatedResult(space => $"/spaces/{space.Id}", space => space);
   }
 }
 
@@ -80,12 +68,8 @@ public sealed class CreateSpaceValidator : Validator<CreateSpaceRequest>
     RuleFor(x => x.Label)
       .NotEmpty()
       .WithMessage("Label is required")
-      .MaximumLength(100)
-      .WithMessage("Label must not exceed 100 characters");
-
-    RuleFor(x => x.Zone)
-      .MaximumLength(ParkingSpace.ZoneMaxLength)
-      .WithMessage($"Zone must not exceed {ParkingSpace.ZoneMaxLength} characters");
+      .MaximumLength(ParkingSpace.LabelMaxLength)
+      .WithMessage($"Label must not exceed {ParkingSpace.LabelMaxLength} characters");
 
     RuleFor(x => x.Placement!)
       .SetValidator(new SpacePlacementRequestValidator())

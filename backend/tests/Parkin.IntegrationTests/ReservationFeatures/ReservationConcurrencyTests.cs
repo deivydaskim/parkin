@@ -39,7 +39,7 @@ public class ReservationConcurrencyTests : IClassFixture<PostgresFixture>
     await using (var seed = CreateContext())
     {
       var lot = ParkingLot.Create("Concurrency Lot", "America/New_York");
-      var space = lot.AddSpace("A1", SpaceType.Reserved, actorId: null);
+      var space = lot.AddSpace("A1", SpaceType.Reserved, actorId: null).Value;
       var driverA = Driver.Create("Driver A", null, actorId: null);
       var driverB = Driver.Create("Driver B", null, actorId: null);
 

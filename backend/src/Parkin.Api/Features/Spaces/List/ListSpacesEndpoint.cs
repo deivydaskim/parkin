@@ -1,7 +1,9 @@
 using FastEndpoints;
 using FluentValidation;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.ParkingLotAggregate;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Spaces.List;
 
@@ -27,18 +29,17 @@ public sealed class ListSpacesRequest
   public string? Search { get; init; }
 }
 
-public record SpaceListResponse : PagedResult<SpaceRecord>
+public record SpaceListResponse(
+  IReadOnlyList<SpaceResponse> Items, int Page, int PerPage, int TotalCount, int TotalPages)
+  : PagedResult<SpaceResponse>(Items, Page, PerPage, TotalCount, TotalPages)
 {
-  public SpaceListResponse(IReadOnlyList<SpaceRecord> Items, int Page, int PerPage, int TotalCount, int TotalPages)
-    : base(Items, Page, PerPage, TotalCount, TotalPages)
-  {
-  }
+  public static SpaceListResponse From(PagedResult<SpaceResponse> page) =>
+    new(page.Items, page.Page, page.PerPage, page.TotalCount, page.TotalPages);
 }
 
-public class ListSpacesEndpoint(IMediator mediator) : Endpoint<ListSpacesRequest, SpaceListResponse, ListSpacesMapper>
+public class ListSpacesEndpoint(IMediator mediator)
+  : Endpoint<ListSpacesRequest, Results<Ok<SpaceListResponse>, ValidationProblem, ProblemHttpResult>>
 {
-  private readonly IMediator _mediator = mediator;
-
   public override void Configure()
   {
     Get(ListSpacesRequest.Route);
@@ -66,42 +67,18 @@ public class ListSpacesEndpoint(IMediator mediator) : Endpoint<ListSpacesRequest
       .ProducesProblem(400));
   }
 
-  public override async Task HandleAsync(ListSpacesRequest request, CancellationToken cancellationToken)
+  public override async Task<Results<Ok<SpaceListResponse>, ValidationProblem, ProblemHttpResult>>
+    ExecuteAsync(ListSpacesRequest request, CancellationToken cancellationToken)
   {
-    var result = await _mediator.Send(new ListSpacesQuery(request.LotId, request.Page, request.PerPage, request.Status,
-      request.Type, request.Search), cancellationToken);
-    if (!result.IsSuccess)
+    var query = new ListSpacesQuery(ParkingLotId.From(request.LotId), request.Page, request.PerPage, request.Status,
+      request.Type, request.Search);
+    var result = await mediator.Send(query, cancellationToken);
+
+    return result.ToHttpResult(page =>
     {
-      await Send.ErrorsAsync(statusCode: 400, cancellationToken);
-      return;
-    }
-
-    var pagedResult = result.Value;
-    AddLinkHeader(pagedResult.Page, pagedResult.PerPage, pagedResult.TotalPages);
-
-    var response = Map.FromEntity(pagedResult);
-    await Send.OkAsync(response, cancellationToken);
-  }
-
-  private void AddLinkHeader(int page, int perPage, int totalPages)
-  {
-    var baseUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}{HttpContext.Request.Path}";
-    string Link(string rel, int p) => $"<{baseUrl}?page={p}&per_page={perPage}>; rel=\"{rel}\"";
-
-    var parts = new List<string>();
-    if (page > 1)
-    {
-      parts.Add(Link("first", 1));
-      parts.Add(Link("prev", page - 1));
-    }
-    if (page < totalPages)
-    {
-      parts.Add(Link("next", page + 1));
-      parts.Add(Link("last", totalPages));
-    }
-
-    if (parts.Count > 0)
-      HttpContext.Response.Headers["Link"] = string.Join(", ", parts);
+      HttpContext.AppendPaginationLinks(page);
+      return TypedResults.Ok(SpaceListResponse.From(page));
+    });
   }
 }
 
@@ -122,18 +99,7 @@ public sealed class ListSpacesValidator : Validator<ListSpacesRequest>
       .WithMessage($"per_page must be between 1 and {Constants.MAX_PAGE_SIZE}");
 
     RuleFor(x => x.Search)
-      .MaximumLength(100)
-      .WithMessage("search must not exceed 100 characters");
-  }
-}
-
-public sealed class ListSpacesMapper
-  : Mapper<ListSpacesRequest, SpaceListResponse, PagedResult<SpaceDto>>
-{
-  public override SpaceListResponse FromEntity(PagedResult<SpaceDto> e)
-  {
-    var items = e.Items.Select(SpaceEnumMapping.ToRecord).ToList();
-
-    return new SpaceListResponse(items, e.Page, e.PerPage, e.TotalCount, e.TotalPages);
+      .MaximumLength(ParkingSpace.LabelMaxLength)
+      .WithMessage($"search must not exceed {ParkingSpace.LabelMaxLength} characters");
   }
 }

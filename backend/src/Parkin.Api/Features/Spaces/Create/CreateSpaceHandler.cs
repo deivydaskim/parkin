@@ -9,30 +9,19 @@ public record CreateSpaceCommand(
   SpaceType Type,
   Guid? ActorId,
   string? Zone = null,
-  SpacePlacement? Placement = null) : ICommand<Result<SpaceDto>>;
+  SpacePlacement? Placement = null) : ICommand<Result<SpaceResponse>>;
 
 public class CreateSpaceHandler(IRepository<ParkingLot> repository)
-  : ICommandHandler<CreateSpaceCommand, Result<SpaceDto>>
+  : ICommandHandler<CreateSpaceCommand, Result<SpaceResponse>>
 {
-  public async ValueTask<Result<SpaceDto>> Handle(CreateSpaceCommand request, CancellationToken cancellationToken)
+  public async ValueTask<Result<SpaceResponse>> Handle(CreateSpaceCommand request, CancellationToken cancellationToken)
   {
     var lot = await repository.FirstOrDefaultAsync(new ParkingLotByIdSpec(request.LotId), cancellationToken);
-    if (lot == null) return Result.NotFound();
+    if (lot is null) return Result.NotFound();
 
-    if (lot.Spaces.Any(s => s.Label == request.Label))
-    {
-      return Result.Invalid(new ValidationError("Label", "A space with this label already exists in this lot"));
-    }
+    var result = lot.AddSpace(request.Label, request.Type, request.ActorId, request.Zone, request.Placement);
+    if (result.IsSuccess) await repository.UpdateAsync(lot, cancellationToken);
 
-    if (request.Placement is not null)
-    {
-      var placementCheck = lot.CheckPlacement(request.Placement);
-      if (!placementCheck.IsSuccess) return Result.Invalid(placementCheck.ValidationErrors);
-    }
-
-    var space = lot.AddSpace(request.Label, request.Type, request.ActorId, request.Zone, request.Placement);
-    await repository.UpdateAsync(lot, cancellationToken);
-
-    return SpaceDto.FromEntity(space);
+    return result.Map(SpaceResponse.From);
   }
 }

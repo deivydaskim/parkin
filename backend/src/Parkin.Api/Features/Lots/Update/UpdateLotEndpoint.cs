@@ -1,10 +1,9 @@
-using System.Security.Claims;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.ParkingLotAggregate;
-using Parkin.Api.Extensions;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Lots.Update;
 
@@ -22,8 +21,8 @@ public sealed class UpdateLotRequest
   public bool ClearLayout { get; init; }
 }
 
-public class UpdateEndpoint(IMediator mediator)
-  : Endpoint<UpdateLotRequest, Results<Ok<LotRecord>, NotFound, ProblemHttpResult>>
+public class UpdateLotEndpoint(IMediator mediator, ICurrentUser currentUser)
+  : Endpoint<UpdateLotRequest, Results<Ok<LotResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
@@ -34,33 +33,27 @@ public class UpdateEndpoint(IMediator mediator)
     {
       s.Summary = "Update a parking lot";
       s.Description = "Partially updates a parking lot. Only the fields present in the request body are applied. " +
-        "layout sets the ground footprint and level count; clearLayout=true removes it.";
+        "layout sets the ground footprint and level count; clearLayout=true removes it. " +
+        "Detail, access-mode and full-behavior changes are audited separately; unchanged fields are not audited.";
       s.Responses[200] = "Lot updated successfully";
       s.Responses[404] = "Lot with specified ID not found";
       s.Responses[400] = "Invalid request data, or a lot with this name already exists";
+      s.Responses[409] = "Another lot took this name concurrently";
     });
 
     Tags("Lots");
 
     Description(builder => builder
       .Accepts<UpdateLotRequest>()
-      .Produces<LotRecord>(200, "application/json")
+      .Produces<LotResponse>(200, "application/json")
       .ProducesProblem(404)
-      .ProducesProblem(400));
+      .ProducesProblem(400)
+      .ProducesProblem(409));
   }
 
-  public override async Task<Results<Ok<LotRecord>, NotFound, ProblemHttpResult>>
+  public override async Task<Results<Ok<LotResponse>, ValidationProblem, ProblemHttpResult>>
     ExecuteAsync(UpdateLotRequest request, CancellationToken cancellationToken)
   {
-    var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-    var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
-
-    var layout = request.Layout?.ToValue();
-    if (layout is { IsSuccess: false })
-    {
-      return Result<LotDto>.Invalid(layout.ValidationErrors).ToUpdateResult(LotEnumMapping.ToRecord);
-    }
-
     var command = new UpdateLotCommand(
       ParkingLotId.From(request.LotId),
       request.Name,
@@ -68,13 +61,13 @@ public class UpdateEndpoint(IMediator mediator)
       request.Timezone,
       request.AccessMode,
       request.FullBehavior,
-      actorId,
-      layout?.Value,
+      currentUser.Id,
+      request.Layout?.ToValue().Value,
       request.ClearLayout);
 
     var result = await mediator.Send(command, cancellationToken);
 
-    return result.ToUpdateResult(LotEnumMapping.ToRecord);
+    return result.ToOkResult(lot => lot);
   }
 }
 
@@ -87,24 +80,21 @@ public sealed class UpdateLotValidator : Validator<UpdateLotRequest>
       .WithMessage("Lot ID is required");
 
     RuleFor(x => x.Name)
-      .MaximumLength(200)
-      .WithMessage("Name must not exceed 200 characters")
-      .When(x => x.Name is not null);
-
-    RuleFor(x => x.Name)
       .NotEmpty()
       .WithMessage("Name cannot be blank")
+      .MaximumLength(ParkingLot.NameMaxLength)
+      .WithMessage($"Name must not exceed {ParkingLot.NameMaxLength} characters")
       .When(x => x.Name is not null);
-
-    RuleFor(x => x.Timezone)
-      .Must(tz => TimeZoneInfo.TryFindSystemTimeZoneById(tz!, out _))
-      .WithMessage("Timezone must be a valid IANA time zone identifier")
-      .When(x => !string.IsNullOrWhiteSpace(x.Timezone));
 
     RuleFor(x => x.Timezone)
       .NotEmpty()
       .WithMessage("Timezone cannot be blank")
       .When(x => x.Timezone is not null);
+
+    RuleFor(x => x.Timezone)
+      .Must(tz => TimeZoneInfo.TryFindSystemTimeZoneById(tz!, out _))
+      .WithMessage("Timezone must be a valid IANA time zone identifier")
+      .When(x => !string.IsNullOrWhiteSpace(x.Timezone));
 
     RuleFor(x => x.Layout!)
       .SetValidator(new LotLayoutRequestValidator())

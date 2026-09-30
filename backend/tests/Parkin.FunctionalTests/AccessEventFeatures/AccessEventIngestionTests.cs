@@ -53,7 +53,7 @@ public class AccessEventIngestionTests : IClassFixture<ParkinApiFactory>
       Timezone = "Europe/Vilnius",
     });
     response.EnsureSuccessStatusCode();
-    var lot = await response.Content.ReadFromJsonAsync<LotRecord>(JsonOptions);
+    var lot = await response.Content.ReadFromJsonAsync<LotResponse>(JsonOptions);
     lot.ShouldNotBeNull();
     return lot.Id;
   }

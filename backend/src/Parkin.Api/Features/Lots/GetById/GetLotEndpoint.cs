@@ -3,22 +3,22 @@ using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.ParkingLotAggregate;
-using Parkin.Api.Extensions;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Lots.GetById;
 
-public sealed class GetLotByIdRequest
+public sealed class GetLotRequest
 {
   public const string Route = "/lots/{LotId}";
   public Guid LotId { get; init; }
 }
 
-public class GetByIdEndpoint(IMediator mediator)
-  : Endpoint<GetLotByIdRequest, Results<Ok<LotRecord>, NotFound, ProblemHttpResult>>
+public class GetLotEndpoint(IMediator mediator)
+  : Endpoint<GetLotRequest, Results<Ok<LotResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
-    Get(GetLotByIdRequest.Route);
+    Get(GetLotRequest.Route);
     Roles(AccessPolicies.OperatorOrAbove);
 
     Summary(s =>
@@ -32,23 +32,23 @@ public class GetByIdEndpoint(IMediator mediator)
     Tags("Lots");
 
     Description(builder => builder
-      .Accepts<GetLotByIdRequest>()
-      .Produces<LotRecord>(200, "application/json")
+      .Accepts<GetLotRequest>()
+      .Produces<LotResponse>(200, "application/json")
       .ProducesProblem(404));
   }
 
-  public override async Task<Results<Ok<LotRecord>, NotFound, ProblemHttpResult>>
-    ExecuteAsync(GetLotByIdRequest request, CancellationToken cancellationToken)
+  public override async Task<Results<Ok<LotResponse>, ValidationProblem, ProblemHttpResult>>
+    ExecuteAsync(GetLotRequest request, CancellationToken cancellationToken)
   {
     var result = await mediator.Send(new GetLotQuery(ParkingLotId.From(request.LotId)), cancellationToken);
 
-    return result.ToGetByIdResult(LotEnumMapping.ToRecord);
+    return result.ToOkResult(lot => lot);
   }
 }
 
-public sealed class GetLotByIdValidator : Validator<GetLotByIdRequest>
+public sealed class GetLotValidator : Validator<GetLotRequest>
 {
-  public GetLotByIdValidator()
+  public GetLotValidator()
   {
     RuleFor(x => x.LotId)
       .NotEmpty()

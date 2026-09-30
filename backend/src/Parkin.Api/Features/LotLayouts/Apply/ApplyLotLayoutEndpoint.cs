@@ -1,13 +1,11 @@
-using System.Security.Claims;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.ParkingLotAggregate;
-using Parkin.Api.Extensions;
 using Parkin.Api.Features.Lots;
-using Parkin.Api.Features.LotLayouts.Get;
 using Parkin.Api.Features.Spaces;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.LotLayouts.Apply;
 
@@ -27,10 +25,13 @@ public sealed class SpaceLayoutChangeRequest
   public Guid SpaceId { get; init; }
   public SpacePlacementRequest? Placement { get; init; }
   public string? Zone { get; init; }
+
+  public SpaceLayoutChange ToValue() =>
+    new(ParkingSpaceId.From(SpaceId), Placement?.ToValue().Value, Zone);
 }
 
-public class ApplyLotLayoutEndpoint(IMediator mediator)
-  : Endpoint<ApplyLotLayoutRequest, Results<Ok<LotLayoutViewRecord>, ValidationProblem, NotFound, ProblemHttpResult>>
+public class ApplyLotLayoutEndpoint(IMediator mediator, ICurrentUser currentUser)
+  : Endpoint<ApplyLotLayoutRequest, Results<Ok<LotLayoutViewResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
@@ -53,54 +54,24 @@ public class ApplyLotLayoutEndpoint(IMediator mediator)
 
     Description(builder => builder
       .Accepts<ApplyLotLayoutRequest>()
-      .Produces<LotLayoutViewRecord>(200, "application/json")
+      .Produces<LotLayoutViewResponse>(200, "application/json")
       .ProducesProblem(400)
       .ProducesProblem(404));
   }
 
-  public override async Task<Results<Ok<LotLayoutViewRecord>, ValidationProblem, NotFound, ProblemHttpResult>>
+  public override async Task<Results<Ok<LotLayoutViewResponse>, ValidationProblem, ProblemHttpResult>>
     ExecuteAsync(ApplyLotLayoutRequest request, CancellationToken cancellationToken)
   {
-    var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-    var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
+    var command = new ApplyLotLayoutCommand(
+      ParkingLotId.From(request.LotId),
+      request.Layout?.ToValue().Value,
+      request.ClearLayout,
+      request.Spaces.Select(row => row.ToValue()).ToList(),
+      currentUser.Id);
 
-    var errors = new List<ValidationError>();
+    var result = await mediator.Send(command, cancellationToken);
 
-    var layout = request.Layout?.ToValue();
-    if (layout is { IsSuccess: false }) errors.AddRange(layout.ValidationErrors);
-
-    var changes = new List<SpaceLayoutChange>(request.Spaces.Count);
-    foreach (var row in request.Spaces)
-    {
-      var placement = row.Placement?.ToValue();
-      if (placement is { IsSuccess: false })
-      {
-        errors.AddRange(placement.ValidationErrors);
-        continue;
-      }
-
-      changes.Add(new SpaceLayoutChange(ParkingSpaceId.From(row.SpaceId), placement?.Value, row.Zone));
-    }
-
-    if (errors.Count > 0)
-    {
-      return Result<LotLayoutViewDto>.Invalid(errors).ToOkOrConflictResult(LotLayoutMapping.ToRecord);
-    }
-
-    var lotId = ParkingLotId.From(request.LotId);
-    var applyResult = await mediator.Send(
-      new ApplyLotLayoutCommand(lotId, layout?.Value, request.ClearLayout, changes, actorId), cancellationToken);
-
-    if (!applyResult.IsSuccess)
-    {
-      var failure = applyResult.Status == ResultStatus.NotFound
-        ? Result<LotLayoutViewDto>.NotFound()
-        : Result<LotLayoutViewDto>.Invalid(applyResult.ValidationErrors);
-      return failure.ToOkOrConflictResult(LotLayoutMapping.ToRecord);
-    }
-
-    var view = await mediator.Send(new GetLotLayoutQuery(lotId), cancellationToken);
-    return view.ToOkOrConflictResult(LotLayoutMapping.ToRecord);
+    return result.ToOkResult(view => view);
   }
 }
 
@@ -131,10 +102,6 @@ public sealed class ApplyLotLayoutValidator : Validator<ApplyLotLayoutRequest>
       row.RuleFor(r => r.SpaceId)
         .NotEmpty()
         .WithMessage("Space ID is required");
-
-      row.RuleFor(r => r.Zone)
-        .MaximumLength(ParkingSpace.ZoneMaxLength)
-        .WithMessage($"Zone must not exceed {ParkingSpace.ZoneMaxLength} characters");
 
       row.RuleFor(r => r.Placement!)
         .SetValidator(new SpacePlacementRequestValidator())

@@ -180,7 +180,7 @@ public class IngestAccessEventHandlerTests
   public async Task Handle_ReservedHolderAtFullLot_AllowsWithSpaceLabelAndReservedSession()
   {
     var lot = GivenLot(generalSpaces: 1);
-    var reservedSpace = lot.AddSpace("R1", SpaceType.Reserved, actorId: null);
+    var reservedSpace = lot.AddSpace("R1", SpaceType.Reserved, actorId: null).Value;
     var driver = GivenKnownDriver();
 
     _sessionRepository.CountAsync(Arg.Any<ActiveSessionCountByLotPoolSpec>(), Arg.Any<CancellationToken>())

@@ -12,48 +12,33 @@ public record UpdateLotCommand(
   FullBehavior? FullBehavior,
   Guid? ActorId,
   LotLayout? Layout = null,
-  bool ClearLayout = false) : ICommand<Result<LotDto>>;
+  bool ClearLayout = false) : ICommand<Result<LotResponse>>;
 
 public class UpdateLotHandler(IRepository<ParkingLot> repository)
-  : ICommandHandler<UpdateLotCommand, Result<LotDto>>
+  : ICommandHandler<UpdateLotCommand, Result<LotResponse>>
 {
-  public async ValueTask<Result<LotDto>> Handle(UpdateLotCommand request, CancellationToken cancellationToken)
+  public async ValueTask<Result<LotResponse>> Handle(UpdateLotCommand request, CancellationToken cancellationToken)
   {
     var lot = await repository.FirstOrDefaultAsync(new ParkingLotByIdSpec(request.LotId), cancellationToken);
-    if (lot == null) return Result.NotFound();
-
-    if (!string.IsNullOrWhiteSpace(request.Name) && request.Name != lot.Name)
-    {
-      var duplicate = await repository.FirstOrDefaultAsync(new ParkingLotByNameSpec(request.Name), cancellationToken);
-      if (duplicate != null && duplicate.Id != lot.Id)
-      {
-        return Result.Invalid(new ValidationError("Name", "A lot with this name already exists"));
-      }
-    }
-
-    if (request.Layout is not null || request.ClearLayout)
-    {
-      var layoutResult = lot.SetLayout(request.Layout);
-      if (!layoutResult.IsSuccess) return Result.Invalid(layoutResult.ValidationErrors);
-    }
+    if (lot is null) return Result.NotFound();
 
     var name = request.Name ?? lot.Name;
-    var address = request.Address ?? lot.Address;
-    var timezone = request.Timezone ?? lot.Timezone;
-    lot.UpdateDetails(name, address, timezone, request.ActorId);
-
-    if (request.AccessMode.HasValue)
+    if (name != lot.Name
+      && await repository.AnyAsync(new ParkingLotByNameSpec(name, excludingLotId: lot.Id), cancellationToken))
     {
-      lot.SetAccessMode(request.AccessMode.Value);
+      return Result.Invalid(LotErrors.DuplicateName);
     }
 
-    if (request.FullBehavior.HasValue)
-    {
-      lot.SetFullBehavior(request.FullBehavior.Value);
-    }
+    var layout = request.ClearLayout ? null : request.Layout ?? lot.Layout;
+    var detailsResult = lot.UpdateDetails(name, request.Address ?? lot.Address, request.Timezone ?? lot.Timezone,
+      layout, request.ActorId);
+    if (!detailsResult.IsSuccess) return detailsResult;
+
+    if (request.AccessMode is { } accessMode) lot.SetAccessMode(accessMode, request.ActorId);
+    if (request.FullBehavior is { } fullBehavior) lot.SetFullBehavior(fullBehavior, request.ActorId);
 
     await repository.UpdateAsync(lot, cancellationToken);
 
-    return LotDto.FromEntity(lot);
+    return LotResponse.From(lot);
   }
 }

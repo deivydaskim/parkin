@@ -3,27 +3,20 @@ using Parkin.Api.Domain.ParkingLotAggregate.Specifications;
 
 namespace Parkin.Api.Features.Spaces.Reactivate;
 
-public record ReactivateSpaceCommand(ParkingSpaceId SpaceId, Guid? ActorId) : ICommand<Result<SpaceDto>>;
+public record ReactivateSpaceCommand(ParkingSpaceId SpaceId, Guid? ActorId) : ICommand<Result<SpaceResponse>>;
 
 public class ReactivateSpaceHandler(IRepository<ParkingLot> repository)
-  : ICommandHandler<ReactivateSpaceCommand, Result<SpaceDto>>
+  : ICommandHandler<ReactivateSpaceCommand, Result<SpaceResponse>>
 {
-  public async ValueTask<Result<SpaceDto>> Handle(ReactivateSpaceCommand request, CancellationToken cancellationToken)
+  public async ValueTask<Result<SpaceResponse>> Handle(ReactivateSpaceCommand request,
+    CancellationToken cancellationToken)
   {
     var lot = await repository.FirstOrDefaultAsync(new ParkingLotBySpaceIdSpec(request.SpaceId), cancellationToken);
-    if (lot == null) return Result.NotFound();
+    if (lot is null) return Result.NotFound();
 
-    var space = lot.Spaces.First(s => s.Id == request.SpaceId);
+    var result = lot.ReactivateSpace(request.SpaceId, request.ActorId);
+    if (result.IsSuccess) await repository.UpdateAsync(lot, cancellationToken);
 
-    var duplicate = lot.Spaces.FirstOrDefault(s => s.Label == space.Label && s.Id != space.Id);
-    if (duplicate != null)
-    {
-      return Result.Invalid(new ValidationError("Label", "A space with this label already exists in this lot"));
-    }
-
-    lot.ReactivateSpace(request.SpaceId, request.ActorId);
-    await repository.UpdateAsync(lot, cancellationToken);
-
-    return SpaceDto.FromEntity(space);
+    return result.Map(SpaceResponse.From);
   }
 }

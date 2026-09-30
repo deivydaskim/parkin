@@ -2,24 +2,19 @@ using Parkin.Api.Domain.ParkingLotAggregate;
 
 namespace Parkin.Api.Features.Spaces.List;
 
-public record ListSpacesQuery(Guid LotId,
-  int? Page = 1,
-  int? PerPage = Constants.DEFAULT_PAGE_SIZE,
+public record ListSpacesQuery(
+  ParkingLotId LotId,
+  int Page,
+  int PerPage,
   SpaceStatusFilter? Status = null,
   SpaceType? Type = null,
   string? Search = null)
-  : IQuery<Result<PagedResult<SpaceDto>>>;
+  : IQuery<Result<PagedResult<SpaceResponse>>>;
 
-public class ListSpacesHandler(IListSpacesQueryService query) : IQueryHandler<ListSpacesQuery, Result<PagedResult<SpaceDto>>>
+public class ListSpacesHandler(IListSpacesQueryService query)
+  : IQueryHandler<ListSpacesQuery, Result<PagedResult<SpaceResponse>>>
 {
-  private readonly IListSpacesQueryService _query = query;
-
-  public async ValueTask<Result<PagedResult<SpaceDto>>> Handle(ListSpacesQuery request,
-                                                                 CancellationToken cancellationToken)
-  {
-    var result = await _query.ListAsync(request.LotId, request.Page ?? 1, request.PerPage ?? Constants.DEFAULT_PAGE_SIZE, request.Status,
-      request.Type, request.Search);
-
-    return Result.Success(result);
-  }
+  public async ValueTask<Result<PagedResult<SpaceResponse>>> Handle(ListSpacesQuery request,
+    CancellationToken cancellationToken)
+    => await query.ListAsync(request, cancellationToken);
 }

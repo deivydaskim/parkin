@@ -14,7 +14,7 @@ public class ParkingLotConfiguration : IEntityTypeConfiguration<ParkingLot>
       .IsRequired();
 
     builder.Property(entity => entity.Name)
-      .HasMaxLength(200)
+      .HasMaxLength(ParkingLot.NameMaxLength)
       .IsRequired();
 
     builder.HasIndex(entity => entity.Name)

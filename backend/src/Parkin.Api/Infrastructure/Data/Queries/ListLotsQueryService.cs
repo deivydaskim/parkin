@@ -7,39 +7,52 @@ namespace Parkin.Api.Infrastructure.Data.Queries;
 
 public class ListLotsQueryService(AppDbContext db) : IListLotsQueryService
 {
-  private readonly AppDbContext _db = db;
-
-  public async Task<PagedResult<LotDto>> ListAsync(int page, int perPage, LotStatusFilter? status, string? search = null)
+  public async Task<PagedResult<LotResponse>> ListAsync(ListLotsQuery query, CancellationToken cancellationToken)
   {
-    var query = _db.ParkingLots.AsQueryable();
+    var lots = FilterByStatus(db.ParkingLots, query.Status);
 
-    query = status switch
+    if (!string.IsNullOrWhiteSpace(query.Search))
     {
-      LotStatusFilter.All => query,
-      LotStatusFilter.Archived => query.Where(l => l.Status == LotStatus.Archived),
-      _ => query.Where(l => l.Status == LotStatus.Active), // default: active-only
-    };
-
-    if (!string.IsNullOrWhiteSpace(search))
-    {
-      var pattern = LikePattern.Containing(search.Trim());
-      query = query.Where(l => EF.Functions.ILike(l.Name, pattern) ||
+      var pattern = LikePattern.Containing(query.Search.Trim());
+      lots = lots.Where(l => EF.Functions.ILike(l.Name, pattern) ||
         (l.Address != null && EF.Functions.ILike(l.Address, pattern)));
     }
 
-    var items = await query
+    var rows = await lots
       .OrderBy(l => l.Name)
-      .Skip((page - 1) * perPage)
-      .Take(perPage)
-      .Select(l => new LotDto(l.Id, l.Name, l.Address, l.Timezone, l.AccessMode, l.FullBehavior, l.Status,
-        l.Spaces.Count(s => s.Status == SpaceStatus.Active && s.Type == SpaceType.General), l.Layout))
+      .Skip((query.Page - 1) * query.PerPage)
+      .Take(query.PerPage)
+      .Select(l => new
+      {
+        l.Id,
+        l.Name,
+        l.Address,
+        l.Timezone,
+        l.AccessMode,
+        l.FullBehavior,
+        l.Status,
+        Capacity = l.Spaces.Count(s => s.Status == SpaceStatus.Active && s.Type == SpaceType.General),
+        l.Layout,
+      })
       .AsNoTracking()
-      .ToListAsync();
+      .ToListAsync(cancellationToken);
 
-    int totalCount = await query.CountAsync();
-    int totalPages = (int)Math.Ceiling(totalCount / (double)perPage);
-    var result = new PagedResult<LotDto>(items, page, perPage, totalCount, totalPages);
+    var items = rows
+      .Select(row => new LotResponse(row.Id.Value, row.Name, row.Address, row.Timezone, row.AccessMode,
+        row.FullBehavior, row.Status, row.Capacity, LotLayoutResponse.From(row.Layout)))
+      .ToList();
 
-    return result;
+    var totalCount = await lots.CountAsync(cancellationToken);
+    var totalPages = (int)Math.Ceiling(totalCount / (double)query.PerPage);
+
+    return new PagedResult<LotResponse>(items, query.Page, query.PerPage, totalCount, totalPages);
   }
+
+  private static IQueryable<ParkingLot> FilterByStatus(IQueryable<ParkingLot> lots, LotStatusFilter? status) =>
+    status switch
+    {
+      LotStatusFilter.All => lots,
+      LotStatusFilter.Archived => lots.Where(l => l.Status == LotStatus.Archived),
+      _ => lots.Where(l => l.Status == LotStatus.Active),
+    };
 }

@@ -4,9 +4,9 @@ namespace Parkin.Api.Domain.ParkingLotAggregate;
 
 public class ParkingSpace : EntityBase<ParkingSpace, ParkingSpaceId>
 {
+  public const int LabelMaxLength = 100;
   public const int ZoneMaxLength = 50;
 
-  // Private constructor for EF Core
   private ParkingSpace() { }
 
   private ParkingSpace(ParkingSpaceId id, ParkingLotId lotId, string label, SpaceType type)

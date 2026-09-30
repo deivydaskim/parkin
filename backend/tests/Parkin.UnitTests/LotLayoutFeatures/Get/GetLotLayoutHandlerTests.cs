@@ -1,10 +1,10 @@
 using Ardalis.Result;
 using NSubstitute;
-using Parkin.Api.Domain.DriverAggregate;
 using Parkin.Api.Domain.ParkingLotAggregate;
-using Parkin.Api.Domain.ReservationAggregate;
 using Parkin.Api.Features.LotLayouts;
 using Parkin.Api.Features.LotLayouts.Get;
+using Parkin.Api.Features.Lots;
+using Parkin.Api.Features.Spaces;
 using Shouldly;
 using Xunit;
 
@@ -21,10 +21,9 @@ public class GetLotLayoutHandlerTests
   {
     var lotId = ParkingLotId.From(Guid.NewGuid());
     _queryService.GetAsync(lotId, Arg.Any<CancellationToken>())
-      .Returns((LotLayoutViewDto?)null);
+      .Returns((LotLayoutViewResponse?)null);
 
-    var result = await CreateSut().Handle(
-      new GetLotLayoutQuery(lotId), CancellationToken.None);
+    var result = await CreateSut().Handle(new GetLotLayoutQuery(lotId), CancellationToken.None);
 
     result.Status.ShouldBe(ResultStatus.NotFound);
   }
@@ -33,22 +32,19 @@ public class GetLotLayoutHandlerTests
   public async Task Handle_KnownLot_ReturnsProjectionForThatLot()
   {
     var lotId = ParkingLotId.From(Guid.NewGuid());
-    var reservation = new LotLayoutReservationDto(
-      ReservationId.From(Guid.NewGuid()), DriverId.From(Guid.NewGuid()), "Ona");
-    var view = new LotLayoutViewDto(lotId, "Lot", LotStatus.Active, LotLayout.Create(40m, 30m).Value,
-    [
-      new LotLayoutSpaceDto(ParkingSpaceId.From(Guid.NewGuid()), "R1", SpaceType.Reserved, SpaceStatus.Active,
-        "North", SpacePlacement.Create(5m, 5m).Value, reservation),
-      new LotLayoutSpaceDto(ParkingSpaceId.From(Guid.NewGuid()), "X1", SpaceType.General, SpaceStatus.Inactive,
-        null, null, null),
-    ]);
+    var reservation = new LotLayoutReservationResponse(Guid.NewGuid(), Guid.NewGuid(), "Ona");
+    var view = new LotLayoutViewResponse(
+      new LotLayoutLotResponse(lotId.Value, "Lot", LotStatus.Active, new LotLayoutResponse(40m, 30m, 1)),
+      [
+        new LotLayoutSpaceResponse(Guid.NewGuid(), "R1", SpaceType.Reserved, SpaceStatus.Active, "North",
+          new SpacePlacementResponse(5m, 5m, 0m, 0, 2.5m, 5m), reservation),
+        new LotLayoutSpaceResponse(Guid.NewGuid(), "X1", SpaceType.General, SpaceStatus.Inactive, null, null, null),
+      ]);
     _queryService.GetAsync(lotId, Arg.Any<CancellationToken>()).Returns(view);
 
     var result = await CreateSut().Handle(new GetLotLayoutQuery(lotId), CancellationToken.None);
 
     result.IsSuccess.ShouldBeTrue();
     result.Value.ShouldBeSameAs(view);
-    result.Value.Spaces[0].Reservation!.DriverName.ShouldBe("Ona");
-    result.Value.Spaces[1].Placement.ShouldBeNull();
   }
 }

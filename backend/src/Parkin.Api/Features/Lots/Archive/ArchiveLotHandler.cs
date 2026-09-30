@@ -3,19 +3,19 @@ using Parkin.Api.Domain.ParkingLotAggregate.Specifications;
 
 namespace Parkin.Api.Features.Lots.Archive;
 
-public record ArchiveLotCommand(ParkingLotId LotId, Guid? ActorId) : ICommand<Result<LotDto>>;
+public record ArchiveLotCommand(ParkingLotId LotId, Guid? ActorId) : ICommand<Result<LotResponse>>;
 
 public class ArchiveLotHandler(IRepository<ParkingLot> repository)
-  : ICommandHandler<ArchiveLotCommand, Result<LotDto>>
+  : ICommandHandler<ArchiveLotCommand, Result<LotResponse>>
 {
-  public async ValueTask<Result<LotDto>> Handle(ArchiveLotCommand request, CancellationToken cancellationToken)
+  public async ValueTask<Result<LotResponse>> Handle(ArchiveLotCommand request, CancellationToken cancellationToken)
   {
     var lot = await repository.FirstOrDefaultAsync(new ParkingLotByIdSpec(request.LotId), cancellationToken);
-    if (lot == null) return Result.NotFound();
+    if (lot is null) return Result.NotFound();
 
     lot.Archive(request.ActorId);
     await repository.UpdateAsync(lot, cancellationToken);
 
-    return LotDto.FromEntity(lot);
+    return LotResponse.From(lot);
   }
 }

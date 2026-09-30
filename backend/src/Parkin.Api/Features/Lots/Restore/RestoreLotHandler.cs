@@ -3,25 +3,24 @@ using Parkin.Api.Domain.ParkingLotAggregate.Specifications;
 
 namespace Parkin.Api.Features.Lots.Restore;
 
-public record RestoreLotCommand(ParkingLotId LotId, Guid? ActorId) : ICommand<Result<LotDto>>;
+public record RestoreLotCommand(ParkingLotId LotId, Guid? ActorId) : ICommand<Result<LotResponse>>;
 
 public class RestoreLotHandler(IRepository<ParkingLot> repository)
-  : ICommandHandler<RestoreLotCommand, Result<LotDto>>
+  : ICommandHandler<RestoreLotCommand, Result<LotResponse>>
 {
-  public async ValueTask<Result<LotDto>> Handle(RestoreLotCommand request, CancellationToken cancellationToken)
+  public async ValueTask<Result<LotResponse>> Handle(RestoreLotCommand request, CancellationToken cancellationToken)
   {
     var lot = await repository.FirstOrDefaultAsync(new ParkingLotByIdSpec(request.LotId), cancellationToken);
-    if (lot == null) return Result.NotFound();
+    if (lot is null) return Result.NotFound();
 
-    var duplicate = await repository.FirstOrDefaultAsync(new ParkingLotByNameSpec(lot.Name), cancellationToken);
-    if (duplicate != null && duplicate.Id != lot.Id)
+    if (await repository.AnyAsync(new ParkingLotByNameSpec(lot.Name, excludingLotId: lot.Id), cancellationToken))
     {
-      return Result.Invalid(new ValidationError("Name", "A lot with this name already exists"));
+      return Result.Invalid(LotErrors.DuplicateName);
     }
 
     lot.Restore(request.ActorId);
     await repository.UpdateAsync(lot, cancellationToken);
 
-    return LotDto.FromEntity(lot);
+    return LotResponse.From(lot);
   }
 }

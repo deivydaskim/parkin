@@ -3,45 +3,35 @@ using Parkin.Api.Domain.ParkingLotAggregate.Specifications;
 
 namespace Parkin.Api.Features.Spaces.Update;
 
-public record UpdateSpaceCommand(
-  ParkingSpaceId SpaceId,
-  string? Label,
-  SpaceType? Type,
-  Guid? ActorId,
-  string? Zone = null,
-  SpacePlacement? Placement = null,
-  bool ClearPlacement = false) : ICommand<Result<SpaceDto>>;
+public record UpdateSpaceCommand(ParkingSpaceId SpaceId, SpaceUpdate Update, Guid? ActorId)
+  : ICommand<Result<SpaceResponse>>;
 
 public class UpdateSpaceHandler(IRepository<ParkingLot> repository, IActiveReservationChecker checker)
-  : ICommandHandler<UpdateSpaceCommand, Result<SpaceDto>>
+  : ICommandHandler<UpdateSpaceCommand, Result<SpaceResponse>>
 {
-  public async ValueTask<Result<SpaceDto>> Handle(UpdateSpaceCommand request, CancellationToken cancellationToken)
+  public async ValueTask<Result<SpaceResponse>> Handle(UpdateSpaceCommand request, CancellationToken cancellationToken)
   {
     var lot = await repository.FirstOrDefaultAsync(new ParkingLotBySpaceIdSpec(request.SpaceId), cancellationToken);
-    if (lot == null) return Result.NotFound();
+    if (lot is null) return Result.NotFound();
 
-    if (!string.IsNullOrWhiteSpace(request.Label))
-    {
-      var duplicate = lot.Spaces.FirstOrDefault(s => s.Label == request.Label && s.Id != request.SpaceId);
-      if (duplicate != null)
-      {
-        return Result.Invalid(new ValidationError("Label", "A space with this label already exists in this lot"));
-      }
-    }
-
-    var space = lot.Spaces.First(s => s.Id == request.SpaceId);
-    if (request.Type.HasValue && request.Type.Value != space.Type
-      && await checker.HasActiveReservationAsync(request.SpaceId, cancellationToken))
+    if (await ChangesTypeOfReservedSpaceAsync(lot, request, cancellationToken))
     {
       return Result.Invalid(new ValidationError("Type", "Space has an active reservation and its type cannot be changed"));
     }
 
-    var update = new SpaceUpdate(request.Label, request.Type, request.Zone, request.Placement, request.ClearPlacement);
-    var updateResult = lot.UpdateSpace(request.SpaceId, update, request.ActorId);
-    if (!updateResult.IsSuccess) return Result.Invalid(updateResult.ValidationErrors);
+    var result = lot.UpdateSpace(request.SpaceId, request.Update, request.ActorId);
+    if (result.IsSuccess) await repository.UpdateAsync(lot, cancellationToken);
 
-    await repository.UpdateAsync(lot, cancellationToken);
+    return result.Map(SpaceResponse.From);
+  }
 
-    return SpaceDto.FromEntity(space);
+  private async Task<bool> ChangesTypeOfReservedSpaceAsync(ParkingLot lot, UpdateSpaceCommand request,
+    CancellationToken cancellationToken)
+  {
+    var space = lot.FindSpace(request.SpaceId);
+    return request.Update.Type is { } type
+      && space is not null
+      && space.Type != type
+      && await checker.HasActiveReservationAsync(request.SpaceId, cancellationToken);
   }
 }

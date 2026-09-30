@@ -54,21 +54,21 @@ public class OperatorConsoleReadModelTests : IClassFixture<ParkinApiFactory>
     return body;
   }
 
-  private static async Task<LotRecord> CreateLotAsync(HttpClient client, string name, string? address = null)
+  private static async Task<LotResponse> CreateLotAsync(HttpClient client, string name, string? address = null)
   {
     var response = await client.PostAsJsonAsync("/lots",
       new { Name = name, Address = address, Timezone = "Europe/Vilnius", AccessMode = "Open", FullBehavior = "Block" });
     response.EnsureSuccessStatusCode();
-    var lot = await response.Content.ReadFromJsonAsync<LotRecord>(JsonOptions);
+    var lot = await response.Content.ReadFromJsonAsync<LotResponse>(JsonOptions);
     lot.ShouldNotBeNull();
     return lot;
   }
 
-  private static async Task<SpaceRecord> CreateSpaceAsync(HttpClient client, Guid lotId, string label, SpaceType type)
+  private static async Task<SpaceResponse> CreateSpaceAsync(HttpClient client, Guid lotId, string label, SpaceType type)
   {
     var response = await client.PostAsJsonAsync($"/lots/{lotId}/spaces", new { Label = label, Type = type.ToString() });
     response.EnsureSuccessStatusCode();
-    var space = await response.Content.ReadFromJsonAsync<SpaceRecord>(JsonOptions);
+    var space = await response.Content.ReadFromJsonAsync<SpaceResponse>(JsonOptions);
     space.ShouldNotBeNull();
     return space;
   }

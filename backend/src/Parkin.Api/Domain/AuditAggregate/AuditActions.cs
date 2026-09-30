@@ -10,6 +10,8 @@ public static class AuditActions
   public const string LotUpdated = "lot.updated";
   public const string LotArchived = "lot.archived";
   public const string LotRestored = "lot.restored";
+  public const string LotAccessModeChanged = "lot.access_mode_changed";
+  public const string LotFullBehaviorChanged = "lot.full_behavior_changed";
   public const string SpaceCreated = "space.created";
   public const string SpaceUpdated = "space.updated";
   public const string SpaceDeactivated = "space.deactivated";

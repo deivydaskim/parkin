@@ -44,4 +44,6 @@ public sealed class LotLayout : IEquatable<LotLayout>
   public override bool Equals(object? obj) => Equals(obj as LotLayout);
 
   public override int GetHashCode() => HashCode.Combine(WidthMeters, LengthMeters, LevelCount);
+
+  public override string ToString() => $"{WidthMeters} x {LengthMeters} m, {LevelCount} level(s)";
 }

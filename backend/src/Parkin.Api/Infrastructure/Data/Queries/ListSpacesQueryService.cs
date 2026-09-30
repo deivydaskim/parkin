@@ -8,33 +8,25 @@ namespace Parkin.Api.Infrastructure.Data.Queries;
 
 public class ListSpacesQueryService(AppDbContext db) : IListSpacesQueryService
 {
-  private readonly AppDbContext _db = db;
-
-  public async Task<PagedResult<SpaceDto>> ListAsync(Guid lotId, int page, int perPage, SpaceStatusFilter? status,
-    SpaceType? type = null, string? search = null)
+  public async Task<PagedResult<SpaceResponse>> ListAsync(ListSpacesQuery query, CancellationToken cancellationToken)
   {
-    var query = _db.ParkingSpaces.Where(s => s.LotId == ParkingLotId.From(lotId));
+    var spaces = FilterByStatus(db.ParkingSpaces.Where(s => s.LotId == query.LotId), query.Status);
 
-    query = status switch
+    if (query.Type.HasValue)
     {
-      SpaceStatusFilter.All => query,
-      SpaceStatusFilter.Inactive => query.Where(s => s.Status == SpaceStatus.Inactive),
-      _ => query.Where(s => s.Status == SpaceStatus.Active),
-    };
-
-    if (type.HasValue)
-      query = query.Where(s => s.Type == type.Value);
-
-    if (!string.IsNullOrWhiteSpace(search))
-    {
-      var pattern = LikePattern.Containing(search.Trim());
-      query = query.Where(s => EF.Functions.ILike(s.Label, pattern));
+      spaces = spaces.Where(s => s.Type == query.Type.Value);
     }
 
-    var items = await query
+    if (!string.IsNullOrWhiteSpace(query.Search))
+    {
+      var pattern = LikePattern.Containing(query.Search.Trim());
+      spaces = spaces.Where(s => EF.Functions.ILike(s.Label, pattern));
+    }
+
+    var rows = await spaces
       .OrderBy(s => s.Label)
-      .Skip((page - 1) * perPage)
-      .Take(perPage)
+      .Skip((query.Page - 1) * query.PerPage)
+      .Take(query.PerPage)
       .Select(s => new
       {
         s.Id,
@@ -44,22 +36,30 @@ public class ListSpacesQueryService(AppDbContext db) : IListSpacesQueryService
         s.Status,
         s.Zone,
         s.Placement,
-        Holder = _db.Reservations
+        Holder = db.Reservations
           .Where(r => r.SpaceId == s.Id && r.Status == ReservationStatus.Active)
-          .Join(_db.Drivers, r => r.DriverId, d => d.Id, (r, d) => new { d.Id, d.Name })
+          .Join(db.Drivers, r => r.DriverId, d => d.Id, (r, d) => new { d.Id, d.Name })
           .FirstOrDefault(),
       })
       .AsNoTracking()
-      .ToListAsync();
+      .ToListAsync(cancellationToken);
 
-    var dtos = items
-      .Select(row => new SpaceDto(row.Id, row.LotId, row.Label, row.Type, row.Status, row.Zone, row.Placement,
-        row.Holder?.Id, row.Holder?.Name))
+    var items = rows
+      .Select(row => new SpaceResponse(row.Id.Value, row.LotId.Value, row.Label, row.Type, row.Status, row.Zone,
+        SpacePlacementResponse.From(row.Placement), row.Holder?.Id.Value, row.Holder?.Name))
       .ToList();
 
-    int totalCount = await query.CountAsync();
-    int totalPages = (int)Math.Ceiling(totalCount / (double)perPage);
+    var totalCount = await spaces.CountAsync(cancellationToken);
+    var totalPages = (int)Math.Ceiling(totalCount / (double)query.PerPage);
 
-    return new PagedResult<SpaceDto>(dtos, page, perPage, totalCount, totalPages);
+    return new PagedResult<SpaceResponse>(items, query.Page, query.PerPage, totalCount, totalPages);
   }
+
+  private static IQueryable<ParkingSpace> FilterByStatus(IQueryable<ParkingSpace> spaces, SpaceStatusFilter? status) =>
+    status switch
+    {
+      SpaceStatusFilter.All => spaces,
+      SpaceStatusFilter.Inactive => spaces.Where(s => s.Status == SpaceStatus.Inactive),
+      _ => spaces.Where(s => s.Status == SpaceStatus.Active),
+    };
 }

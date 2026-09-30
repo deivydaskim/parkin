@@ -1,5 +1,6 @@
 using FluentValidation;
 using Parkin.Api.Domain.ParkingLotAggregate;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Lots;
 
@@ -16,18 +17,6 @@ public sealed class LotLayoutRequestValidator : AbstractValidator<LotLayoutReque
 {
   public LotLayoutRequestValidator()
   {
-    RuleFor(x => x.WidthMeters)
-      .GreaterThan(0)
-      .LessThanOrEqualTo(LotLayout.MaxDimension)
-      .WithMessage($"Width must be greater than 0 and at most {LotLayout.MaxDimension} metres");
-
-    RuleFor(x => x.LengthMeters)
-      .GreaterThan(0)
-      .LessThanOrEqualTo(LotLayout.MaxDimension)
-      .WithMessage($"Length must be greater than 0 and at most {LotLayout.MaxDimension} metres");
-
-    RuleFor(x => x.LevelCount)
-      .InclusiveBetween(1, LotLayout.MaxLevelCount)
-      .WithMessage($"Level count must be between 1 and {LotLayout.MaxLevelCount}");
+    RuleFor(x => x).Custom((request, context) => context.AddFailures(request.ToValue()));
   }
 }
