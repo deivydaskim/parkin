@@ -1,10 +1,9 @@
-using System.Security.Claims;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.ParkingLotAggregate;
-using Parkin.Api.Extensions;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Lots.Create;
 
@@ -18,8 +17,8 @@ public sealed class CreateLotRequest
   public LotLayoutRequest? Layout { get; init; }
 }
 
-public class CreateEndpoint(IMediator mediator)
-  : Endpoint<CreateLotRequest, Results<Created<LotRecord>, ValidationProblem, ProblemHttpResult>>
+public class CreateLotEndpoint(IMediator mediator, ICurrentUser currentUser)
+  : Endpoint<CreateLotRequest, Results<Created<LotResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
@@ -38,46 +37,38 @@ public class CreateEndpoint(IMediator mediator)
         AccessMode = AccessMode.Open,
         FullBehavior = FullBehavior.Block
       };
-      s.ResponseExamples[201] = new LotRecord(Guid.Empty, "Downtown Garage", "100 Main St", "America/New_York", AccessMode.Open, FullBehavior.Block, LotStatus.Active, Capacity: 0, Layout: null);
+      s.ResponseExamples[201] = new LotResponse(Guid.Empty, "Downtown Garage", "100 Main St", "America/New_York",
+        AccessMode.Open, FullBehavior.Block, LotStatus.Active, Capacity: 0, Layout: null);
 
       s.Responses[201] = "Lot created successfully";
       s.Responses[400] = "Invalid request data, or a lot with this name already exists";
+      s.Responses[409] = "Another lot with this name was created concurrently";
     });
 
     Tags("Lots");
 
     Description(builder => builder
       .Accepts<CreateLotRequest>()
-      .Produces<LotRecord>(201, "application/json")
-      .ProducesProblem(400));
+      .Produces<LotResponse>(201, "application/json")
+      .ProducesProblem(400)
+      .ProducesProblem(409));
   }
 
-  public override async Task<Results<Created<LotRecord>, ValidationProblem, ProblemHttpResult>>
+  public override async Task<Results<Created<LotResponse>, ValidationProblem, ProblemHttpResult>>
     ExecuteAsync(CreateLotRequest request, CancellationToken cancellationToken)
   {
-    var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-    var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
-    var layout = request.Layout?.ToValue();
-    if (layout is { IsSuccess: false })
-    {
-      return Result<LotDto>.Invalid(layout.ValidationErrors)
-        .ToCreatedResult(lot => $"/lots/{lot.Id.Value}", LotEnumMapping.ToRecord);
-    }
-
     var command = new CreateLotCommand(
       request.Name,
       request.Address,
       request.Timezone,
       request.AccessMode,
       request.FullBehavior,
-      actorId,
-      layout?.Value);
+      currentUser.Id,
+      request.Layout?.ToValue().Value);
 
     var result = await mediator.Send(command, cancellationToken);
 
-    return result.ToCreatedResult(
-      lot => $"/lots/{lot.Id.Value}",
-      LotEnumMapping.ToRecord);
+    return result.ToCreatedResult(lot => $"/lots/{lot.Id}", lot => lot);
   }
 }
 
@@ -88,8 +79,8 @@ public sealed class CreateLotValidator : Validator<CreateLotRequest>
     RuleFor(x => x.Name)
       .NotEmpty()
       .WithMessage("Name is required")
-      .MaximumLength(200)
-      .WithMessage("Name must not exceed 200 characters");
+      .MaximumLength(ParkingLot.NameMaxLength)
+      .WithMessage($"Name must not exceed {ParkingLot.NameMaxLength} characters");
 
     RuleFor(x => x.Timezone)
       .NotEmpty()

@@ -44,7 +44,7 @@ public class ReservationReassignTests : IClassFixture<PostgresFixture>
     // every [Fact] in this class via IClassFixture, so a fixed name would collide with
     // ux_lot_name on the second test to run.
     var lot = ParkingLot.Create($"Reassign Lot {Guid.NewGuid()}", "America/New_York");
-    var space = lot.AddSpace("A1", SpaceType.Reserved, actorId: null);
+    var space = lot.AddSpace("A1", SpaceType.Reserved, actorId: null).Value;
     var oldDriver = Driver.Create("Old Driver", null, actorId: null);
     var newDriver = Driver.Create("New Driver", null, actorId: null);
 

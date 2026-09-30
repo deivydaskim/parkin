@@ -1,10 +1,9 @@
-using System.Security.Claims;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.ParkingLotAggregate;
-using Parkin.Api.Extensions;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Lots.Archive;
 
@@ -14,8 +13,8 @@ public sealed class ArchiveLotRequest
   public Guid LotId { get; init; }
 }
 
-public class ArchiveEndpoint(IMediator mediator)
-  : Endpoint<ArchiveLotRequest, Results<Ok<LotRecord>, NotFound, ProblemHttpResult>>
+public class ArchiveLotEndpoint(IMediator mediator, ICurrentUser currentUser)
+  : Endpoint<ArchiveLotRequest, Results<Ok<LotResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
@@ -34,18 +33,17 @@ public class ArchiveEndpoint(IMediator mediator)
 
     Description(builder => builder
       .Accepts<ArchiveLotRequest>()
-      .Produces<LotRecord>(200, "application/json")
+      .Produces<LotResponse>(200, "application/json")
       .ProducesProblem(404));
   }
 
-  public override async Task<Results<Ok<LotRecord>, NotFound, ProblemHttpResult>>
+  public override async Task<Results<Ok<LotResponse>, ValidationProblem, ProblemHttpResult>>
     ExecuteAsync(ArchiveLotRequest request, CancellationToken cancellationToken)
   {
-    var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-    var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
-    var result = await mediator.Send(new ArchiveLotCommand(ParkingLotId.From(request.LotId), actorId), cancellationToken);
+    var result = await mediator.Send(
+      new ArchiveLotCommand(ParkingLotId.From(request.LotId), currentUser.Id), cancellationToken);
 
-    return result.ToUpdateResult(LotEnumMapping.ToRecord);
+    return result.ToOkResult(lot => lot);
   }
 }
 

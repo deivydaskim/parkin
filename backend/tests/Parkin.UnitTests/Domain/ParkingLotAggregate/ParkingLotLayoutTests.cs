@@ -17,6 +17,18 @@ public class ParkingLotLayoutTests
   private static SpacePlacement Placement(decimal x, decimal y, decimal rotation = 0m, int level = 0) =>
     SpacePlacement.Create(x, y, rotation, level).Value;
 
+  private static ParkingSpace AddSpace(ParkingLot lot, string label, string? zone = null,
+    SpacePlacement? placement = null) =>
+    lot.AddSpace(label, SpaceType.General, actorId: null, zone, placement).Value;
+
+  private static Result<ParkingSpace> Place(ParkingLot lot, ParkingSpace space, SpacePlacement? placement,
+    string? zone = null, Guid? actorId = null) =>
+    lot.UpdateSpace(space.Id, new SpaceUpdate(Zone: zone, Placement: placement, ClearPlacement: placement is null),
+      actorId);
+
+  private static Result UpdateLayout(ParkingLot lot, LotLayout? layout) =>
+    lot.UpdateDetails(lot.Name, lot.Address, lot.Timezone, layout, actorId: null);
+
   [Fact]
   public void SpacePlacement_Create_AppliesDefaultBaySize()
   {
@@ -54,9 +66,9 @@ public class ParkingLotLayoutTests
   public void PlaceSpace_WithoutLayout_AcceptsAnyValidPlacement()
   {
     var lot = CreateLot();
-    var space = lot.AddSpace("A1", SpaceType.General, actorId: null);
+    var space = AddSpace(lot, "A1");
 
-    var result = lot.PlaceSpace(space.Id, Placement(500m, 250m, 90m, level: 3), "North", actorId: null);
+    var result = Place(lot, space, Placement(500m, 250m, 90m, level: 3), "North");
 
     result.IsSuccess.ShouldBeTrue();
     space.Placement.ShouldBe(Placement(500m, 250m, 90m, level: 3));
@@ -67,10 +79,10 @@ public class ParkingLotLayoutTests
   public void PlaceSpace_RegistersSpaceUpdatedEvent()
   {
     var lot = CreateLot();
-    var space = lot.AddSpace("A1", SpaceType.General, actorId: null);
+    var space = AddSpace(lot, "A1");
     var actorId = Guid.NewGuid();
 
-    lot.PlaceSpace(space.Id, Placement(5m, 5m), zone: null, actorId);
+    Place(lot, space, Placement(5m, 5m), actorId: actorId);
 
     lot.DomainEvents.OfType<SpaceUpdatedEvent>()
       .ShouldContain(e => e.SpaceId == space.Id && e.ActorId == actorId);
@@ -80,9 +92,9 @@ public class ParkingLotLayoutTests
   public void PlaceSpace_OutsideFootprint_IsRejectedAndLeavesSpaceUnchanged()
   {
     var lot = CreateLot(Layout(20m, 10m));
-    var space = lot.AddSpace("A1", SpaceType.General, actorId: null);
+    var space = AddSpace(lot, "A1");
 
-    var result = lot.PlaceSpace(space.Id, Placement(25m, 5m), zone: null, actorId: null);
+    var result = Place(lot, space, Placement(25m, 5m));
 
     result.Status.ShouldBe(ResultStatus.Invalid);
     space.Placement.ShouldBeNull();
@@ -92,20 +104,19 @@ public class ParkingLotLayoutTests
   public void PlaceSpace_OnMissingLevel_IsRejected()
   {
     var lot = CreateLot(Layout(levels: 2));
-    var space = lot.AddSpace("A1", SpaceType.General, actorId: null);
+    var space = AddSpace(lot, "A1");
 
-    lot.PlaceSpace(space.Id, Placement(5m, 5m, level: 1), zone: null, actorId: null).IsSuccess.ShouldBeTrue();
-    lot.PlaceSpace(space.Id, Placement(5m, 5m, level: 2), zone: null, actorId: null)
-      .Status.ShouldBe(ResultStatus.Invalid);
+    Place(lot, space, Placement(5m, 5m, level: 1)).IsSuccess.ShouldBeTrue();
+    Place(lot, space, Placement(5m, 5m, level: 2)).Status.ShouldBe(ResultStatus.Invalid);
   }
 
   [Fact]
   public void PlaceSpace_WithNull_UnplacesTheSpace()
   {
     var lot = CreateLot();
-    var space = lot.AddSpace("A1", SpaceType.General, actorId: null, placement: Placement(5m, 5m));
+    var space = AddSpace(lot, "A1", placement: Placement(5m, 5m));
 
-    lot.PlaceSpace(space.Id, placement: null, zone: null, actorId: null).IsSuccess.ShouldBeTrue();
+    Place(lot, space, placement: null).IsSuccess.ShouldBeTrue();
 
     space.Placement.ShouldBeNull();
   }
@@ -114,7 +125,7 @@ public class ParkingLotLayoutTests
   public void UpdateSpace_EmptyZone_ClearsZoneAndWhitespaceIsTrimmed()
   {
     var lot = CreateLot();
-    var space = lot.AddSpace("A1", SpaceType.General, actorId: null, zone: "  East  ");
+    var space = AddSpace(lot, "A1", zone: "  East  ");
     space.Zone.ShouldBe("East");
 
     lot.UpdateSpace(space.Id, new SpaceUpdate(Zone: ""), actorId: null).IsSuccess.ShouldBeTrue();
@@ -126,7 +137,7 @@ public class ParkingLotLayoutTests
   public void UpdateSpace_TooLongZone_IsRejected()
   {
     var lot = CreateLot();
-    var space = lot.AddSpace("A1", SpaceType.General, actorId: null);
+    var space = AddSpace(lot, "A1");
 
     var result = lot.UpdateSpace(space.Id, new SpaceUpdate(Zone: new string('z', 51)), actorId: null);
 
@@ -134,32 +145,37 @@ public class ParkingLotLayoutTests
   }
 
   [Fact]
-  public void AddSpace_PlacementOutsideLayout_Throws()
+  public void AddSpace_PlacementOutsideLayout_ReturnsInvalidAndAddsNothing()
   {
     var lot = CreateLot(Layout(10m, 10m));
+    lot.ClearDomainEvents();
 
-    Should.Throw<ArgumentException>(() =>
-      lot.AddSpace("A1", SpaceType.General, actorId: null, placement: Placement(11m, 5m)));
+    var result = lot.AddSpace("A1", SpaceType.General, actorId: null, placement: Placement(11m, 5m));
+
+    result.Status.ShouldBe(ResultStatus.Invalid);
+    result.ValidationErrors.ShouldContain(e => e.Identifier == "Placement");
+    lot.Spaces.ShouldBeEmpty();
+    lot.DomainEvents.ShouldBeEmpty();
   }
 
   [Fact]
-  public void SetLayout_ThatWouldStrandAPlacedSpace_IsRejected()
+  public void UpdateDetails_LayoutThatWouldStrandAPlacedSpace_IsRejected()
   {
     var lot = CreateLot();
-    lot.AddSpace("A1", SpaceType.General, actorId: null, placement: Placement(30m, 5m));
+    AddSpace(lot, "A1", placement: Placement(30m, 5m));
 
-    var result = lot.SetLayout(Layout(20m, 20m));
+    var result = UpdateLayout(lot, Layout(20m, 20m));
 
     result.Status.ShouldBe(ResultStatus.Invalid);
     lot.Layout.ShouldBeNull();
   }
 
   [Fact]
-  public void SetLayout_Null_ClearsLayout()
+  public void UpdateDetails_NullLayout_ClearsLayout()
   {
     var lot = CreateLot(Layout());
 
-    lot.SetLayout(null).IsSuccess.ShouldBeTrue();
+    UpdateLayout(lot, null).IsSuccess.ShouldBeTrue();
 
     lot.Layout.ShouldBeNull();
   }
@@ -168,8 +184,8 @@ public class ParkingLotLayoutTests
   public void ApplyLayout_PlacesAndClearsInOneBatch_AndRegistersSingleEvent()
   {
     var lot = CreateLot();
-    var first = lot.AddSpace("A1", SpaceType.General, actorId: null);
-    var second = lot.AddSpace("A2", SpaceType.General, actorId: null, placement: Placement(3m, 3m));
+    var first = AddSpace(lot, "A1");
+    var second = AddSpace(lot, "A2", placement: Placement(3m, 3m));
     lot.ClearDomainEvents();
     var actorId = Guid.NewGuid();
 
@@ -195,7 +211,7 @@ public class ParkingLotLayoutTests
   public void ApplyLayout_OmittedZone_KeepsExistingZone()
   {
     var lot = CreateLot();
-    var space = lot.AddSpace("A1", SpaceType.General, actorId: null, zone: "Keep");
+    var space = AddSpace(lot, "A1", zone: "Keep");
 
     lot.ApplyLayout(null, [new SpaceLayoutChange(space.Id, Placement(1m, 1m), null)], actorId: null)
       .IsSuccess.ShouldBeTrue();
@@ -207,7 +223,7 @@ public class ParkingLotLayoutTests
   public void ApplyLayout_ForeignSpaceId_RejectsWholeBatch()
   {
     var lot = CreateLot();
-    var space = lot.AddSpace("A1", SpaceType.General, actorId: null);
+    var space = AddSpace(lot, "A1");
     lot.ClearDomainEvents();
 
     var result = lot.ApplyLayout(null, [
@@ -224,7 +240,7 @@ public class ParkingLotLayoutTests
   public void ApplyLayout_DuplicateSpaceIds_AreRejected()
   {
     var lot = CreateLot();
-    var space = lot.AddSpace("A1", SpaceType.General, actorId: null);
+    var space = AddSpace(lot, "A1");
 
     var result = lot.ApplyLayout(null, [
       new SpaceLayoutChange(space.Id, Placement(1m, 1m), null),
@@ -239,8 +255,8 @@ public class ParkingLotLayoutTests
   public void ApplyLayout_OneRowOutsideNewFootprint_RejectsWholeBatch()
   {
     var lot = CreateLot();
-    var inside = lot.AddSpace("A1", SpaceType.General, actorId: null);
-    var outside = lot.AddSpace("A2", SpaceType.General, actorId: null);
+    var inside = AddSpace(lot, "A1");
+    var outside = AddSpace(lot, "A2");
 
     var result = lot.ApplyLayout(Layout(10m, 10m), [
       new SpaceLayoutChange(inside.Id, Placement(5m, 5m), null),
@@ -256,7 +272,7 @@ public class ParkingLotLayoutTests
   public void ApplyLayout_NewFootprintStrandingAnUntouchedSpace_IsRejected()
   {
     var lot = CreateLot();
-    lot.AddSpace("A1", SpaceType.General, actorId: null, placement: Placement(50m, 5m));
+    AddSpace(lot, "A1", placement: Placement(50m, 5m));
 
     var result = lot.ApplyLayout(Layout(20m, 20m), [], actorId: null);
 

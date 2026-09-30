@@ -21,7 +21,7 @@ public class DeactivateSpaceHandlerTests
   public async Task Handle_ReservedSpaceWithActiveReservation_ReturnsInvalid()
   {
     var lot = ParkingLot.Create("Test Lot", "America/New_York");
-    var space = lot.AddSpace("A1", SpaceType.Reserved, actorId: null);
+    var space = lot.AddSpace("A1", SpaceType.Reserved, actorId: null).Value;
     _repository.FirstOrDefaultAsync(Arg.Any<ParkingLotBySpaceIdSpec>(), Arg.Any<CancellationToken>())
       .Returns(lot);
     _checker.HasActiveReservationAsync(space.Id, Arg.Any<CancellationToken>()).Returns(true);
@@ -36,7 +36,7 @@ public class DeactivateSpaceHandlerTests
   public async Task Handle_ReservedSpaceWithoutActiveReservation_Deactivates()
   {
     var lot = ParkingLot.Create("Test Lot", "America/New_York");
-    var space = lot.AddSpace("A1", SpaceType.Reserved, actorId: null);
+    var space = lot.AddSpace("A1", SpaceType.Reserved, actorId: null).Value;
     _repository.FirstOrDefaultAsync(Arg.Any<ParkingLotBySpaceIdSpec>(), Arg.Any<CancellationToken>())
       .Returns(lot);
     _checker.HasActiveReservationAsync(space.Id, Arg.Any<CancellationToken>()).Returns(false);
@@ -51,7 +51,7 @@ public class DeactivateSpaceHandlerTests
   public async Task Handle_GeneralSpace_DeactivatesWithoutCheckingReservations()
   {
     var lot = ParkingLot.Create("Test Lot", "America/New_York");
-    var space = lot.AddSpace("A1", SpaceType.General, actorId: null);
+    var space = lot.AddSpace("A1", SpaceType.General, actorId: null).Value;
     _repository.FirstOrDefaultAsync(Arg.Any<ParkingLotBySpaceIdSpec>(), Arg.Any<CancellationToken>())
       .Returns(lot);
 

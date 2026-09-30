@@ -10,23 +10,22 @@ public record CreateLotCommand(
   AccessMode AccessMode,
   FullBehavior FullBehavior,
   Guid? ActorId,
-  LotLayout? Layout = null) : ICommand<Result<LotDto>>;
+  LotLayout? Layout = null) : ICommand<Result<LotResponse>>;
 
 public class CreateLotHandler(IRepository<ParkingLot> repository)
-  : ICommandHandler<CreateLotCommand, Result<LotDto>>
+  : ICommandHandler<CreateLotCommand, Result<LotResponse>>
 {
-  public async ValueTask<Result<LotDto>> Handle(CreateLotCommand request, CancellationToken cancellationToken)
+  public async ValueTask<Result<LotResponse>> Handle(CreateLotCommand request, CancellationToken cancellationToken)
   {
-    var existing = await repository.FirstOrDefaultAsync(new ParkingLotByNameSpec(request.Name), cancellationToken);
-    if (existing != null)
+    if (await repository.AnyAsync(new ParkingLotByNameSpec(request.Name), cancellationToken))
     {
-      return Result.Invalid(new ValidationError("Name", "A lot with this name already exists"));
+      return Result.Invalid(LotErrors.DuplicateName);
     }
 
-    var lot = ParkingLot.Create(request.Name, request.Timezone, request.Address, request.AccessMode, request.FullBehavior, request.ActorId,
-      request.Layout);
+    var lot = ParkingLot.Create(request.Name, request.Timezone, request.Address, request.AccessMode,
+      request.FullBehavior, request.ActorId, request.Layout);
     await repository.AddAsync(lot, cancellationToken);
 
-    return LotDto.FromEntity(lot);
+    return LotResponse.From(lot);
   }
 }

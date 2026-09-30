@@ -50,7 +50,7 @@ public class ManualAccessEventTests : IClassFixture<ParkinApiFactory>
       AccessMode = accessMode,
     });
     response.EnsureSuccessStatusCode();
-    var lot = await response.Content.ReadFromJsonAsync<LotRecord>(JsonOptions);
+    var lot = await response.Content.ReadFromJsonAsync<LotResponse>(JsonOptions);
     lot.ShouldNotBeNull();
 
     var spaceResponse = await client.PostAsJsonAsync($"/lots/{lot.Id}/spaces",

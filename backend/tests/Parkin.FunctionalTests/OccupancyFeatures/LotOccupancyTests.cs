@@ -61,7 +61,7 @@ public class LotOccupancyTests : IClassFixture<ParkinApiFactory>
       FullBehavior = fullBehavior,
     });
     response.EnsureSuccessStatusCode();
-    var lot = await response.Content.ReadFromJsonAsync<LotRecord>(JsonOptions);
+    var lot = await response.Content.ReadFromJsonAsync<LotResponse>(JsonOptions);
     lot.ShouldNotBeNull();
     return lot.Id;
   }
@@ -71,7 +71,7 @@ public class LotOccupancyTests : IClassFixture<ParkinApiFactory>
     var response = await adminClient.PostAsJsonAsync($"/lots/{lotId}/spaces",
       new { Label = label, Type = type.ToString() });
     response.EnsureSuccessStatusCode();
-    var space = await response.Content.ReadFromJsonAsync<SpaceRecord>(JsonOptions);
+    var space = await response.Content.ReadFromJsonAsync<SpaceResponse>(JsonOptions);
     space.ShouldNotBeNull();
     return space.Id;
   }

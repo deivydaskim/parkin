@@ -24,7 +24,7 @@ public class CreateReservationHandlerTests
   private static ParkingLot CreateLotWithSpace(out ParkingSpace space, SpaceType type = SpaceType.Reserved)
   {
     var lot = ParkingLot.Create("Test Lot", "America/New_York");
-    space = lot.AddSpace("A1", type, actorId: null);
+    space = lot.AddSpace("A1", type, actorId: null).Value;
     return lot;
   }
 

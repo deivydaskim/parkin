@@ -3,7 +3,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.ParkingLotAggregate;
-using Parkin.Api.Extensions;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.LotLayouts.Get;
 
@@ -14,7 +14,7 @@ public sealed class GetLotLayoutRequest
 }
 
 public class GetLotLayoutEndpoint(IMediator mediator)
-  : Endpoint<GetLotLayoutRequest, Results<Ok<LotLayoutViewRecord>, NotFound, ProblemHttpResult>>
+  : Endpoint<GetLotLayoutRequest, Results<Ok<LotLayoutViewResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
@@ -35,16 +35,16 @@ public class GetLotLayoutEndpoint(IMediator mediator)
 
     Description(builder => builder
       .Accepts<GetLotLayoutRequest>()
-      .Produces<LotLayoutViewRecord>(200, "application/json")
+      .Produces<LotLayoutViewResponse>(200, "application/json")
       .ProducesProblem(404));
   }
 
-  public override async Task<Results<Ok<LotLayoutViewRecord>, NotFound, ProblemHttpResult>>
+  public override async Task<Results<Ok<LotLayoutViewResponse>, ValidationProblem, ProblemHttpResult>>
     ExecuteAsync(GetLotLayoutRequest request, CancellationToken cancellationToken)
   {
     var result = await mediator.Send(new GetLotLayoutQuery(ParkingLotId.From(request.LotId)), cancellationToken);
 
-    return result.ToGetByIdResult(LotLayoutMapping.ToRecord);
+    return result.ToOkResult(view => view);
   }
 }
 

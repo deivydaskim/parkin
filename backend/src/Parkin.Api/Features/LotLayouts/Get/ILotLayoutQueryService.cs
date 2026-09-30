@@ -4,5 +4,5 @@ namespace Parkin.Api.Features.LotLayouts.Get;
 
 public interface ILotLayoutQueryService
 {
-  Task<LotLayoutViewDto?> GetAsync(ParkingLotId lotId, CancellationToken cancellationToken);
+  Task<LotLayoutViewResponse?> GetAsync(ParkingLotId lotId, CancellationToken cancellationToken);
 }

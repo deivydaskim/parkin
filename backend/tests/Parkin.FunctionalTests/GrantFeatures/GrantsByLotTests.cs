@@ -41,7 +41,7 @@ public class GrantsByLotTests : IClassFixture<ParkinApiFactory>
       AccessMode = AccessMode.Restricted,
     });
     response.EnsureSuccessStatusCode();
-    var lot = await response.Content.ReadFromJsonAsync<LotRecord>(JsonOptions);
+    var lot = await response.Content.ReadFromJsonAsync<LotResponse>(JsonOptions);
     lot.ShouldNotBeNull();
     return lot.Id;
   }

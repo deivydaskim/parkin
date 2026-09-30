@@ -61,7 +61,7 @@ public class AuditQueryTests : IClassFixture<ParkinApiFactory>
       Timezone = "America/New_York",
     });
     createResponse.EnsureSuccessStatusCode();
-    var lot = await createResponse.Content.ReadFromJsonAsync<LotRecord>(JsonOptions);
+    var lot = await createResponse.Content.ReadFromJsonAsync<LotResponse>(JsonOptions);
     lot.ShouldNotBeNull();
 
     var auditResponse = await client.GetAsync($"/audit?entity=ParkingLot&per_page=100");
@@ -84,7 +84,7 @@ public class AuditQueryTests : IClassFixture<ParkinApiFactory>
       Timezone = "America/New_York",
     });
     createResponse.EnsureSuccessStatusCode();
-    var lot = await createResponse.Content.ReadFromJsonAsync<LotRecord>(JsonOptions);
+    var lot = await createResponse.Content.ReadFromJsonAsync<LotResponse>(JsonOptions);
     lot.ShouldNotBeNull();
 
     var future = DateTimeOffset.UtcNow.AddDays(1).ToString("O");

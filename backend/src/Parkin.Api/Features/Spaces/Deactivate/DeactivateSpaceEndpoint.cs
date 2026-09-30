@@ -1,10 +1,9 @@
-using System.Security.Claims;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.ParkingLotAggregate;
-using Parkin.Api.Extensions;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Spaces.Deactivate;
 
@@ -14,8 +13,8 @@ public sealed class DeactivateSpaceRequest
   public Guid SpaceId { get; init; }
 }
 
-public class DeactivateSpaceEndpoint(IMediator mediator)
-  : Endpoint<DeactivateSpaceRequest, Results<Ok<SpaceRecord>, NotFound, ProblemHttpResult>>
+public class DeactivateSpaceEndpoint(IMediator mediator, ICurrentUser currentUser)
+  : Endpoint<DeactivateSpaceRequest, Results<Ok<SpaceResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
@@ -35,19 +34,18 @@ public class DeactivateSpaceEndpoint(IMediator mediator)
 
     Description(builder => builder
       .Accepts<DeactivateSpaceRequest>()
-      .Produces<SpaceRecord>(200, "application/json")
+      .Produces<SpaceResponse>(200, "application/json")
       .ProducesProblem(404)
       .ProducesProblem(400));
   }
 
-  public override async Task<Results<Ok<SpaceRecord>, NotFound, ProblemHttpResult>>
+  public override async Task<Results<Ok<SpaceResponse>, ValidationProblem, ProblemHttpResult>>
     ExecuteAsync(DeactivateSpaceRequest request, CancellationToken cancellationToken)
   {
-    var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-    var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
-    var result = await mediator.Send(new DeactivateSpaceCommand(ParkingSpaceId.From(request.SpaceId), actorId), cancellationToken);
+    var result = await mediator.Send(
+      new DeactivateSpaceCommand(ParkingSpaceId.From(request.SpaceId), currentUser.Id), cancellationToken);
 
-    return result.ToUpdateResult(SpaceEnumMapping.ToRecord);
+    return result.ToOkResult(space => space);
   }
 }
 
