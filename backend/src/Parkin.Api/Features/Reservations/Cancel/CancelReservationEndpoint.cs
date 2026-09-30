@@ -1,10 +1,9 @@
-using System.Security.Claims;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.ReservationAggregate;
-using Parkin.Api.Extensions;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Reservations.Cancel;
 
@@ -14,8 +13,8 @@ public sealed class CancelReservationRequest
   public Guid ReservationId { get; init; }
 }
 
-public class CancelReservationEndpoint(IMediator mediator)
-  : Endpoint<CancelReservationRequest, Results<Ok<ReservationRecord>, NotFound, ProblemHttpResult>>
+public class CancelReservationEndpoint(IMediator mediator, ICurrentUser currentUser)
+  : Endpoint<CancelReservationRequest, Results<Ok<ReservationResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
@@ -27,6 +26,7 @@ public class CancelReservationEndpoint(IMediator mediator)
       s.Summary = "Cancel a reservation";
       s.Description = "Ends an active reservation, freeing the driver from the space. The space's type is left as-is.";
       s.Responses[200] = "Reservation cancelled successfully";
+      s.Responses[400] = "Reservation is not active";
       s.Responses[404] = "Reservation with specified ID not found";
     });
 
@@ -34,19 +34,18 @@ public class CancelReservationEndpoint(IMediator mediator)
 
     Description(builder => builder
       .Accepts<CancelReservationRequest>()
-      .Produces<ReservationRecord>(200, "application/json")
+      .Produces<ReservationResponse>(200, "application/json")
+      .ProducesProblem(400)
       .ProducesProblem(404));
   }
 
-  public override async Task<Results<Ok<ReservationRecord>, NotFound, ProblemHttpResult>>
+  public override async Task<Results<Ok<ReservationResponse>, ValidationProblem, ProblemHttpResult>>
     ExecuteAsync(CancelReservationRequest request, CancellationToken cancellationToken)
   {
-    var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-    var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
     var result = await mediator.Send(
-      new CancelReservationCommand(ReservationId.From(request.ReservationId), actorId), cancellationToken);
+      new CancelReservationCommand(ReservationId.From(request.ReservationId), currentUser.Id), cancellationToken);
 
-    return result.ToUpdateResult(ReservationMapping.ToRecord);
+    return result.ToOkResult(reservation => reservation);
   }
 }
 

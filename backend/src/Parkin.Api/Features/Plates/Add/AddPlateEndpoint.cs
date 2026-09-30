@@ -1,10 +1,9 @@
-using System.Security.Claims;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.DriverAggregate;
-using Parkin.Api.Extensions;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Plates.Add;
 
@@ -16,8 +15,8 @@ public sealed class AddPlateRequest
   public string PlateNumber { get; init; } = string.Empty;
 }
 
-public class AddPlateEndpoint(IMediator mediator)
-  : Endpoint<AddPlateRequest, Results<Created<PlateRecord>, ValidationProblem, ProblemHttpResult>>
+public class AddPlateEndpoint(IMediator mediator, ICurrentUser currentUser)
+  : Endpoint<AddPlateRequest, Results<Created<PlateResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
@@ -31,29 +30,26 @@ public class AddPlateEndpoint(IMediator mediator)
       s.Responses[201] = "Plate added successfully";
       s.Responses[400] = "Invalid request data, or a driver with this plate already exists";
       s.Responses[404] = "Driver with specified ID not found";
+      s.Responses[409] = "The plate was registered concurrently by another request";
     });
 
     Tags("Drivers");
 
     Description(builder => builder
       .Accepts<AddPlateRequest>()
-      .Produces<PlateRecord>(201, "application/json")
+      .Produces<PlateResponse>(201, "application/json")
       .ProducesProblem(400)
-      .ProducesProblem(404));
+      .ProducesProblem(404)
+      .ProducesProblem(409));
   }
 
-  public override async Task<Results<Created<PlateRecord>, ValidationProblem, ProblemHttpResult>>
+  public override async Task<Results<Created<PlateResponse>, ValidationProblem, ProblemHttpResult>>
     ExecuteAsync(AddPlateRequest request, CancellationToken cancellationToken)
   {
-    var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-    var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
-    var command = new AddPlateCommand(DriverId.From(request.DriverId), request.PlateNumber, actorId);
+    var result = await mediator.Send(
+      new AddPlateCommand(DriverId.From(request.DriverId), request.PlateNumber, currentUser.Id), cancellationToken);
 
-    var result = await mediator.Send(command, cancellationToken);
-
-    return result.ToCreatedResult(
-      plate => $"/plates/{plate.Id.Value}",
-      PlateMapping.ToRecord);
+    return result.ToCreatedResult(plate => $"/plates/{plate.Id}", plate => plate);
   }
 }
 

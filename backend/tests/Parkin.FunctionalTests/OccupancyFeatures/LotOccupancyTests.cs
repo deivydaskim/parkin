@@ -81,7 +81,7 @@ public class LotOccupancyTests : IClassFixture<ParkinApiFactory>
     var driverResponse = await adminClient.PostAsJsonAsync("/drivers",
       new { Name = $"Driver {Guid.NewGuid():N}" });
     driverResponse.EnsureSuccessStatusCode();
-    var driver = await driverResponse.Content.ReadFromJsonAsync<DriverRecord>(JsonOptions);
+    var driver = await driverResponse.Content.ReadFromJsonAsync<DriverResponse>(JsonOptions);
     driver.ShouldNotBeNull();
 
     var plateResponse = await adminClient.PostAsJsonAsync($"/drivers/{driver.Id}/plates",

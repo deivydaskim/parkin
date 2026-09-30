@@ -2,16 +2,16 @@ using Parkin.Api.Domain.DriverAggregate;
 
 namespace Parkin.Api.Features.Drivers.Create;
 
-public record CreateDriverCommand(string Name, string? Contact, Guid? ActorId) : ICommand<Result<DriverDto>>;
+public record CreateDriverCommand(string Name, string? Contact, Guid? ActorId) : ICommand<Result<DriverResponse>>;
 
 public class CreateDriverHandler(IRepository<Driver> repository)
-  : ICommandHandler<CreateDriverCommand, Result<DriverDto>>
+  : ICommandHandler<CreateDriverCommand, Result<DriverResponse>>
 {
-  public async ValueTask<Result<DriverDto>> Handle(CreateDriverCommand request, CancellationToken cancellationToken)
+  public async ValueTask<Result<DriverResponse>> Handle(CreateDriverCommand request, CancellationToken cancellationToken)
   {
     var driver = Driver.Create(request.Name, request.Contact, request.ActorId);
     await repository.AddAsync(driver, cancellationToken);
 
-    return new DriverDto(driver.Id, driver.Name, driver.Contact, driver.Status, driver.Plates.Count);
+    return DriverResponse.From(driver);
   }
 }

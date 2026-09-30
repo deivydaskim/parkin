@@ -1,10 +1,9 @@
-using System.Security.Claims;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.DriverAggregate;
-using Parkin.Api.Extensions;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Drivers.Archive;
 
@@ -14,8 +13,8 @@ public sealed class ArchiveDriverRequest
   public Guid DriverId { get; init; }
 }
 
-public class ArchiveDriverEndpoint(IMediator mediator)
-  : Endpoint<ArchiveDriverRequest, Results<Ok<DriverRecord>, NotFound, ProblemHttpResult>>
+public class ArchiveDriverEndpoint(IMediator mediator, ICurrentUser currentUser)
+  : Endpoint<ArchiveDriverRequest, Results<Ok<DriverResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
@@ -34,18 +33,17 @@ public class ArchiveDriverEndpoint(IMediator mediator)
 
     Description(builder => builder
       .Accepts<ArchiveDriverRequest>()
-      .Produces<DriverRecord>(200, "application/json")
+      .Produces<DriverResponse>(200, "application/json")
       .ProducesProblem(404));
   }
 
-  public override async Task<Results<Ok<DriverRecord>, NotFound, ProblemHttpResult>>
+  public override async Task<Results<Ok<DriverResponse>, ValidationProblem, ProblemHttpResult>>
     ExecuteAsync(ArchiveDriverRequest request, CancellationToken cancellationToken)
   {
-    var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-    var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
-    var result = await mediator.Send(new ArchiveDriverCommand(DriverId.From(request.DriverId), actorId), cancellationToken);
+    var result = await mediator.Send(
+      new ArchiveDriverCommand(DriverId.From(request.DriverId), currentUser.Id), cancellationToken);
 
-    return result.ToUpdateResult(DriverMapping.ToRecord);
+    return result.ToOkResult(driver => driver);
   }
 }
 

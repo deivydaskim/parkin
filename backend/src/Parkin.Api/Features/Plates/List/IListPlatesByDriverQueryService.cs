@@ -4,5 +4,6 @@ namespace Parkin.Api.Features.Plates.List;
 
 public interface IListPlatesByDriverQueryService
 {
-  Task<PagedResult<PlateDto>> ListAsync(DriverId driverId, int page, int perPage);
+  Task<PagedResult<PlateResponse>> ListAsync(DriverId driverId, int page, int perPage,
+    CancellationToken cancellationToken);
 }

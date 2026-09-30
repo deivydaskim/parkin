@@ -3,17 +3,16 @@ using Parkin.Api.Domain.DriverAggregate.Specifications;
 
 namespace Parkin.Api.Features.Drivers.GetById;
 
-public record GetDriverQuery(DriverId DriverId) : IQuery<Result<DriverDto>>;
+public record GetDriverQuery(DriverId DriverId) : IQuery<Result<DriverResponse>>;
 
 public class GetDriverHandler(IReadRepository<Driver> repository)
-  : IQueryHandler<GetDriverQuery, Result<DriverDto>>
+  : IQueryHandler<GetDriverQuery, Result<DriverResponse>>
 {
-  public async ValueTask<Result<DriverDto>> Handle(GetDriverQuery request, CancellationToken cancellationToken)
+  public async ValueTask<Result<DriverResponse>> Handle(GetDriverQuery request, CancellationToken cancellationToken)
   {
-    var spec = new DriverByIdSpec(request.DriverId);
-    var entity = await repository.FirstOrDefaultAsync(spec, cancellationToken);
-    if (entity == null) return Result.NotFound();
+    var driver = await repository.FirstOrDefaultAsync(new DriverByIdSpec(request.DriverId), cancellationToken);
+    if (driver is null) return Result.NotFound();
 
-    return new DriverDto(entity.Id, entity.Name, entity.Contact, entity.Status, entity.Plates.Count);
+    return DriverResponse.From(driver);
   }
 }

@@ -1,4 +1,3 @@
-using Ardalis.GuardClauses;
 using Parkin.Api.Domain.AccessGrantAggregate.Events;
 using Parkin.Api.Domain.DriverAggregate;
 using Parkin.Api.Domain.ParkingLotAggregate;
@@ -7,17 +6,11 @@ namespace Parkin.Api.Domain.AccessGrantAggregate;
 
 public class AccessGrant : EntityBase<AccessGrant, AccessGrantId>, IAggregateRoot
 {
-  // Private constructor for EF Core
   private AccessGrant() { }
 
   private AccessGrant(AccessGrantId id, DriverId driverId, ParkingLotId lotId,
-    DateTimeOffset validFrom, DateTimeOffset? validTo, Guid? createdBy)
+    DateTimeOffset validFrom, DateTimeOffset? validTo, Guid? createdBy, DateTimeOffset createdAt)
   {
-    if (validTo.HasValue && validTo.Value < validFrom)
-    {
-      throw new ArgumentException("validTo must not be before validFrom.", nameof(validTo));
-    }
-
     Id = id;
     DriverId = driverId;
     ParkingLotId = lotId;
@@ -25,15 +18,20 @@ public class AccessGrant : EntityBase<AccessGrant, AccessGrantId>, IAggregateRoo
     ValidTo = validTo;
     Status = GrantStatus.Active;
     CreatedBy = createdBy;
-    CreatedAt = DateTimeOffset.UtcNow;
+    CreatedAt = createdAt;
   }
 
-  // Factory method for creating new grants (before persistence)
-  public static AccessGrant Create(DriverId driverId, ParkingLotId lotId,
-    DateTimeOffset? validFrom, DateTimeOffset? validTo, Guid? actorId)
+  public static Result<AccessGrant> Create(DriverId driverId, ParkingLotId lotId,
+    DateTimeOffset? validFrom, DateTimeOffset? validTo, DateTimeOffset now, Guid? actorId)
   {
+    var effectiveValidFrom = validFrom ?? now;
+    if (validTo < effectiveValidFrom)
+    {
+      return Result.Invalid(new ValidationError("ValidTo", "Valid-to must not be before valid-from"));
+    }
+
     var grant = new AccessGrant(
-      AccessGrantId.From(Guid.CreateVersion7()), driverId, lotId, validFrom ?? DateTimeOffset.UtcNow, validTo, actorId);
+      AccessGrantId.From(Guid.CreateVersion7()), driverId, lotId, effectiveValidFrom, validTo, actorId, now);
     grant.RegisterDomainEvent(new GrantCreatedEvent(grant.Id, driverId, lotId, actorId));
     return grant;
   }
@@ -49,9 +47,15 @@ public class AccessGrant : EntityBase<AccessGrant, AccessGrantId>, IAggregateRoo
   public bool IsActiveAsOf(DateTimeOffset now)
     => Status == GrantStatus.Active && now >= ValidFrom && (!ValidTo.HasValue || now <= ValidTo.Value);
 
-  public void Revoke(Guid? actorId)
+  public Result Revoke(Guid? actorId)
   {
+    if (Status == GrantStatus.Revoked)
+    {
+      return Result.Invalid(new ValidationError("GrantId", "Grant is already revoked"));
+    }
+
     Status = GrantStatus.Revoked;
     RegisterDomainEvent(new GrantRevokedEvent(Id, actorId));
+    return Result.Success();
   }
 }

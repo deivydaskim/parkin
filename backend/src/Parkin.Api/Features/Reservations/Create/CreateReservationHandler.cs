@@ -1,5 +1,7 @@
 using Parkin.Api.Domain.DriverAggregate;
 using Parkin.Api.Domain.DriverAggregate.Specifications;
+using Parkin.Api.Domain.Exceptions;
+using Parkin.Api.Domain.Interfaces;
 using Parkin.Api.Domain.ParkingLotAggregate;
 using Parkin.Api.Domain.ParkingLotAggregate.Specifications;
 using Parkin.Api.Domain.ReservationAggregate;
@@ -10,49 +12,60 @@ namespace Parkin.Api.Features.Reservations.Create;
 public record CreateReservationCommand(
   ParkingSpaceId SpaceId,
   DriverId DriverId,
-  Guid? ActorId) : ICommand<Result<ReservationDto>>;
+  Guid? ActorId) : ICommand<Result<ReservationResponse>>;
 
 public class CreateReservationHandler(
   IRepository<ParkingLot> lotRepository,
-  IRepository<Driver> driverRepository,
-  IRepository<Reservation> reservationRepository)
-  : ICommandHandler<CreateReservationCommand, Result<ReservationDto>>
+  IReadRepository<Driver> driverRepository,
+  IRepository<Reservation> reservationRepository,
+  IUnitOfWork unitOfWork)
+  : ICommandHandler<CreateReservationCommand, Result<ReservationResponse>>
 {
-  public async ValueTask<Result<ReservationDto>> Handle(CreateReservationCommand request, CancellationToken cancellationToken)
+  public async ValueTask<Result<ReservationResponse>> Handle(CreateReservationCommand request,
+    CancellationToken cancellationToken)
   {
     var lot = await lotRepository.FirstOrDefaultAsync(new ParkingLotBySpaceIdSpec(request.SpaceId), cancellationToken);
-    if (lot == null) return Result.NotFound();
+    if (lot is null) return Result.NotFound();
 
-    var space = lot.Spaces.First(s => s.Id == request.SpaceId);
-    if (space.Status != SpaceStatus.Active)
+    if (lot.Spaces.Single(space => space.Id == request.SpaceId).Status != SpaceStatus.Active)
     {
       return Result.Invalid(new ValidationError("SpaceId", "Space is not active"));
     }
 
-    var driver = await driverRepository.FirstOrDefaultAsync(new DriverByIdSpec(request.DriverId), cancellationToken);
-    if (driver == null) return Result.NotFound();
-
-    var existingSpaceReservation = await reservationRepository.FirstOrDefaultAsync(
-      new ActiveReservationBySpaceSpec(request.SpaceId), cancellationToken);
-    if (existingSpaceReservation != null)
+    if (!await driverRepository.AnyAsync(new DriverByIdSpec(request.DriverId), cancellationToken))
     {
-      return Result.Conflict("Space already has an active reservation");
+      return Result.NotFound();
     }
 
-    var existingDriverLotReservation = await reservationRepository.FirstOrDefaultAsync(
-      new ActiveReservationByDriverLotSpec(request.DriverId, lot.Id), cancellationToken);
-    if (existingDriverLotReservation != null)
+    if (await reservationRepository.AnyAsync(new ActiveReservationBySpaceSpec(request.SpaceId), cancellationToken))
     {
-      return Result.Conflict("Driver already has an active reservation in this lot");
+      return Result.Conflict(ReservationConflicts.SpaceAlreadyReserved);
     }
+
+    if (await reservationRepository.AnyAsync(
+          new ActiveReservationByDriverLotSpec(request.DriverId, lot.Id), cancellationToken))
+    {
+      return Result.Conflict(ReservationConflicts.DriverAlreadyReservedInLot);
+    }
+
+    var markReserved = lot.UpdateSpace(request.SpaceId, new SpaceUpdate(Type: SpaceType.Reserved), request.ActorId);
+    if (!markReserved.IsSuccess) return markReserved;
 
     var reservation = Reservation.Create(request.SpaceId, request.DriverId, lot.Id, request.ActorId);
-    await reservationRepository.AddAsync(reservation, cancellationToken);
+    try
+    {
+      await unitOfWork.ExecuteInTransactionAsync(async ct =>
+      {
+        await reservationRepository.AddAsync(reservation, ct);
+        await lotRepository.UpdateAsync(lot, ct);
+      }, cancellationToken);
+    }
+    catch (UniqueConstraintViolationException exception)
+      when (ReservationConflicts.MessageFor(exception) is { } message)
+    {
+      return Result.Conflict(message);
+    }
 
-    lot.UpdateSpace(request.SpaceId, label: null, type: SpaceType.Reserved, request.ActorId);
-    await lotRepository.UpdateAsync(lot, cancellationToken);
-
-    return new ReservationDto(reservation.Id, reservation.SpaceId, reservation.DriverId, reservation.LotId,
-      reservation.Status);
+    return ReservationResponse.From(reservation);
   }
 }

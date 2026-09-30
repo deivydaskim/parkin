@@ -13,7 +13,7 @@ public sealed class GetActiveReservationBySpaceRequest
 }
 
 public class GetActiveReservationBySpaceEndpoint(IMediator mediator)
-  : Endpoint<GetActiveReservationBySpaceRequest, Results<Ok<ReservationRecord>, NoContent>>
+  : Endpoint<GetActiveReservationBySpaceRequest, Results<Ok<ReservationResponse>, NoContent>>
 {
   public override void Configure()
   {
@@ -32,19 +32,17 @@ public class GetActiveReservationBySpaceEndpoint(IMediator mediator)
 
     Description(builder => builder
       .Accepts<GetActiveReservationBySpaceRequest>()
-      .Produces<ReservationRecord>(200, "application/json")
+      .Produces<ReservationResponse>(200, "application/json")
       .Produces(204));
   }
 
-  public override async Task<Results<Ok<ReservationRecord>, NoContent>>
+  public override async Task<Results<Ok<ReservationResponse>, NoContent>>
     ExecuteAsync(GetActiveReservationBySpaceRequest request, CancellationToken cancellationToken)
   {
-    var result = await mediator.Send(
+    var reservation = await mediator.Send(
       new GetActiveReservationBySpaceQuery(ParkingSpaceId.From(request.SpaceId)), cancellationToken);
 
-    return result.Value is null
-      ? TypedResults.NoContent()
-      : TypedResults.Ok(ReservationMapping.ToRecord(result.Value));
+    return reservation is null ? TypedResults.NoContent() : TypedResults.Ok(reservation);
   }
 }
 

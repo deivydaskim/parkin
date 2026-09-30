@@ -1,5 +1,6 @@
 using Parkin.Api.Domain.DriverAggregate;
 using Parkin.Api.Domain.DriverAggregate.Specifications;
+using Parkin.Api.Domain.Exceptions;
 using Parkin.Api.Domain.Interfaces;
 using Parkin.Api.Domain.ReservationAggregate;
 using Parkin.Api.Domain.ReservationAggregate.Specifications;
@@ -9,59 +10,49 @@ namespace Parkin.Api.Features.Reservations.Reassign;
 public record ReassignReservationCommand(
   ReservationId ReservationId,
   DriverId NewDriverId,
-  Guid? ActorId) : ICommand<Result<ReservationDto>>;
+  Guid? ActorId) : ICommand<Result<ReservationResponse>>;
 
 public class ReassignReservationHandler(
   IRepository<Reservation> reservationRepository,
-  IRepository<Driver> driverRepository,
+  IReadRepository<Driver> driverRepository,
   IUnitOfWork unitOfWork)
-  : ICommandHandler<ReassignReservationCommand, Result<ReservationDto>>
+  : ICommandHandler<ReassignReservationCommand, Result<ReservationResponse>>
 {
-  public async ValueTask<Result<ReservationDto>> Handle(ReassignReservationCommand request, CancellationToken cancellationToken)
+  public async ValueTask<Result<ReservationResponse>> Handle(ReassignReservationCommand request,
+    CancellationToken cancellationToken)
   {
-    var oldReservation = await reservationRepository.FirstOrDefaultAsync(
-      new ReservationByIdSpec(request.ReservationId), cancellationToken);
-    if (oldReservation == null) return Result.NotFound();
+    var oldReservation = await reservationRepository.GetByIdAsync(request.ReservationId, cancellationToken);
+    if (oldReservation is null) return Result.NotFound();
 
-    if (oldReservation.Status != ReservationStatus.Active)
+    var reassignment = oldReservation.ReassignTo(request.NewDriverId, request.ActorId);
+    if (!reassignment.IsSuccess) return reassignment.Map(ReservationResponse.From);
+
+    if (!await driverRepository.AnyAsync(new DriverByIdSpec(request.NewDriverId), cancellationToken))
     {
-      return Result.Invalid(new ValidationError("ReservationId", "Reservation is not active"));
+      return Result.NotFound();
     }
 
-    if (oldReservation.DriverId == request.NewDriverId)
+    if (await reservationRepository.AnyAsync(
+          new ActiveReservationByDriverLotSpec(request.NewDriverId, oldReservation.LotId), cancellationToken))
     {
-      return Result.Invalid(new ValidationError("NewDriverId", "Reservation already belongs to this driver"));
+      return Result.Conflict(ReservationConflicts.DriverAlreadyReservedInLot);
     }
 
-    var newDriver = await driverRepository.FirstOrDefaultAsync(
-      new DriverByIdSpec(request.NewDriverId), cancellationToken);
-    if (newDriver == null) return Result.NotFound();
-
-    var existingDriverLotReservation = await reservationRepository.FirstOrDefaultAsync(
-      new ActiveReservationByDriverLotSpec(request.NewDriverId, oldReservation.LotId), cancellationToken);
-    if (existingDriverLotReservation != null)
+    var newReservation = reassignment.Value;
+    try
     {
-      return Result.Conflict("Driver already has an active reservation in this lot");
+      await unitOfWork.ExecuteInTransactionAsync(async ct =>
+      {
+        await reservationRepository.UpdateAsync(oldReservation, ct);
+        await reservationRepository.AddAsync(newReservation, ct);
+      }, cancellationToken);
+    }
+    catch (UniqueConstraintViolationException exception)
+      when (ReservationConflicts.MessageFor(exception) is { } message)
+    {
+      return Result.Conflict(message);
     }
 
-    var spaceId = oldReservation.SpaceId;
-    var lotId = oldReservation.LotId;
-    var previousReservationId = oldReservation.Id;
-    var previousDriverId = oldReservation.DriverId;
-
-    Reservation? newReservation = null;
-
-    await unitOfWork.ExecuteInTransactionAsync(async ct =>
-    {
-      oldReservation.Cancel(request.ActorId);
-      await reservationRepository.UpdateAsync(oldReservation, ct);
-
-      newReservation = Reservation.CreateForReassignment(
-        spaceId, request.NewDriverId, lotId, previousReservationId, previousDriverId, request.ActorId);
-      await reservationRepository.AddAsync(newReservation, ct);
-    }, cancellationToken);
-
-    return new ReservationDto(newReservation!.Id, newReservation.SpaceId, newReservation.DriverId,
-      newReservation.LotId, newReservation.Status);
+    return ReservationResponse.From(newReservation);
   }
 }

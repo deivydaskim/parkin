@@ -7,24 +7,12 @@ namespace Parkin.Api.Infrastructure.Data.Queries;
 
 public class ListPlatesByDriverQueryService(AppDbContext db) : IListPlatesByDriverQueryService
 {
-  private readonly AppDbContext _db = db;
-
-  public async Task<PagedResult<PlateDto>> ListAsync(DriverId driverId, int page, int perPage)
-  {
-    var query = _db.Plates.Where(p => p.DriverId == driverId);
-
-    var items = await query
-      .OrderBy(p => p.NormalizedPlateNumber)
-      .Skip((page - 1) * perPage)
-      .Take(perPage)
-      .Select(p => new PlateDto(p.Id, p.DriverId, p.NormalizedPlateNumber, p.Status))
-      .AsNoTracking()
-      .ToListAsync();
-
-    int totalCount = await query.CountAsync();
-    int totalPages = (int)Math.Ceiling(totalCount / (double)perPage);
-    var result = new PagedResult<PlateDto>(items, page, perPage, totalCount, totalPages);
-
-    return result;
-  }
+  public Task<PagedResult<PlateResponse>> ListAsync(DriverId driverId, int page, int perPage,
+    CancellationToken cancellationToken)
+    => db.Plates.AsNoTracking()
+      .Where(plate => plate.DriverId == driverId)
+      .OrderBy(plate => plate.NormalizedPlateNumber)
+      .Select(plate => new PlateResponse(
+        plate.Id.Value, plate.DriverId.Value, plate.NormalizedPlateNumber, plate.Status))
+      .ToPagedResultAsync(page, perPage, cancellationToken);
 }

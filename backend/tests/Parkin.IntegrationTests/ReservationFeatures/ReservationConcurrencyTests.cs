@@ -64,7 +64,7 @@ public class ReservationConcurrencyTests : IClassFixture<PostgresFixture>
         await context.SaveChangesAsync();
         return true;
       }
-      catch (UniqueConstraintViolationException)
+      catch (UniqueConstraintViolationException violation) when (violation.ConstraintName == Reservation.ActiveSpaceIndex)
       {
         return false;
       }

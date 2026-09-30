@@ -6,7 +6,6 @@ using Parkin.Api.Domain.AccessGrantAggregate;
 using Parkin.Api.Domain.ParkingLotAggregate;
 using Parkin.Api.Features.Drivers;
 using Parkin.Api.Features.Grants;
-using Parkin.Api.Features.Grants.List;
 using Parkin.Api.Features.Lots;
 using Parkin.Api.Features.Lots.Create;
 using Shouldly;
@@ -46,20 +45,20 @@ public class GrantsByLotTests : IClassFixture<ParkinApiFactory>
     return lot.Id;
   }
 
-  private static async Task<DriverRecord> CreateDriverAsync(HttpClient client)
+  private static async Task<DriverResponse> CreateDriverAsync(HttpClient client)
   {
     var response = await client.PostAsJsonAsync("/drivers", new { Name = $"Driver {Guid.NewGuid():N}" });
     response.EnsureSuccessStatusCode();
-    var driver = await response.Content.ReadFromJsonAsync<DriverRecord>(JsonOptions);
+    var driver = await response.Content.ReadFromJsonAsync<DriverResponse>(JsonOptions);
     driver.ShouldNotBeNull();
     return driver;
   }
 
-  private static async Task<GrantRecord> CreateGrantAsync(HttpClient client, Guid driverId, Guid lotId)
+  private static async Task<GrantResponse> CreateGrantAsync(HttpClient client, Guid driverId, Guid lotId)
   {
     var response = await client.PostAsJsonAsync("/grants", new { DriverId = driverId, LotId = lotId });
     response.StatusCode.ShouldBe(HttpStatusCode.Created);
-    var grant = await response.Content.ReadFromJsonAsync<GrantRecord>(JsonOptions);
+    var grant = await response.Content.ReadFromJsonAsync<GrantResponse>(JsonOptions);
     grant.ShouldNotBeNull();
     return grant;
   }

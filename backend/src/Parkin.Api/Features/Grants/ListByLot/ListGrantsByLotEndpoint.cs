@@ -1,8 +1,9 @@
 using FastEndpoints;
 using FluentValidation;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.ParkingLotAggregate;
-using Parkin.Api.Features.Grants.List;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Grants.ListByLot;
 
@@ -20,7 +21,7 @@ public sealed class ListGrantsByLotRequest
 }
 
 public class ListGrantsByLotEndpoint(IMediator mediator)
-  : Endpoint<ListGrantsByLotRequest, GrantListResponse, ListGrantsByLotMapper>
+  : Endpoint<ListGrantsByLotRequest, Results<Ok<GrantListResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
@@ -46,41 +47,15 @@ public class ListGrantsByLotEndpoint(IMediator mediator)
       .ProducesProblem(400));
   }
 
-  public override async Task HandleAsync(ListGrantsByLotRequest request, CancellationToken cancellationToken)
+  public override async Task<Results<Ok<GrantListResponse>, ValidationProblem, ProblemHttpResult>>
+    ExecuteAsync(ListGrantsByLotRequest request, CancellationToken cancellationToken)
   {
     var result = await mediator.Send(
       new ListGrantsByLotQuery(ParkingLotId.From(request.LotId), request.Page, request.PerPage), cancellationToken);
-    if (!result.IsSuccess)
-    {
-      await Send.ErrorsAsync(statusCode: 400, cancellationToken);
-      return;
-    }
 
-    var pagedResult = result.Value;
-    AddLinkHeader(pagedResult.Page, pagedResult.PerPage, pagedResult.TotalPages);
+    if (result.IsSuccess) HttpContext.AppendPaginationLinks(result.Value);
 
-    await Send.OkAsync(Map.FromEntity(pagedResult), cancellationToken);
-  }
-
-  private void AddLinkHeader(int page, int perPage, int totalPages)
-  {
-    var baseUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}{HttpContext.Request.Path}";
-    string Link(string rel, int p) => $"<{baseUrl}?page={p}&per_page={perPage}>; rel=\"{rel}\"";
-
-    var parts = new List<string>();
-    if (page > 1)
-    {
-      parts.Add(Link("first", 1));
-      parts.Add(Link("prev", page - 1));
-    }
-    if (page < totalPages)
-    {
-      parts.Add(Link("next", page + 1));
-      parts.Add(Link("last", totalPages));
-    }
-
-    if (parts.Count > 0)
-      HttpContext.Response.Headers["Link"] = string.Join(", ", parts);
+    return result.ToOkResult(GrantListResponse.From);
   }
 }
 
@@ -99,16 +74,5 @@ public sealed class ListGrantsByLotValidator : Validator<ListGrantsByLotRequest>
     RuleFor(x => x.PerPage)
       .InclusiveBetween(1, Constants.MAX_PAGE_SIZE)
       .WithMessage($"per_page must be between 1 and {Constants.MAX_PAGE_SIZE}");
-  }
-}
-
-public sealed class ListGrantsByLotMapper
-  : Mapper<ListGrantsByLotRequest, GrantListResponse, PagedResult<GrantDto>>
-{
-  public override GrantListResponse FromEntity(PagedResult<GrantDto> e)
-  {
-    var items = e.Items.Select(GrantMapping.ToRecord).ToList();
-
-    return new GrantListResponse(items, e.Page, e.PerPage, e.TotalCount, e.TotalPages);
   }
 }

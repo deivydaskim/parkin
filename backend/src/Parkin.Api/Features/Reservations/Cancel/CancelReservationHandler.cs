@@ -1,21 +1,23 @@
 using Parkin.Api.Domain.ReservationAggregate;
-using Parkin.Api.Domain.ReservationAggregate.Specifications;
 
 namespace Parkin.Api.Features.Reservations.Cancel;
 
-public record CancelReservationCommand(ReservationId ReservationId, Guid? ActorId) : ICommand<Result<ReservationDto>>;
+public record CancelReservationCommand(ReservationId ReservationId, Guid? ActorId)
+  : ICommand<Result<ReservationResponse>>;
 
 public class CancelReservationHandler(IRepository<Reservation> repository)
-  : ICommandHandler<CancelReservationCommand, Result<ReservationDto>>
+  : ICommandHandler<CancelReservationCommand, Result<ReservationResponse>>
 {
-  public async ValueTask<Result<ReservationDto>> Handle(CancelReservationCommand request, CancellationToken cancellationToken)
+  public async ValueTask<Result<ReservationResponse>> Handle(CancelReservationCommand request,
+    CancellationToken cancellationToken)
   {
-    var reservation = await repository.FirstOrDefaultAsync(new ReservationByIdSpec(request.ReservationId), cancellationToken);
-    if (reservation == null) return Result.NotFound();
+    var reservation = await repository.GetByIdAsync(request.ReservationId, cancellationToken);
+    if (reservation is null) return Result.NotFound();
 
-    reservation.Cancel(request.ActorId);
+    var result = reservation.Cancel(request.ActorId);
+    if (!result.IsSuccess) return result;
+
     await repository.UpdateAsync(reservation, cancellationToken);
-
-    return new ReservationDto(reservation.Id, reservation.SpaceId, reservation.DriverId, reservation.LotId, reservation.Status);
+    return ReservationResponse.From(reservation);
   }
 }

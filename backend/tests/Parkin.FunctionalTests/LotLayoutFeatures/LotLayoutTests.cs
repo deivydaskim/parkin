@@ -74,7 +74,7 @@ public class LotLayoutTests : IClassFixture<ParkinApiFactory>
   {
     var response = await client.PostAsJsonAsync("/drivers", new { Name = name });
     response.EnsureSuccessStatusCode();
-    var driver = await response.Content.ReadFromJsonAsync<DriverRecord>(JsonOptions);
+    var driver = await response.Content.ReadFromJsonAsync<DriverResponse>(JsonOptions);
     driver.ShouldNotBeNull();
     return driver.Id;
   }
@@ -305,7 +305,7 @@ public class LotLayoutTests : IClassFixture<ParkinApiFactory>
     var driverId = await CreateDriverAsync(admin, driverName);
     var reserve = await admin.PostAsJsonAsync("/reservations", new { SpaceId = reserved.Id, DriverId = driverId });
     reserve.EnsureSuccessStatusCode();
-    var reservation = await reserve.Content.ReadFromJsonAsync<ReservationRecord>(JsonOptions);
+    var reservation = await reserve.Content.ReadFromJsonAsync<ReservationResponse>(JsonOptions);
 
     var view = await GetLayoutAsync(admin, lot.Id);
 

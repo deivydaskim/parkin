@@ -4,5 +4,6 @@ namespace Parkin.Api.Features.Grants.ListByLot;
 
 public interface IListGrantsByLotQueryService
 {
-  Task<PagedResult<GrantDto>> ListAsync(ParkingLotId lotId, int page, int perPage);
+  Task<PagedResult<GrantResponse>> ListAsync(ParkingLotId lotId, int page, int perPage,
+    CancellationToken cancellationToken);
 }

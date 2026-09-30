@@ -1,7 +1,9 @@
 using FastEndpoints;
 using FluentValidation;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.DriverAggregate;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Plates.List;
 
@@ -18,19 +20,9 @@ public sealed class ListPlatesByDriverRequest
   public int PerPage { get; init; } = Constants.DEFAULT_PAGE_SIZE;
 }
 
-public record PlateListResponse : PagedResult<PlateRecord>
-{
-  public PlateListResponse(IReadOnlyList<PlateRecord> Items, int Page, int PerPage, int TotalCount, int TotalPages)
-    : base(Items, Page, PerPage, TotalCount, TotalPages)
-  {
-  }
-}
-
 public class ListPlatesByDriverEndpoint(IMediator mediator)
-  : Endpoint<ListPlatesByDriverRequest, PlateListResponse, ListPlatesByDriverMapper>
+  : Endpoint<ListPlatesByDriverRequest, Results<Ok<PlateListResponse>, ValidationProblem, ProblemHttpResult>>
 {
-  private readonly IMediator _mediator = mediator;
-
   public override void Configure()
   {
     Get(ListPlatesByDriverRequest.Route);
@@ -55,42 +47,15 @@ public class ListPlatesByDriverEndpoint(IMediator mediator)
       .ProducesProblem(400));
   }
 
-  public override async Task HandleAsync(ListPlatesByDriverRequest request, CancellationToken cancellationToken)
+  public override async Task<Results<Ok<PlateListResponse>, ValidationProblem, ProblemHttpResult>>
+    ExecuteAsync(ListPlatesByDriverRequest request, CancellationToken cancellationToken)
   {
-    var result = await _mediator.Send(
+    var result = await mediator.Send(
       new ListPlatesByDriverQuery(DriverId.From(request.DriverId), request.Page, request.PerPage), cancellationToken);
-    if (!result.IsSuccess)
-    {
-      await Send.ErrorsAsync(statusCode: 400, cancellationToken);
-      return;
-    }
 
-    var pagedResult = result.Value;
-    AddLinkHeader(pagedResult.Page, pagedResult.PerPage, pagedResult.TotalPages);
+    if (result.IsSuccess) HttpContext.AppendPaginationLinks(result.Value);
 
-    var response = Map.FromEntity(pagedResult);
-    await Send.OkAsync(response, cancellationToken);
-  }
-
-  private void AddLinkHeader(int page, int perPage, int totalPages)
-  {
-    var baseUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}{HttpContext.Request.Path}";
-    string Link(string rel, int p) => $"<{baseUrl}?page={p}&per_page={perPage}>; rel=\"{rel}\"";
-
-    var parts = new List<string>();
-    if (page > 1)
-    {
-      parts.Add(Link("first", 1));
-      parts.Add(Link("prev", page - 1));
-    }
-    if (page < totalPages)
-    {
-      parts.Add(Link("next", page + 1));
-      parts.Add(Link("last", totalPages));
-    }
-
-    if (parts.Count > 0)
-      HttpContext.Response.Headers["Link"] = string.Join(", ", parts);
+    return result.ToOkResult(PlateListResponse.From);
   }
 }
 
@@ -109,16 +74,5 @@ public sealed class ListPlatesByDriverValidator : Validator<ListPlatesByDriverRe
     RuleFor(x => x.PerPage)
       .InclusiveBetween(1, Constants.MAX_PAGE_SIZE)
       .WithMessage($"per_page must be between 1 and {Constants.MAX_PAGE_SIZE}");
-  }
-}
-
-public sealed class ListPlatesByDriverMapper
-  : Mapper<ListPlatesByDriverRequest, PlateListResponse, PagedResult<PlateDto>>
-{
-  public override PlateListResponse FromEntity(PagedResult<PlateDto> e)
-  {
-    var items = e.Items.Select(PlateMapping.ToRecord).ToList();
-
-    return new PlateListResponse(items, e.Page, e.PerPage, e.TotalCount, e.TotalPages);
   }
 }

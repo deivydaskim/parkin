@@ -234,7 +234,7 @@ public class IngestAccessEventHandlerTests
   {
     var lot = GivenLot(accessMode: AccessMode.Restricted);
     var driver = GivenKnownDriver();
-    var expired = AccessGrant.Create(driver.Id, lot.Id, Now.AddDays(-10), Now.AddDays(-1), actorId: null);
+    var expired = AccessGrant.Create(driver.Id, lot.Id, Now.AddDays(-10), Now.AddDays(-1), Now, actorId: null).Value;
     _grantRepository.ListAsync(Arg.Any<ActiveGrantForDriverLotSpec>(), Arg.Any<CancellationToken>())
       .Returns([expired]);
 
@@ -249,7 +249,7 @@ public class IngestAccessEventHandlerTests
   {
     var lot = GivenLot(accessMode: AccessMode.Restricted);
     var driver = GivenKnownDriver();
-    var grant = AccessGrant.Create(driver.Id, lot.Id, Now.AddDays(-1), Now.AddDays(1), actorId: null);
+    var grant = AccessGrant.Create(driver.Id, lot.Id, Now.AddDays(-1), Now.AddDays(1), Now, actorId: null).Value;
     _grantRepository.ListAsync(Arg.Any<ActiveGrantForDriverLotSpec>(), Arg.Any<CancellationToken>())
       .Returns([grant]);
 
@@ -269,7 +269,7 @@ public class IngestAccessEventHandlerTests
     _driverRepository.FirstOrDefaultAsync(Arg.Any<PlateByNormalizedValueSpec>(), Arg.Any<CancellationToken>())
       .Returns(driver);
     _grantRepository.ListAsync(Arg.Any<ActiveGrantForDriverLotSpec>(), Arg.Any<CancellationToken>())
-      .Returns([AccessGrant.Create(driver.Id, lot.Id, Now.AddDays(-1), null, actorId: null)]);
+      .Returns([AccessGrant.Create(driver.Id, lot.Id, Now.AddDays(-1), null, Now, actorId: null).Value]);
 
     var result = await CreateSut().Handle(Command(lot.Id), CancellationToken.None);
 

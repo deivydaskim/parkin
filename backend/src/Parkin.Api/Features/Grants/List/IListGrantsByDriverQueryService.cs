@@ -4,5 +4,6 @@ namespace Parkin.Api.Features.Grants.List;
 
 public interface IListGrantsByDriverQueryService
 {
-  Task<PagedResult<GrantDto>> ListAsync(DriverId driverId, int page, int perPage);
+  Task<PagedResult<GrantResponse>> ListAsync(DriverId driverId, int page, int perPage,
+    CancellationToken cancellationToken);
 }

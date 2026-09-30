@@ -1,11 +1,15 @@
 using FastEndpoints;
 using FluentValidation;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Drivers.List;
 
 public sealed class ListDriversRequest
 {
+  public const string Route = "/drivers";
+
   [BindFrom("page")]
   public int Page { get; init; } = 1;
 
@@ -19,21 +23,12 @@ public sealed class ListDriversRequest
   public string? Search { get; init; }
 }
 
-public record DriverListResponse : PagedResult<DriverRecord>
+public class ListDriversEndpoint(IMediator mediator)
+  : Endpoint<ListDriversRequest, Results<Ok<DriverListResponse>, ValidationProblem, ProblemHttpResult>>
 {
-  public DriverListResponse(IReadOnlyList<DriverRecord> Items, int Page, int PerPage, int TotalCount, int TotalPages)
-    : base(Items, Page, PerPage, TotalCount, TotalPages)
-  {
-  }
-}
-
-public class ListDriversEndpoint(IMediator mediator) : Endpoint<ListDriversRequest, DriverListResponse, ListDriversMapper>
-{
-  private readonly IMediator _mediator = mediator;
-
   public override void Configure()
   {
-    Get("/drivers");
+    Get(ListDriversRequest.Route);
     Roles(AccessPolicies.OperatorOrAbove);
 
     Summary(s =>
@@ -57,41 +52,15 @@ public class ListDriversEndpoint(IMediator mediator) : Endpoint<ListDriversReque
       .ProducesProblem(400));
   }
 
-  public override async Task HandleAsync(ListDriversRequest request, CancellationToken cancellationToken)
+  public override async Task<Results<Ok<DriverListResponse>, ValidationProblem, ProblemHttpResult>>
+    ExecuteAsync(ListDriversRequest request, CancellationToken cancellationToken)
   {
-    var result = await _mediator.Send(new ListDriversQuery(request.Page, request.PerPage, request.Status, request.Search), cancellationToken);
-    if (!result.IsSuccess)
-    {
-      await Send.ErrorsAsync(statusCode: 400, cancellationToken);
-      return;
-    }
+    var result = await mediator.Send(
+      new ListDriversQuery(request.Page, request.PerPage, request.Status, request.Search), cancellationToken);
 
-    var pagedResult = result.Value;
-    AddLinkHeader(pagedResult.Page, pagedResult.PerPage, pagedResult.TotalPages);
+    if (result.IsSuccess) HttpContext.AppendPaginationLinks(result.Value);
 
-    var response = Map.FromEntity(pagedResult);
-    await Send.OkAsync(response, cancellationToken);
-  }
-
-  private void AddLinkHeader(int page, int perPage, int totalPages)
-  {
-    var baseUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}{HttpContext.Request.Path}";
-    string Link(string rel, int p) => $"<{baseUrl}?page={p}&per_page={perPage}>; rel=\"{rel}\"";
-
-    var parts = new List<string>();
-    if (page > 1)
-    {
-      parts.Add(Link("first", 1));
-      parts.Add(Link("prev", page - 1));
-    }
-    if (page < totalPages)
-    {
-      parts.Add(Link("next", page + 1));
-      parts.Add(Link("last", totalPages));
-    }
-
-    if (parts.Count > 0)
-      HttpContext.Response.Headers["Link"] = string.Join(", ", parts);
+    return result.ToOkResult(DriverListResponse.From);
   }
 }
 
@@ -110,16 +79,5 @@ public sealed class ListDriversValidator : Validator<ListDriversRequest>
     RuleFor(x => x.Search)
       .MaximumLength(200)
       .WithMessage("search must not exceed 200 characters");
-  }
-}
-
-public sealed class ListDriversMapper
-  : Mapper<ListDriversRequest, DriverListResponse, PagedResult<DriverDto>>
-{
-  public override DriverListResponse FromEntity(PagedResult<DriverDto> e)
-  {
-    var items = e.Items.Select(DriverMapping.ToRecord).ToList();
-
-    return new DriverListResponse(items, e.Page, e.PerPage, e.TotalCount, e.TotalPages);
   }
 }

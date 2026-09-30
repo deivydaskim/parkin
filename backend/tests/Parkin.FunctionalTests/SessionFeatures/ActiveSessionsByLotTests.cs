@@ -52,11 +52,11 @@ public class ActiveSessionsByLotTests : IClassFixture<ParkinApiFactory>
     return lot.Id;
   }
 
-  private static async Task<DriverRecord> CreateDriverWithPlateAsync(HttpClient client, string plate)
+  private static async Task<DriverResponse> CreateDriverWithPlateAsync(HttpClient client, string plate)
   {
     var driverResponse = await client.PostAsJsonAsync("/drivers", new { Name = $"Driver {Guid.NewGuid():N}" });
     driverResponse.EnsureSuccessStatusCode();
-    var driver = await driverResponse.Content.ReadFromJsonAsync<DriverRecord>(JsonOptions);
+    var driver = await driverResponse.Content.ReadFromJsonAsync<DriverResponse>(JsonOptions);
     driver.ShouldNotBeNull();
 
     var plateResponse = await client.PostAsJsonAsync($"/drivers/{driver.Id}/plates", new { PlateNumber = plate });

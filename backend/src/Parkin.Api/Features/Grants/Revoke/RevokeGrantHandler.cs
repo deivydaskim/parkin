@@ -1,21 +1,21 @@
 using Parkin.Api.Domain.AccessGrantAggregate;
-using Parkin.Api.Domain.AccessGrantAggregate.Specifications;
 
 namespace Parkin.Api.Features.Grants.Revoke;
 
-public record RevokeGrantCommand(AccessGrantId GrantId, Guid? ActorId) : ICommand<Result<GrantDto>>;
+public record RevokeGrantCommand(AccessGrantId GrantId, Guid? ActorId) : ICommand<Result<GrantResponse>>;
 
 public class RevokeGrantHandler(IRepository<AccessGrant> repository)
-  : ICommandHandler<RevokeGrantCommand, Result<GrantDto>>
+  : ICommandHandler<RevokeGrantCommand, Result<GrantResponse>>
 {
-  public async ValueTask<Result<GrantDto>> Handle(RevokeGrantCommand request, CancellationToken cancellationToken)
+  public async ValueTask<Result<GrantResponse>> Handle(RevokeGrantCommand request, CancellationToken cancellationToken)
   {
-    var grant = await repository.FirstOrDefaultAsync(new AccessGrantByIdSpec(request.GrantId), cancellationToken);
-    if (grant == null) return Result.NotFound();
+    var grant = await repository.GetByIdAsync(request.GrantId, cancellationToken);
+    if (grant is null) return Result.NotFound();
 
-    grant.Revoke(request.ActorId);
+    var result = grant.Revoke(request.ActorId);
+    if (!result.IsSuccess) return result;
+
     await repository.UpdateAsync(grant, cancellationToken);
-
-    return new GrantDto(grant.Id, grant.DriverId, grant.ParkingLotId, grant.ValidFrom, grant.ValidTo, grant.Status);
+    return GrantResponse.From(grant);
   }
 }

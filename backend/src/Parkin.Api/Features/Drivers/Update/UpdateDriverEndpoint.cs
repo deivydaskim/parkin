@@ -1,10 +1,9 @@
-using System.Security.Claims;
 using FastEndpoints;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Parkin.Api.Authorization;
 using Parkin.Api.Domain.DriverAggregate;
-using Parkin.Api.Extensions;
+using Parkin.Api.Web;
 
 namespace Parkin.Api.Features.Drivers.Update;
 
@@ -17,8 +16,8 @@ public sealed class UpdateDriverRequest
   public string? Contact { get; init; }
 }
 
-public class UpdateDriverEndpoint(IMediator mediator)
-  : Endpoint<UpdateDriverRequest, Results<Ok<DriverRecord>, NotFound, ProblemHttpResult>>
+public class UpdateDriverEndpoint(IMediator mediator, ICurrentUser currentUser)
+  : Endpoint<UpdateDriverRequest, Results<Ok<DriverResponse>, ValidationProblem, ProblemHttpResult>>
 {
   public override void Configure()
   {
@@ -38,22 +37,20 @@ public class UpdateDriverEndpoint(IMediator mediator)
 
     Description(builder => builder
       .Accepts<UpdateDriverRequest>()
-      .Produces<DriverRecord>(200, "application/json")
+      .Produces<DriverResponse>(200, "application/json")
       .ProducesProblem(404)
       .ProducesProblem(400));
   }
 
-  public override async Task<Results<Ok<DriverRecord>, NotFound, ProblemHttpResult>>
+  public override async Task<Results<Ok<DriverResponse>, ValidationProblem, ProblemHttpResult>>
     ExecuteAsync(UpdateDriverRequest request, CancellationToken cancellationToken)
   {
-    var actorIdClaim = HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-    var actorId = actorIdClaim is null ? (Guid?)null : Guid.Parse(actorIdClaim);
     var command = new UpdateDriverCommand(
-      DriverId.From(request.DriverId), request.Name, request.Contact, actorId);
+      DriverId.From(request.DriverId), request.Name, request.Contact, currentUser.Id);
 
     var result = await mediator.Send(command, cancellationToken);
 
-    return result.ToUpdateResult(DriverMapping.ToRecord);
+    return result.ToOkResult(driver => driver);
   }
 }
 

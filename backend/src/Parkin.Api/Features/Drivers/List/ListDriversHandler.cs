@@ -1,19 +1,12 @@
 namespace Parkin.Api.Features.Drivers.List;
 
-public record ListDriversQuery(int? Page = 1, int? PerPage = Constants.DEFAULT_PAGE_SIZE,
-  DriverStatusFilter? Status = null, string? Search = null)
-  : IQuery<Result<PagedResult<DriverDto>>>;
+public record ListDriversQuery(int Page, int PerPage, DriverStatusFilter? Status, string? Search)
+  : IQuery<Result<PagedResult<DriverResponse>>>;
 
 public class ListDriversHandler(IListDriversQueryService query)
-  : IQueryHandler<ListDriversQuery, Result<PagedResult<DriverDto>>>
+  : IQueryHandler<ListDriversQuery, Result<PagedResult<DriverResponse>>>
 {
-  private readonly IListDriversQueryService _query = query;
-
-  public async ValueTask<Result<PagedResult<DriverDto>>> Handle(ListDriversQuery request,
-                                                                  CancellationToken cancellationToken)
-  {
-    var result = await _query.ListAsync(request.Page ?? 1, request.PerPage ?? Constants.DEFAULT_PAGE_SIZE, request.Status, request.Search);
-
-    return Result.Success(result);
-  }
+  public async ValueTask<Result<PagedResult<DriverResponse>>> Handle(ListDriversQuery request,
+    CancellationToken cancellationToken)
+    => await query.ListAsync(request.Page, request.PerPage, request.Status, request.Search, cancellationToken);
 }
