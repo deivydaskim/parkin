@@ -9,6 +9,7 @@ export const denyReasonLabels: Record<DenyReason, string> = {
   NotAuthorized: 'Not authorized for this lot',
   LotFull: 'Lot is full',
   NoOpenSession: 'No open session for this plate',
+  AlreadyParked: 'Vehicle is already parked in this lot',
   LotArchived: 'Lot is archived',
   LotNotFound: 'Lot not found',
 }

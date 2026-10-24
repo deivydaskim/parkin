@@ -5,6 +5,7 @@ public enum DenyReason
   NotAuthorized,
   LotFull,
   NoOpenSession,
+  AlreadyParked,
   LotArchived,
   LotNotFound
 }

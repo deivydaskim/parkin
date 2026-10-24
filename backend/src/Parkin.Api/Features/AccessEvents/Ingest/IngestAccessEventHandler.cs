@@ -69,6 +69,11 @@ public class IngestAccessEventHandler(
   private async Task<AccessEventDecisionResponse> EnterAsync(GateEvent gateEvent, GateLot lot,
     CancellationToken cancellationToken)
   {
+    if (await HasActiveSessionAsync(gateEvent, cancellationToken))
+    {
+      return await DenyAsync(gateEvent, DenyReason.AlreadyParked, cancellationToken);
+    }
+
     var entry = await entryContextBuilder.BuildAsync(lot, gateEvent.Plate, gateEvent.Command.OccurredAt,
       cancellationToken);
     var decision = EntryDecision.Decide(entry.DecisionContext);
@@ -90,6 +95,10 @@ public class IngestAccessEventHandler(
 
     return AccessEventDecisionResponse.From(accessEvent, pool, decision.ReservedSpaceLabel);
   }
+
+  private async Task<bool> HasActiveSessionAsync(GateEvent gateEvent, CancellationToken cancellationToken)
+    => await sessionRepository.AnyAsync(
+      new MostRecentActiveSessionByPlateSpec(gateEvent.Command.LotId, gateEvent.NormalizedPlate), cancellationToken);
 
   private async Task<AccessEventDecisionResponse> ExitAsync(GateEvent gateEvent, CancellationToken cancellationToken)
   {

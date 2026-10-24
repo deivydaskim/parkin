@@ -38,7 +38,8 @@ public class IngestAccessEventEndpoint(IMediator mediator, ICurrentUser currentU
         "A required Idempotency-Key makes retries safe. Keys are scoped to the " +
         "calling API key: replaying a key with the same plate and direction returns the original " +
         "decision verbatim and never double-counts, while reusing it for a different plate or " +
-        "direction is rejected with 409. An ALLOWed ENTER opens a parking session; an EXIT closes the " +
+        "direction is rejected with 409. An ALLOWed ENTER opens a parking session; an ENTER for a plate " +
+        "that already has an open session in the lot is denied as AlreadyParked. An EXIT closes the " +
         "most-recent open session for that plate in the key's lot, or is recorded as a NoOpenSession anomaly " +
         "that leaves occupancy untouched. Every genuine outcome is a 200 with a decision body, including " +
         "denials.";

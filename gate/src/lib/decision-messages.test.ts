@@ -41,6 +41,7 @@ describe('describeDecision', () => {
     ['NotAuthorized', 'Not authorized'],
     ['LotFull', 'Lot full'],
     ['NoOpenSession', 'No entry recorded'],
+    ['AlreadyParked', 'Already parked'],
     ['LotArchived', 'Lot closed'],
     ['LotNotFound', 'Lot closed'],
   ] as const)('maps deny reason %s', (reason, text) => {

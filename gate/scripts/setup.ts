@@ -127,7 +127,9 @@ async function resolveApiKey(
     name: API_KEY_NAME,
     lotId: lot.id,
   })
-  log(`Created API key "${API_KEY_NAME}" for "${lot.name}" (${created.prefix}…)`)
+  log(
+    `Created API key "${API_KEY_NAME}" for "${lot.name}" (${created.prefix}…)`,
+  )
   return created.key
 }
 

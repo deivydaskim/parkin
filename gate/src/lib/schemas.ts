@@ -13,6 +13,7 @@ export const denyReasonSchema = z.enum([
   'NotAuthorized',
   'LotFull',
   'NoOpenSession',
+  'AlreadyParked',
   'LotArchived',
   'LotNotFound',
 ])

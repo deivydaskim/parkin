@@ -361,6 +361,22 @@ public class IngestAccessEventHandlerTests
   }
 
   [Fact]
+  public async Task Handle_EnterWithOpenSession_DeniesAsAlreadyParkedAndOpensNoSession()
+  {
+    GivenLot();
+    _sessionRepository.AnyAsync(Arg.Any<MostRecentActiveSessionByPlateSpec>(), Arg.Any<CancellationToken>())
+      .Returns(true);
+
+    var result = await CreateSut().Handle(Command(), CancellationToken.None);
+
+    result.Value.Decision.ShouldBe(Decision.Deny);
+    result.Value.Reason.ShouldBe(DenyReason.AlreadyParked);
+    result.Value.SessionId.ShouldBeNull();
+    await _accessEventRepository.Received(1).AddAsync(Arg.Any<AccessEvent>(), Arg.Any<CancellationToken>());
+    await _sessionRepository.DidNotReceive().AddAsync(Arg.Any<ParkingSession>(), Arg.Any<CancellationToken>());
+  }
+
+  [Fact]
   public async Task Handle_ExitWithNoOpenSession_RecordsAnomalyAndTouchesNoSession()
   {
     GivenLot();

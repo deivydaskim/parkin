@@ -17,6 +17,10 @@ const DENY_MESSAGES: Record<DenyReason, { text: string; subtext: string }> = {
     text: 'No entry recorded',
     subtext: 'No open session for this plate',
   },
+  AlreadyParked: {
+    text: 'Already parked',
+    subtext: 'Exit before entering again',
+  },
   LotArchived: { text: 'Lot closed', subtext: 'Gate is not in service' },
   LotNotFound: { text: 'Lot closed', subtext: 'Unknown lot' },
 }
@@ -25,6 +29,7 @@ export const DENY_REASON_LABELS: Record<DenyReason, string> = {
   NotAuthorized: 'Not authorized',
   LotFull: 'Lot full',
   NoOpenSession: 'No open session',
+  AlreadyParked: 'Already parked',
   LotArchived: 'Lot archived',
   LotNotFound: 'Lot not found',
 }
